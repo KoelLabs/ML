@@ -8,7 +8,9 @@ EspeakWrapper.set_library(_ESPEAK_LIBRARY)
 # load model and processor
 pipe = pipeline(
     "automatic-speech-recognition",
-    model="facebook/wav2vec2-lv-60-espeak-cv-ft",
+    # model="facebook/wav2vec2-lv-60-espeak-cv-ft",
+    # model="facebook/wav2vec2-xlsr-53-espeak-cv-ft",
+    model="ctaguchi/wav2vec2-large-xlsr-japlmthufielta-ipa1000-ns",
 )
 
 print(pipe("./alexIsConfused.wav"))
