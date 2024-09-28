@@ -11,6 +11,7 @@ pipe = pipeline(
     # model="facebook/wav2vec2-lv-60-espeak-cv-ft",
     # model="facebook/wav2vec2-xlsr-53-espeak-cv-ft",
     model="ctaguchi/wav2vec2-large-xlsr-japlmthufielta-ipa1000-ns",
+    # model="ginic/wav2vec-large-xlsr-en-ipa",
 )
 
 print(pipe("./alexIsConfused.wav"))
