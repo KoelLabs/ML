@@ -7,13 +7,21 @@ python -m venv ./venv
 source ./venv/bin/activate
 
 # dependencies
-pip install sherpa-ncnn
-pip install sounddevice
+pip install -r requirements.txt
+brew install espeak
+
+# create gitignored directories
+mkdir -p ./data
+mkdir -p ./models
+mkdir -p ./repos
 
 # install https://huggingface.co/bookbot/pruned-transducer-stateless7-streaming-id
+cd ./models
 mkdir -p sherpa-models
 cd sherpa-models
 git lfs install
 git clone https://huggingface.co/bookbot/sherpa-ncnn-pruned-transducer-stateless7-streaming-id.git
 wget https://github.com/k2-fsa/sherpa-ncnn/releases/download/models/sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
 tar xvf sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
+rm sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
+cd ../../

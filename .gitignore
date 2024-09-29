@@ -1,3 +1,14 @@
-sherpa-models
+# models, data, and git repos
+models/
+repos/
+.data/
+
+# secrets
+.env
+
+# python
 venv
+__pycache__
+
+# macOS
 .DS_Store
