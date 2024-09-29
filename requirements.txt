@@ -8,7 +8,6 @@ bibtexparser==2.0.0b7
 certifi==2024.8.30
 cffi==1.17.1
 charset-normalizer==3.3.2
-clap==0.1
 clldutils==3.22.2
 colorama==0.4.6
 colorlog==6.8.2
