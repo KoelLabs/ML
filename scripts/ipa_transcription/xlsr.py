@@ -32,6 +32,7 @@ MODEL_IDS = [
     "ginic/hyperparam_tuning_1_wav2vec2-large-xlsr-buckeye-ipa",  # ginic models are all very similar
     "speech31/wav2vec2-large-TIMIT-IPA",  # works quite well and has word boundaries as the only model
     "speech31/wav2vec2-large-TIMIT-IPA2",  # works quite well but no word boundaries
+    "speech31/wav2vec2-large-english-TIMIT-phoneme_v3",  # works quite well but no word boundaries
     "speech31/XLS-R-300m-english-ipa",  # slightly weirder spelling
     "speech31/wavlm-large-english-ipa",  # adds extra sounds that are not there
     "speech31/hubert-base-english-ipa",  # adds extra sounds

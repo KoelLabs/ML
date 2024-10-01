@@ -25,3 +25,7 @@ wget https://github.com/k2-fsa/sherpa-ncnn/releases/download/models/sherpa-ncnn-
 tar xvf sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
 rm sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
 cd ../../
+
+cd ./repos
+git clone https://github.com/PKlumpp/phd_model.git
+cd ../

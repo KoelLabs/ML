@@ -21,6 +21,17 @@ def audio_array_to_wav_file(input_array, output_path, output_sample_rate=16000):
     wavfile.write(output_path, output_sample_rate, input_array)
 
 
+def audio_file_to_array(input_path, desired_sample_rate=16000):
+    rate, data = wavfile.read(input_path)
+    if rate != desired_sample_rate:
+        data = np.interp(
+            np.linspace(0, len(data), int(len(data) * desired_sample_rate / rate)),
+            np.arange(len(data)),
+            data,
+        ).astype(np.int16)
+    return data
+
+
 def audio_array_play(input_array, sample_rate=16000):
     sd.play(input_array, sample_rate)
     sd.wait()
