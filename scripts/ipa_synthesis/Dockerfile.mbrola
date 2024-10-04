@@ -5,11 +5,13 @@ RUN apt-get -y update && apt-get -y install make gcc git wget
 RUN git clone https://github.com/numediart/MBROLA.git
 RUN cd MBROLA && make && cp Bin/mbrola /usr/bin/mbrola
 
-# install voices
+# install voices (e.g. https://github.com/numediart/MBROLA-voices?tab=readme-ov-file)
 RUN wget "https://github.com/numediart/MBROLA-voices/blob/master/data/us1/us1?raw=true"
 RUN mv us1?raw=true us1
 RUN wget "https://github.com/numediart/MBROLA-voices/blob/master/data/us2/us2?raw=true"
 RUN mv us2?raw=true us2
+RUN wget "https://github.com/numediart/MBROLA-voices/blob/master/data/us3/us3?raw=true"
+RUN mv us3?raw=true us3
 
 # set default command and entrypoint
 ENTRYPOINT [ "mbrola" ]
