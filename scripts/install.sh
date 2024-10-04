@@ -30,3 +30,8 @@ cd ../../
 cd ./repos
 git clone https://github.com/PKlumpp/phd_model.git
 cd ../
+
+# install https://github.com/jhasegaw/phonecodes
+cd ./repos
+git clone https://github.com/jhasegaw/phonecodes.git
+cd ../

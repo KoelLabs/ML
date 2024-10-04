@@ -1,0 +1,20 @@
+FROM ubuntu:18.04
+
+# install mbrola
+RUN apt-get -y update && apt-get -y install make gcc git wget
+RUN git clone https://github.com/numediart/MBROLA.git
+RUN cd MBROLA && make && cp Bin/mbrola /usr/bin/mbrola
+
+# install voices
+RUN wget "https://github.com/numediart/MBROLA-voices/blob/master/data/us1/us1?raw=true"
+RUN mv us1?raw=true us1
+RUN wget "https://github.com/numediart/MBROLA-voices/blob/master/data/us2/us2?raw=true"
+RUN mv us2?raw=true us2
+
+# set default command and entrypoint
+ENTRYPOINT [ "mbrola" ]
+CMD ["-h"]
+
+# build: docker build -t mbrola -f ./scripts/ipa_synthesis/Dockerfile.mbrola ./scripts/ipa_synthesis
+# run: docker run -v ../../data:/data -it --rm mbrola [COMMAND] [ARGS]
+#      docker run -v ./data:/data -it --rm mbrola -e us1 /data/input.pho /data/mbrola_output.wav
