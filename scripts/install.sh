@@ -26,6 +26,7 @@ tar xvf sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
 rm sherpa-ncnn-streaming-zipformer-20M-2023-02-17.tar.bz2
 cd ../../
 
+# install https://github.com/PKlumpp/phd_model
 cd ./repos
 git clone https://github.com/PKlumpp/phd_model.git
 cd ../

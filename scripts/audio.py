@@ -37,8 +37,12 @@ def audio_array_play(input_array, sample_rate=16000):
     sd.wait()
 
 
-def audio_wav_file_play(input_path):
+def audio_wav_file_play(input_path, start_sec=None, end_sec=None):
+    print(start_sec, end_sec)
     rate, data = wavfile.read(input_path)
+    start = int(float(start_sec) * rate) if start_sec else 0
+    end = int(float(end_sec) * rate) if end_sec else len(data)
+    data = data[start:end]
     audio_array_play(data, rate)
 
 
@@ -94,13 +98,17 @@ def main(args):
         else:
             audio_convert(args[1], args[2])
     elif args[0] == "play":
-        audio_wav_file_play(args[1])
+        start, end = None, None
+        if len(args) > 2:
+            start, end = args[2].split(":")
+            start, end = float(start), float(end)
+        audio_wav_file_play(args[1], start, end)
     elif args[0] == "text":
         audio_file_from_text(args[1], args[2])
     else:
         print("Invalid command")
         print("Usage: python ./scripts/audio.py record <output_wav_path>")
-        print("Usage: python ./scripts/audio.py play <input_wav_path>")
+        print("Usage: python ./scripts/audio.py play <input_wav_path> [start:end]")
         print("Usage: python ./scripts/audio.py convert <input_path> <output_path>")
         print(
             "Usage: python ./scripts/audio.py convert <input_path> <output_path> <output_sample_rate>"
