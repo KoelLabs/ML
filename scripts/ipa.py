@@ -3,7 +3,6 @@ import os
 
 import ipapy
 from ipapy.ipastring import IPAString
-from ipapy.ipachar import IPAChar
 from ipapy.kirshenbaummapper import KirshenbaumMapper
 
 kmapper = KirshenbaumMapper()

@@ -35,3 +35,5 @@ cd ../
 cd ./repos
 git clone https://github.com/jhasegaw/phonecodes.git
 cd ../
+
+# install ./.data/TIMIT.zip from https://www.kaggle.com/datasets/mfekadu/darpa-timit-acousticphonetic-continuous-speech?resource=download
