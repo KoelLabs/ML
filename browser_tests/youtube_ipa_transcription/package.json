@@ -1,0 +1,17 @@
+{
+    "name": "download_youtube_video",
+    "version": "1.0.0",
+    "description": "",
+    "main": "main.js",
+    "private": true,
+    "scripts": {
+        "start": "node main.js"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.21.1",
+        "ytdl-core": "^4.11.5"
+    }
+}
