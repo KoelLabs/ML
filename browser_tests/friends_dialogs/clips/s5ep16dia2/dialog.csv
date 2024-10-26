@@ -1,0 +1,12 @@
+Sr No.;Utterance;Speaker;Emotion;Sentiment;Dialogue_ID;Utterance_ID;Season;Episode;StartTime;EndTime
+27;Okay.;Ross;neutral;neutral;2;0;5;16;00:07:26,446;00:07:27,487
+28;Ross, didn't you say that there was an elevator in here?;Rachel;neutral;neutral;2;1;5;16;00:07:27,655;00:07:30,574
+29;Uhh, yes I did but there isn't. Okay, here we go.;Ross;sadness;negative;2;2;5;16;00:07:30,741;00:07:34,119
+30;Okay, go left. Left! Left!;Ross;surprise;negative;2;3;5;16;00:07:35,413;00:07:37,205
+31;Okay, y'know what? There is no more left, left!;Rachel;anger;negative;2;4;5;16;00:07:39,709;00:07:43,128
+32;Oh okay, lift it straight up over your head!;Ross;anger;negative;2;5;5;16;00:07:43,963;00:07:46,047
+33;Straight up over your head!;Ross;anger;negative;2;6;5;16;0:07:46,215;0:07:47,777
+34;You can do it!;Ross;joy;positive;2;7;5;16;0:07:47,777;0:07:48,648
+35;You can do it!;Ross;joy;positive;2;8;5;16;00:07:48,759;00:07:50,010
+36;Okay.;Ross;neutral;neutral;2;9;5;16;0:07:50,178;0:07:51,150
+37;You got it?;Ross;neutral;neutral;2;10;5;16;0:07:51,150;0:07:52,227

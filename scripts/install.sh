@@ -37,3 +37,13 @@ git clone https://github.com/jhasegaw/phonecodes.git
 cd ../
 
 # install ./.data/TIMIT.zip from https://www.kaggle.com/datasets/mfekadu/darpa-timit-acousticphonetic-continuous-speech?resource=download
+
+# install https://github.com/xenova/transformers.js
+cd ./repos
+git clone https://github.com/xenova/transformers.js.git
+cd ../
+
+# download https://affective-meld.github.io/
+cd ./.data
+wget https://huggingface.co/datasets/declare-lab/MELD/resolve/main/MELD.Raw.tar.gz
+cd ../
