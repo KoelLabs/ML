@@ -41,6 +41,7 @@ MODEL_IDS = [
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-nl",  # smaller, still weird
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.5",  # OK, a bit unconventional spelling
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.9.2WithoutSpaces",  # not bad, not good
+    "vitouphy/wav2vec2-xls-r-300m-timit-phoneme" # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
 ]
 
 pipelines = {}
