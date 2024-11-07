@@ -40,6 +40,7 @@ editdistance==0.8.1
 evaluate==0.4.3
 executing==2.1.0
 fast-ctc-decode==0.3.6
+fastdtw
 ffmpeg-python==0.2.0
 filelock==3.16.1
 flask==3.0.3
