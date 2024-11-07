@@ -1,58 +1,36 @@
+from dtw import dtw
 import panphon
 import numpy as np
 
-from fastdtw import fastdtw
-from scipy.spatial.distance import cosine
-
+# Initialize the panphon feature table
 ft = panphon.FeatureTable()
 
 def phoneme_feature_vector(phoneme):
-    """Get the feature vector for a phoneme."""
+    """Get the feature vector for a phoneme using panphon."""
     vectors = ft.word_to_vector_list(phoneme, numeric=True)
-    return np.array(vectors[0]) if vectors else None
+    if vectors:
+        return np.array(vectors[0])  # Return the vector for the single phoneme
+    else:
+        print(f"Warning: No vector found for phoneme '{phoneme}'")
+        return None
 
-def dtw_phonemic_distance(target, predicted):
-    """Calculate DTW phonemic distance between two transcriptions."""
-    
-    # Convert each phoneme in both transcriptions to a feature vector using the panphone featuremap
-    target_vectors = [phoneme_feature_vector(p) for p in target]
-    predicted_vectors = [phoneme_feature_vector(p) for p in predicted]
-    
-    # Filter out any None values where phonemes had no feature representation
-    target_vectors = [v for v in target_vectors if v is not None]
-    predicted_vectors = [v for v in predicted_vectors if v is not None]
+def word_to_feature_sequence(word_phonemes):
+    """Convert a list of phonemes to a sequence of feature vectors."""
+    return [phoneme_feature_vector(phoneme) for phoneme in word_phonemes if phoneme_feature_vector(phoneme) is not None]
 
-    # Calculate DTW on the sequences of vectors
-    distance, _ = fastdtw(target_vectors, predicted_vectors, dist=cosine)
-    return distance
+# Define the phoneme sequences
+correct_phoneme = ["ɛ", "s", "p", "r", "ɛ", "s", "oʊ"]
 
-def simple_phonemic_distance(target, predicted):
-    """Calculate phonemic distance by directly comparing each phoneme pair."""
-    distances = []
-    min_length = min(len(target), len(predicted))
+incorrect_phoneme = ["ɛ", "k", "s", "p", "r", "ɛ", "s", "oʊ"]
+# Convert the phoneme sequences to feature vector sequences
+wednesday1_vectors = word_to_feature_sequence(correct_phoneme)
+wednesday2_vectors = word_to_feature_sequence(incorrect_phoneme)
 
-    for i in range(min_length):
-        t_vec = phoneme_feature_vector(target[i])
-        p_vec = phoneme_feature_vector(predicted[i])
+# Define a custom distance function (Euclidean distance)
+def euclidean_distance(x, y):
+    return np.linalg.norm(x - y)
 
-        # Skip if either phoneme has no feature vector
-        if t_vec is None or p_vec is None:
-            distances.append(1)  # Arbitrary high distance for unrecognized phonemes
-        else:
-            # Calculate cosine distance between the feature vectors
-            distances.append(cosine(t_vec, p_vec))
-    
-    # Average or sum the distances
-    return np.mean(distances)
-
-
-# Example usage
-target_transcription = "ælɛks ɪz ɛkstrə kənfjuzd".split()  # Adjust to IPA list as needed
-predicted_transcription = "æligz ɪz ɛkstknfjuzd".split()  # Adjust as needed
-
-distance_score = dtw_phonemic_distance(target_transcription, predicted_transcription)
-print("Phonemic DTW distance score:", distance_score)
-print("Normalized score:", distance_score / len(target_transcription))
-distance_score2 = simple_phonemic_distance(target_transcription, predicted_transcription)
-print("Phonemic distance score without DTW:", distance_score2)
-
+# Compute DTW distance without using 'dist' parameter
+alignment = dtw(wednesday1_vectors, wednesday2_vectors, keep_internals=True, step_pattern="symmetric2", dist_method=euclidean_distance)
+dist = alignment.distance
+print("Distance between pronunciations:", dist)
