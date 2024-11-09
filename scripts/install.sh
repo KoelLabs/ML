@@ -8,7 +8,9 @@ source ./venv/bin/activate
 
 # dependencies
 pip install -r requirements.txt
-brew install espeak
+brew install espeak 
+#  sudo apt install espeak
+
 
 # create gitignored directories
 mkdir -p ./data
