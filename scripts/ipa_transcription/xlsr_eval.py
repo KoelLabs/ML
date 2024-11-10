@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
 
 from transformers import pipeline
-
 import sys
 import os
 from tempfile import NamedTemporaryFile
 
+
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+from scripts.eval_tests.panphon_model_eval import panphon_model_eval  # Import the function
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from scripts.audio import audio_record_to_file
 
-# set espeak library path for macOS
-if sys.platform == "darwin":
-    from phonemizer.backend.espeak.wrapper import EspeakWrapper
-
-    _ESPEAK_LIBRARY = "/opt/homebrew/Cellar/espeak/1.48.04_1/lib/libespeak.1.1.48.dylib"
-    EspeakWrapper.set_library(_ESPEAK_LIBRARY)
-
-
-# list of English IPA XLSR models that work (all model files uploaded correctly, not empty results)
+# list of English IPA XLSR models that work
 MODEL_IDS = [
     "facebook/wav2vec2-lv-60-espeak-cv-ft",  # Samir's recommended best for English
     "facebook/wav2vec2-xlsr-53-espeak-cv-ft",  # very similar to 60
@@ -44,8 +38,8 @@ MODEL_IDS = [
     "vitouphy/wav2vec2-xls-r-300m-timit-phoneme" # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
 ]
 
-pipelines = {}
 
+pipelines = {}
 
 def xlsr_transcribe(input_path, model_id=MODEL_IDS[0]):
     pipelines[model_id] = pipelines.get(model_id) or pipeline(
@@ -55,27 +49,39 @@ def xlsr_transcribe(input_path, model_id=MODEL_IDS[0]):
     )
     return pipelines[model_id](input_path).get("text", "")
 
-def xlsr_transcribe_from_mic(model_id=MODEL_IDS[0]):
-    with NamedTemporaryFile(suffix=".wav") as f:
-        audio_record_to_file(f.name)
-        return xlsr_transcribe(f.name, model_id)
+def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
+    # Transcribe the input audio file using the selected model
+    transcription = xlsr_transcribe(input_path, model_id)
+    print(f"Transcription from model '{model_id}': {transcription}")
+    # remove the spaces between the phonemes
+    transcription = transcription.replace(" ", "")
+    predicted = transcription
+    label = ground_truth
 
+    # Call panphon_model_eval with label and predictedipa
+    results = panphon_model_eval(label, predicted)
+
+    # Output results
+    print("Evaluation Results:")
+    print(f"DTW distance: {results['dtw_distance']}")
+    print(f"CER: {results['cer_score']}")
+    
+    return results
+    
+    
 
 def main(args):
-    model_id = MODEL_IDS[0] if len(args) < 2 else args[1]
-    if args[0] == "mic":
-        print(xlsr_transcribe_from_mic(model_id))
-    else:
-        try:
-            input_path = args[0]
-            print(xlsr_transcribe(input_path, model_id))
-        except Exception as e:
-            print(e)
-            print("Usage: python ./scripts/ipa_transcription/xlsr.py mic [model_id]")
-            print(
-                "Usage: python ./scripts/ipa_transcription/xlsr.py <input_wav_path> [model_id]"
-            )
+    # Get model_id from command line argument or use default model if none provided
+    model_id = args[0] if len(args) > 0 else MODEL_IDS[0]
 
+    # Default input path and ground truth if not provided
+    input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+    ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
+    print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
+    print(f"Starting evaluation on TIMIT audio sample: {input_path}")
+    
+    # Evaluate using the specified model, input path, and ground truth
+    evaluate_xlsr(input_path, ground_truth, model_id)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
