@@ -63,7 +63,9 @@ def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
 
     # Output results
     print("Evaluation Results:")
+    print(f"dtw no pad distance: {results['dtw_distance_no_pad']}")
     print(f"DTW distance: {results['dtw_distance']}")
+    print(f"DTW distance percent, normalized by length: {results['dtw_distance_percent']}")
     print(f"CER: {results['cer_score']}")
     
     return results
