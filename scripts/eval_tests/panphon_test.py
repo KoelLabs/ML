@@ -1,7 +1,10 @@
 import numpy as np
 import panphon
 from fastdtw import fastdtw
-
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
+from scripts.ipa import filter_chars
 # Initialize the panphon feature table
 ft = panphon.FeatureTable()
 # global var called embedding length
@@ -44,6 +47,7 @@ def compute_dtw_distance(label_embeddings, predicted_embeddings):
 
     return distance
 
+
 def cer(pred, label):
     """Compute the Character Error Rate (CER) between two sequences."""
     distances = np.zeros((len(pred) + 1, len(label) + 1))
@@ -79,7 +83,7 @@ def cer(pred, label):
 
 # Define test cases
 test_cases = [
-    (['b', 'æ', 't'], ['p', 'æ', 't']),   # "bat" vs "pat"
+    (['b', 'æ', 't'], ['p', 'æ', 't', 'ɚ', 'ː']),   # "bat" vs "pat"
     (['b', 'æ', 't'], ['m', 'æ', 't']),   # "bat" vs "mat"
     (['b', 'æ', 't'], ['k', 'æ', 't']),   # "bat" vs "mat"
     (['b', 'æ', 't'], ['m', 'æ', 't', 't']),   # "bat" vs "mat"
@@ -94,6 +98,17 @@ test_cases = [
 
 # Iterate through test cases and calculate distances
 for i, (label_phonemes, predicted_phonemes) in enumerate(test_cases):
+
+    # quick TEST
+    ipa_string = "ˈkætəˌɡɔːri"  # Example IPA string with stress markers
+    filtered_string = filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb")
+    print("TETSW ETESTWEIGYQWDGILYDEQ")
+    print(filtered_string)
+    # clean up the label and predicted 
+    # label_phonemes = filter_chars(label_phonemes)
+    # predicted_phonemes = filter_chars("".join(predicted_phonemes), "cns_vwl_str_len_wb_sb")
+    print(f"label_phonemes: {label_phonemes}")
+    print(f"predicted_phonemes: {predicted_phonemes}")
     # Convert to embeddings
     label_embeddings = word_to_feature_sequence(label_phonemes)
     predicted_embeddings = word_to_feature_sequence(predicted_phonemes)
@@ -107,6 +122,10 @@ for i, (label_phonemes, predicted_phonemes) in enumerate(test_cases):
     # print(f"label_embeddings: {label_embeddings}")
     # print(f"predicted_embeddings: {predicted_embeddings}")
     # print the embeddings that are different between label and predicted
+    # compute levenstein distance between the two embeddings and then divide by the length of the embeddings
+    
+
+
     dist = compute_dtw_distance(label_embeddings, predicted_embeddings)
     dist_percent = dist / (max_len*EMBEDDING_LEN)
 
