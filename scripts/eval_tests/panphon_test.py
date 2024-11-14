@@ -32,23 +32,6 @@ def hamming_distance(v1, v2):
     return np.sum(np.array(v1) != np.array(v2))
 
 
-def phoneme_feature_vector(phoneme):
-    """Get the feature vector for a phoneme using panphon."""
-    vectors = ft.word_to_vector_list(phoneme, numeric=True)
-    if vectors is None:
-        # Handle missing vectors, either by skipping or providing a default vector
-        print(f"Warning: No vector found for phoneme '{phoneme}'")
-        return np.zeros(EMBEDDING_LEN)  # 22 is the feature vector length used by panphon
-    print(f"vectors: {vectors}")
-    return 
-    
-
-
-def word_to_feature_sequence(word_phonemes):
-    """Convert a list of phonemes to a sequence of feature vectors."""
-    list_emb = [phoneme_feature_vector(phoneme) for phoneme in word_phonemes if phoneme_feature_vector(phoneme) is not None]
-    return list_emb
-
 def compute_dtw_distance(label_embeddings, predicted_embeddings):
     """Compute the Dynamic Time Warping distance between two sequences of feature vectors."""
     # FastDTW returns a tuple (distance, path), but we are interested only in the distance
@@ -113,16 +96,16 @@ print(vectors)
 # Define test cases
 test_cases = [
     (['b', 'æ', 't'], ['p', 'æ', 't', 'ɚ', 'ː']),   # "bat" vs "pat"
-    # (['b', 'æ', 't'], ['m', 'æ', 't']),   # "bat" vs "mat"
-    # (['b', 'æ', 't'], ['k', 'æ', 't']),   # "bat" vs "mat"
-    # (['b', 'æ', 't'], ['m', 'æ', 't', 't']),   # "bat" vs "mat"
-    # (['b', 'æ', 't'], ['b', 'æ', 'θ', 'θ', 'θ']),   # "bat" vs "bath"
-    # (['r', 'æ', 't'], ['b', 'æ', 't']),   # "rat" vs "bat"
-    #     (['θ', 'ɪ', 'ŋ', 'k'], ['s', 'ɪ', 'ŋ', 'k']),  # "think" vs "sink"
-    # (['θ', 'ɪ', 'ŋ', 'k'], ['s', 'ɪ', 'ŋ', 'k', 'n']),  # "think" vs "sinkn"
-    # (['θ', 'ɪ', 'ŋ', 'k'], ['θ', 'æ', 'ŋ', 'k']), # "think" vs "thank"
-    # (['ɹ', 'aɪ', 't'], ['w', 'r', 'aɪ', 't']),   # "right" vs "write"
-    # (['ʃ', 'ɪ', 'p'], ['s', 'ɪ', 'p']),   # "ship" vs "sip"
+    (['b', 'æ', 't'], ['m', 'æ', 't']),   # "bat" vs "mat"
+    (['b', 'æ', 't'], ['k', 'æ', 't']),   # "bat" vs "mat"
+    (['b', 'æ', 't'], ['m', 'æ', 't', 't']),   # "bat" vs "mat"
+    (['b', 'æ', 't'], ['b', 'æ', 'θ', 'θ', 'θ']),   # "bat" vs "bath"
+    (['r', 'æ', 't'], ['b', 'æ', 't']),   # "rat" vs "bat"
+    (['θ', 'ɪ', 'ŋ', 'k'], ['s', 'ɪ', 'ŋ', 'k']),  # "think" vs "sink"
+    (['θ', 'ɪ', 'ŋ', 'k'], ['s', 'ɪ', 'ŋ', 'k', 'n']),  # "think" vs "sinkn"
+    (['θ', 'ɪ', 'ŋ', 'k'], ['θ', 'æ', 'ŋ', 'k']), # "think" vs "thank"
+    (['ɹ', 'aɪ', 't'], ['w', 'r', 'aɪ', 't']),   # "right" vs "write"
+    (['ʃ', 'ɪ', 'p'], ['s', 'ɪ', 'p']),   # "ship" vs "sip"
 ]
 
 # Initialize the FeatureTable class
