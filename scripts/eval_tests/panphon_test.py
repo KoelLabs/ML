@@ -110,8 +110,8 @@ test_cases = [
 ft = panphon.FeatureTable()
 
 # Define the continuous IPA sequence (e.g., a sentence)
-ipa_sequence = "ðððððððɨ"
-second_ipa_sequence = "ðɨ``````"
+ipa_sequence = "ððððɨ"
+second_ipa_sequence = "˧˧˧ðɨ"
 second_noisy_ipa_sequence = "ðððððððɨ"
 
 #preprocess the `ipa_sequence` to remove unsupported symbols
@@ -133,7 +133,7 @@ names = ft.names
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_ipa_sequence)
 weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(ipa_sequence, second_ipa_sequence)
 hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(ipa_sequence, second_ipa_sequence)
-normalized_by_len = (weighted_feature_dist / (abs(len(ipa_sequence) - len(second_ipa_sequence))+1e-8))
+normalized_by_len = (weighted_feature_dist / (len(ipa_sequence) + len(second_ipa_sequence)))
 # calculate hamming distance with fastdtw
 # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
 
@@ -146,7 +146,7 @@ print(f"CER (no noise): {cer(second_ipa_sequence, ipa_sequence)}")
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
 weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
 hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
-normalized_by_len = min(1, (weighted_feature_dist /(abs(len(ipa_sequence) - len(second_ipa_sequence))+1e-8)))
+normalized_by_len = (weighted_feature_dist /(len(ipa_sequence) + len(second_ipa_sequence)))
 # calculate hamming distance with fastdtw
 # dist, path = fastdtw(feature_array, second_noisy_feature_array, dist=hamming_distance)
 # print("Ground truth: ", ipa_sequence)
