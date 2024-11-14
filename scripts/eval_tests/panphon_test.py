@@ -136,14 +136,9 @@ hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance
 dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
 print("Ground truth: ", ipa_sequence)
 print("Sequence (no noise): ", second_ipa_sequence)
-print(f"Feature Edit Distance: {feature_dist}")
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-# print(f"Hamming Feature Edit Distance: {hamming_feature_dist}")
-# print(f"hamming distance fastdtw: {dist}")
-# normalize the weighted feature edit distance by the length of the feature array
-print(f"Normalized Weighted Feature Edit Distance: {weighted_feature_dist/2}")
-print(f"exponetiated norm:", np.exp(-weighted_feature_dist))
-print("/n")
+print(f"Normalized Weighted Feature Edit Distance: {np.log(weighted_feature_dist + 1)}")
+print(f"CER (no noise): {cer(second_ipa_sequence, ipa_sequence)}")
 # calculate distance between first feature array and second noise feature array
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
 weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
@@ -152,13 +147,9 @@ hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance
 dist, path = fastdtw(feature_array, second_noisy_feature_array, dist=hamming_distance)
 print("Ground truth: ", ipa_sequence)
 print("Sequence (noisy): ", second_noisy_ipa_sequence)
-print(f"Feature Edit Distance: {feature_dist}")
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-# print(f"Hamming Feature Edit Distance: {hamming_feature_dist}")
-# print(f"hamming distance fastdtw: {dist}")
-print(f"Normalized Weighted Feature Edit Distance: {weighted_feature_dist/6}")
-print(f"exponetiated norm:", np.exp(-weighted_feature_dist))
-print(f"signoided: ", 1/(1+np.exp(-weighted_feature_dist)))
+print(f"Normalized Weighted Feature Edit Distance: {np.log(weighted_feature_dist + 1)}")
+print(f"CER (noise): {cer(second_ipa_sequence, ipa_sequence)}")
 
 
 
@@ -166,57 +157,3 @@ print(f"signoided: ", 1/(1+np.exp(-weighted_feature_dist)))
 
 
 
-
-# # Iterate through test cases and calculate distances
-# for i, (label_phonemes, predicted_phonemes) in enumerate(test_cases):
-#     # Preprocess the phonemes
-#     label_phonemes = preprocess_ipa(label_phonemes)
-#     predicted_phonemes = preprocess_ipa(predicted_phonemes)
-#     print(predicted_phonemes)
-
-#     print(f"label_phonemes: {label_phonemes}")
-#     print(f"predicted_phonemes: {predicted_phonemes}")
-#     # Convert to embeddings
-#     label_embeddings = word_to_feature_sequence(label_phonemes)
-#     predicted_embeddings = word_to_feature_sequence(predicted_phonemes)
-#     print(f"label_embeddings: {label_embeddings}")
-#     print(f"predicted_embeddings: {predicted_embeddings}")
-#     # <TODO> use different panphone distance metrics  
-#     # Compute the distance using different Panphon distance metrics
-#     feature_dist = panphon.distance.Distance().feature_edit_distance(label_phonemes, predicted_phonemes)
-#     weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(label_phonemes, predicted_phonemes)
-#     hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(label_phonemes, predicted_phonemes)
-    
-#     # Print the results
-#     print(f"Feature Edit Distance: {feature_dist}")
-#     print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-#     print(f"Hamming Feature Edit Distance: {hamming_feature_dist}")
-
-#     # Calculate non-DTW distances: get per phoneme distance and then just average them
-#     # Equalize lengths by padding the shorter sequence with zeros
-#     max_len = max(len(label_embeddings), len(predicted_embeddings))
-#     label_embeddings = label_embeddings + [np.zeros(EMBEDDING_LEN)] * (max_len - len(label_embeddings))
-#     predicted_embeddings = predicted_embeddings + [np.zeros(EMBEDDING_LEN)] * (max_len - len(predicted_embeddings))
-#     # print(f"label_embeddings: {label_embeddings}")
-#     # print(f"predicted_embeddings: {predicted_embeddings}")
-#     # print the embeddings that are different between label and predicted
-#     # compute levenstein distance between the two embeddings and then divide by the length of the embeddings
-    
-
-
-#     dist = compute_dtw_distance(label_embeddings, predicted_embeddings)
-#     dist_percent = dist / (max_len*EMBEDDING_LEN)
-
-
-#     # Calculate CER
-#     cer_score = cer(predicted_phonemes, label_phonemes)
-
-#     # Print results for this test case
-#     print(f"Test Case {i+1}:")
-#     print(f"Label Phonemes: {label_phonemes}")
-#     print(f"Predicted Phonemes: {predicted_phonemes}")
-#     print(f"DTW distance (number of differences in embeddings): {dist:.4f}")
-#     print(f"DTW distance percent: {dist_percent:.4f}")
-
-#     print(f"CER: {cer_score:.4f}")
-#     print("=" * 50)
