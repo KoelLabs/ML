@@ -9,8 +9,6 @@ import yaml
 # # Initialize the Panphon Distance class
 # dist = panphon.distance.Distance()
 # Custom loader function
-
-
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from scripts.ipa import filter_chars
 # Initialize the panphon feature table
@@ -137,7 +135,8 @@ dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
 print("Ground truth: ", ipa_sequence)
 print("Sequence (no noise): ", second_ipa_sequence)
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-print(f"Normalized Weighted Feature Edit Distance: {np.log(weighted_feature_dist + 1)}")
+normalized_by_len = weighted_feature_dist / (len(ipa_sequence) + len(second_ipa_sequence))
+print(f"Normalized Weighted Feature Edit Distance: {1-normalized_by_len}")
 print(f"CER (no noise): {cer(second_ipa_sequence, ipa_sequence)}")
 # calculate distance between first feature array and second noise feature array
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
@@ -148,7 +147,8 @@ dist, path = fastdtw(feature_array, second_noisy_feature_array, dist=hamming_dis
 print("Ground truth: ", ipa_sequence)
 print("Sequence (noisy): ", second_noisy_ipa_sequence)
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-print(f"Normalized Weighted Feature Edit Distance: {np.log(weighted_feature_dist + 1)}")
+normalized_by_len = weighted_feature_dist / (len(ipa_sequence) + len(second_ipa_sequence))
+print(f"Normalized Weighted Feature Edit Distance: {1-normalized_by_len}")
 print(f"CER (noise): {cer(second_ipa_sequence, ipa_sequence)}")
 
 
