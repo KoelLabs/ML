@@ -31,10 +31,10 @@ MODEL_IDS = [
     "speech31/wavlm-large-english-ipa",  # adds extra sounds that are not there
     "speech31/hubert-base-english-ipa",  # adds extra sounds
     "snu-nia-12/wav2vec2-large_nia12_phone-ipa_english",  # works quite well
-    "Jubliano/wav2vec2-large-xls-r-300m-ipa",  # quite big and slow to load, very weird transcriptions
-    "Jubliano/wav2vec2-large-xls-r-300m-ipa-nl",  # smaller, still weird
-    "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.5",  # OK, a bit unconventional spelling
-    "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.9.2WithoutSpaces",  # not bad, not good
+    # "Jubliano/wav2vec2-large-xls-r-300m-ipa",  # quite big and slow to load, very weird transcriptions
+    # "Jubliano/wav2vec2-large-xls-r-300m-ipa-nl",  # smaller, still weird
+    # "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.5",  # OK, a bit unconventional spelling
+    # "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.9.2WithoutSpaces",  # not bad, not good
     "vitouphy/wav2vec2-xls-r-300m-timit-phoneme" # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
 ]
 
@@ -63,9 +63,9 @@ def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
 
     # Output results
     print("Evaluation Results:")
-    print(f"dtw no pad distance: {results['dtw_distance_no_pad']}")
-    print(f"DTW distance: {results['dtw_distance']}")
-    print(f"DTW distance percent, normalized by length: {results['dtw_distance_percent']}")
+    print(f"Feature edit distance: {results['feature_dist']}")
+    print(f"Weighted feature edit distance: {results['weighted_feature_dist']}")
+    print(f"Hamming distance: {results['hamming_feature_dist']}")
     print(f"CER: {results['cer_score']}")
     
     return results
@@ -73,17 +73,27 @@ def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
     
 
 def main(args):
-    # Get model_id from command line argument or use default model if none provided
-    model_id = args[0] if len(args) > 0 else MODEL_IDS[0]
+    """this coder simply does an evaluation against one sample of timit audio and phonemic transcription"""
+    # USAGE: python xlsr_eval.py <model_id or --all-models> 
+    # Check for the '--all-models' argument
+    if "--all-models" in args:
+        input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
+        print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
+        print(f"Starting evaluation on TIMIT audio sample: {input_path}")
 
-    # Default input path and ground truth if not provided
-    input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
-    ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
-    print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
-    print(f"Starting evaluation on TIMIT audio sample: {input_path}")
-    
-    # Evaluate using the specified model, input path, and ground truth
-    evaluate_xlsr(input_path, ground_truth, model_id)
+        # Loop through and evaluate all models
+        for model_id in MODEL_IDS:
+            evaluate_xlsr(input_path, ground_truth, model_id)
+    else:
+        # Single model evaluation
+        model_id = args[0] if len(args) > 0 else MODEL_IDS[0]
+        input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
+        print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
+        print(f"Starting evaluation on TIMIT audio sample: {input_path}")
+        
+        evaluate_xlsr(input_path, ground_truth, model_id)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

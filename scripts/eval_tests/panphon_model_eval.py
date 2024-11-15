@@ -1,5 +1,5 @@
 import numpy as np
-import panphon
+import panphon.distance
 from fastdtw import fastdtw
 
 # Initialize the panphon feature table
@@ -105,8 +105,8 @@ def panphon_model_eval(label, predicted):
 
     
     return {
-        "feature edit distance": feature_dist, 
-        "weighted feature edit distance": weighted_feature_dist,
-        "hamming feature distance": hamming_feature_dist,
+        "feature_dist": feature_dist, 
+        "weighted_feature_dist": weighted_feature_dist,
+        "hamming_feature_dist": hamming_feature_dist,
         "cer_score": cer_score
     }
