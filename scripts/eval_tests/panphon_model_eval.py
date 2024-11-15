@@ -21,22 +21,6 @@ def hamming_distance(v1, v2):
     return np.sum(np.array(v1) != np.array(v2))
 
 
-def phoneme_feature_vector(phoneme):
-    """Get the feature vector for a phoneme using panphon."""
-    vectors = ft.word_to_vector_list(phoneme, numeric=True)
-    if vectors:
-        return np.array(vectors[0])  # Return the vector for the single phoneme
-    
-    else:
-        # Handle missing vectors, either by skipping or providing a default vector
-        print(f"Warning: No vector found for phoneme '{phoneme}'")
-        return np.zeros(EMBEDDING_LEN)  # 22 is the feature vector length used by panphon
-
-def word_to_feature_sequence(word_phonemes):
-    """Convert a list of phonemes to a sequence of feature vectors."""
-    list_emb = [phoneme_feature_vector(phoneme) for phoneme in word_phonemes if phoneme_feature_vector(phoneme) is not None]
-    return list_emb
-
 def compute_dtw_distance(label_embeddings, predicted_embeddings):
     """Compute the Dynamic Time Warping distance between two sequences of feature vectors."""
     # FastDTW returns a tuple (distance, path), but we are interested only in the distance
@@ -111,26 +95,18 @@ def panphon_model_eval(label, predicted):
     feature_dist = panphon.distance.Distance().feature_edit_distance(label_sequence, pred_sequence)
     weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(label_sequence, pred_sequence)
     hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(label_sequence, pred_sequence)
-    normalized_by_len = (weighted_feature_dist / max(len(label_sequence), len(pred_sequence)))
+    # normalized_by_len = (weighted_feature_dist / max(len(label_sequence), len(pred_sequence)))
     # calculate hamming distance with fastdtw
     # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
     # CER calculation
     cer_score = cer(predicted, label)
     print("Ground truth: ", label)
     print("Predicted: ", predicted)
-    print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-    print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}") # this does not work...
-    print(f"CER (no noise): {cer_score}")
-
- 
-
-    # Print results
-    print("Phoneme Transcription Evaluation:")
 
     
     return {
-        "dtw_distance_no_pad": dist_no_pad,
-        "dtw_distance": dist,
-        "dtw_distance_percent": dist_percent,
+        "feature edit distance": feature_dist, 
+        "weighted feature edit distance": weighted_feature_dist,
+        "hamming feature distance": hamming_feature_dist,
         "cer_score": cer_score
     }
