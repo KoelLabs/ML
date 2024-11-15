@@ -87,8 +87,6 @@ def preprocess_ipa(ipa_string):
     return processed_string
 
 
-vectors = ft.word_to_vector_list('ɹ̩', numeric=True)
-print(vectors)
 
 
 # Define test cases
@@ -133,27 +131,28 @@ names = ft.names
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_ipa_sequence)
 weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(ipa_sequence, second_ipa_sequence)
 hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(ipa_sequence, second_ipa_sequence)
-normalized_by_len = (weighted_feature_dist / (len(ipa_sequence) + len(second_ipa_sequence)))
+normalized_by_len = (weighted_feature_dist / max(len(ipa_sequence), len(second_ipa_sequence)))
 # calculate hamming distance with fastdtw
 # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
 
 print("Ground truth: ", ipa_sequence)
 print("Sequence (no noise): ", second_ipa_sequence)
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}")
+print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}") # this does not work...
 print(f"CER (no noise): {cer(second_ipa_sequence, ipa_sequence)}")
 # calculate distance between first feature array and second noise feature array
 feature_dist = panphon.distance.Distance().feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
 weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
 hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(ipa_sequence, second_noisy_ipa_sequence)
-normalized_by_len = (weighted_feature_dist /(len(ipa_sequence) + len(second_ipa_sequence)))
+normalized_by_len = (weighted_feature_dist / max(len(ipa_sequence), len(second_noisy_ipa_sequence)))
 # calculate hamming distance with fastdtw
 # dist, path = fastdtw(feature_array, second_noisy_feature_array, dist=hamming_distance)
 # print("Ground truth: ", ipa_sequence)
 print("Sequence (noisy): ", second_noisy_ipa_sequence)
 print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
-print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}")
 print(f"CER (noise): {cer(second_ipa_sequence, ipa_sequence)}")
+print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}") # this does not work...
+
 
 
 

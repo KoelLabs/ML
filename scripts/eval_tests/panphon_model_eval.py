@@ -74,6 +74,21 @@ def cer(pred, label):
                     distances[t1][t2] = c + 1
 
     return distances[len(pred)][len(label)] / len(label)
+def preprocess_ipa(ipa_string):
+    """Preprocess an IPA string by removing unsupported symbols. Suggestions by David Mortensen, creator of panphon."""
+    replacement_map = {
+        'ɚ': 'ɹ̩',   # Convert /ɚ/ to /ɹ/ (non-syllabic r)
+        'ɝ': 'ɹ',   # Convert /ɝ/ to /ɹ/ (non-syllabic r)
+        'ː': '',    # Remove length mark (or duplicate previous vowel if length is important)
+        '͡': '',     # Remove tie bar (or split into components if part of an affricate)
+    }
+    
+    # Replace unsupported symbols
+    processed_string = ''.join(
+        replacement_map.get(char, char) for char in ipa_string
+    )
+    
+    return processed_string
 
 def panphon_model_eval(label, predicted):
     """
@@ -83,20 +98,31 @@ def panphon_model_eval(label, predicted):
     - predictedipa: Predicted transcription (list of IPA phonemes).
     """
     # Convert to feature embeddings
-    label_embeddings = word_to_feature_sequence(label)
-    predicted_embeddings = word_to_feature_sequence(predicted)
-    dist_no_pad = compute_dtw_distance(label_embeddings, predicted_embeddings)
-    max_len = max(len(label_embeddings), len(predicted_embeddings))
-    label_embeddings = label_embeddings + [np.zeros(EMBEDDING_LEN)] * (max_len - len(label_embeddings))
-    predicted_embeddings = predicted_embeddings + [np.zeros(EMBEDDING_LEN)] * (max_len - len(predicted_embeddings))
-    # print(f"label_embeddings: {label_embeddings}")
-    # print(f"predicted_embeddings: {predicted_embeddings}")
-    # print the embeddings that are different between label and predicted
-    dist = compute_dtw_distance(label_embeddings, predicted_embeddings)
-    dist_percent = dist / (max_len*EMBEDDING_LEN)
+    
+    # Initialize the FeatureTable class
+    ft = panphon.FeatureTable()
 
+
+    #preprocess the `ipa_sequence` to remove unsupported symbols
+    label_sequence = preprocess_ipa(label)
+    pred_sequence = preprocess_ipa(predicted)
+
+    # calculate distances between the two feature arrays using panphone distance metrics
+    feature_dist = panphon.distance.Distance().feature_edit_distance(label_sequence, pred_sequence)
+    weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(label_sequence, pred_sequence)
+    hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(label_sequence, pred_sequence)
+    normalized_by_len = (weighted_feature_dist / max(len(label_sequence), len(pred_sequence)))
+    # calculate hamming distance with fastdtw
+    # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
     # CER calculation
     cer_score = cer(predicted, label)
+    print("Ground truth: ", label)
+    print("Predicted: ", predicted)
+    print(f"Weighted Feature Edit Distance: {weighted_feature_dist}")
+    print(f"Normalized Weighted Feature Edit Distance: {normalized_by_len}") # this does not work...
+    print(f"CER (no noise): {cer_score}")
+
+ 
 
     # Print results
     print("Phoneme Transcription Evaluation:")
