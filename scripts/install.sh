@@ -8,12 +8,15 @@ source ./venv/bin/activate
 
 # dependencies
 pip install -r requirements.txt
-brew install espeak 
-#  sudo apt install espeak
+# brew install espeak 
+# brew install ffmpeg
+# sudo apt-get update
+# sudo apt-get install ffmpeg
+# sudo apt install espeak-ng
 
 
 # create gitignored directories
-mkdir -p ./data
+mkdir -p ./.data
 mkdir -p ./models
 mkdir -p ./repos
 
