@@ -2,18 +2,30 @@
 
 # create a virtual environment
 python -m venv ./venv
+# conda create --prefix ./venv python=3.8.10
 
 # activate the virtual environment
 source ./venv/bin/activate
+# conda activate ./venv
 
 # dependencies
-pip install -r requirements.txt
-brew install espeak 
-#  sudo apt install espeak
+if [ "$(uname)" == "Darwin" ]; then
+    # Do something under Mac OS X platform  
+    brew install espeak
+    brew install ffmpeg      
+elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
+    # Do something under GNU/Linux platform
+    sudo apt-get update
+    sudo apt-get install ffmpeg espeak-ng libportaudio2
+else
+    echo "please install espeak and ffmpeg manually for this OS"
+fi
+
+pip install -r requirements.txt 
 
 
 # create gitignored directories
-mkdir -p ./data
+mkdir -p ./.data
 mkdir -p ./models
 mkdir -p ./repos
 

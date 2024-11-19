@@ -95,13 +95,12 @@ def panphon_model_eval(label, predicted):
     feature_dist = panphon.distance.Distance().feature_edit_distance(label_sequence, pred_sequence)
     weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(label_sequence, pred_sequence)
     hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(label_sequence, pred_sequence)
-    # normalized_by_len = (weighted_feature_dist / max(len(label_sequence), len(pred_sequence)))
+ 
     # calculate hamming distance with fastdtw
     # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
+
     # CER calculation
     cer_score = cer(predicted, label)
-    print("Ground truth: ", label)
-    print("Predicted: ", predicted)
 
     
     return {
