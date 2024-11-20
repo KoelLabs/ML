@@ -65,6 +65,7 @@ def preprocess_ipa(ipa_string):
         'ɝ': 'ɹ',   # Convert /ɝ/ to /ɹ/ (non-syllabic r)
         'ː': '',    # Remove length mark (or duplicate previous vowel if length is important)
         '͡': '',     # Remove tie bar (or split into components if part of an affricate)
+        'g': 'ɡ',   # replace two versions of g, TIMIT uses ascii g and STANDARD IPA uses unicode g
     }
     
     # Replace unsupported symbols
