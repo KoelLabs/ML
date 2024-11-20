@@ -29,6 +29,14 @@ def euclidean_distance(x, y):
 def hamming_distance(v1, v2):
     return np.sum(np.array(v1) != np.array(v2))
 
+def panphon_timit_compatability (timit_vocab):
+
+    for word in timit_vocab: 
+        feature_vec = ft.word_to_vector_list(word)
+        if not feature_vec:
+            print("not covered", word)
+
+
 
 def compute_dtw_distance(label_embeddings, predicted_embeddings):
     """Compute the Dynamic Time Warping distance between two sequences of feature vectors."""
@@ -77,6 +85,7 @@ def preprocess_ipa(ipa_string):
         'ɝ': 'ɹ',   # Convert /ɝ/ to /ɹ/ (non-syllabic r)
         'ː': '',    # Remove length mark (or duplicate previous vowel if length is important)
         '͡': '',     # Remove tie bar (or split into components if part of an affricate)
+        'g': 'ɡ',   # replace two versions of g, TIMIT uses ascii g and STANDARD IPA uses unicode g
     }
     
     # Replace unsupported symbols
@@ -106,6 +115,15 @@ test_cases = [
 
 # Initialize the FeatureTable class
 ft = panphon.FeatureTable()
+
+timit_phoneme_vocab = [
+    'g', 's', 'j', 'ɑ', 'l', 'h', 'z', 'ʌ', 'ɛ', 'æ', 'ɚ', 'n̩', 'ʔ', 'θ', 'ŋ̍', 
+    'ʒ', 'ɔ', 'ɾ̃', 'k', 'ɔɪ', 'dʒ', 'ɨ', 'm̩', 'm', 'ʊ', 't', 'eɪ', 'd', 'a', 
+    'b', 'tʃ', 'p', 'ɦ', 'n', 'ɪ', 'v', 'oʊ', 'f', 'ə̥', 'l̩', 'ŋ', 'aʊ', 'ʉ', 
+    '̃', '̍', 'ʃ', 'e', 'aɪ', '̩', 'i', 'ɹ', 'ə', '̥', 'o', 'ɾ', 'ð', 'ɝ', 'u', 
+    'w', ' '
+] 
+panphon_timit_compatability(timit_phoneme_vocab)
 
 # Define the continuous IPA sequence (e.g., a sentence)
 ipa_sequence = "ððððɨ"
