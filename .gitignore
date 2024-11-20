@@ -20,3 +20,4 @@ __pycache__
 
 # node
 node_modules
+data/allosaurus_data/train/feat.ark
