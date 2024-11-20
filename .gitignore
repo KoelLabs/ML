@@ -3,6 +3,7 @@ models/
 repos/
 .data/
 notebooks/wandb/
+data/allosaurus_data/data
 
 # secrets
 .env
