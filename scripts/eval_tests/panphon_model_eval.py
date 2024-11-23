@@ -105,20 +105,22 @@ def panphon_model_eval(label, predicted):
 
     
     return {
+        "label_sequence": label_sequence,
+        "pred_sequence": pred_sequence,
         "feature_dist": feature_dist, 
         "weighted_feature_dist": weighted_feature_dist,
         "hamming_feature_dist": hamming_feature_dist,
         "cer_score": cer_score
     }
 
-ground_truth = "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
-test = "aɪ ɹ eɪ t ʔ æ k t ɚ s t ʌ m p ð ə w eɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i"
-# Call panphon_model_eval with label and predictedipa
-results = panphon_model_eval(test, ground_truth)
+# ground_truth = "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
+# test = "aɪ ɹ eɪ t ʔ æ k t ɚ s t ʌ m p ð ə w eɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i"
+# # Call panphon_model_eval with label and predictedipa
+# results = panphon_model_eval(test, ground_truth)
 
-# Output results
-print("Evaluation Results:")
-print(f"Feature edit distance: {results['feature_dist']}")
-print(f"Weighted feature edit distance: {results['weighted_feature_dist']}")
-print(f"Hamming distance: {results['hamming_feature_dist']}")
-print(f"CER: {results['cer_score']}")
+# # Output results
+# print("Evaluation Results:")
+# print(f"Feature edit distance: {results['feature_dist']}")
+# print(f"Weighted feature edit distance: {results['weighted_feature_dist']}")
+# print(f"Hamming distance: {results['hamming_feature_dist']}")
+# print(f"CER: {results['cer_score']}")
