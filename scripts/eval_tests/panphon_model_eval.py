@@ -27,37 +27,55 @@ def compute_dtw_distance(label_embeddings, predicted_embeddings):
     distance, path = fastdtw(label_embeddings, predicted_embeddings, dist=hamming_distance)
 
     return distance
-def cer(pred, label):
-    """Compute the Character Error Rate (CER) between two sequences."""
-    distances = np.zeros((len(pred) + 1, len(label) + 1))
 
-    for t1 in range(len(pred) + 1):
-        distances[t1][0] = t1
-
-    for t2 in range(len(label) + 1):
-        distances[0][t2] = t2
-        
-    a = 0
-    b = 0
-    c = 0
+def cer(prediction, ground_truth):
+    """
+    Compute the Character Error Rate (CER) between prediction and ground truth sequences
+    using Levenshtein distance.
     
-    for t1 in range(1, len(pred) + 1):
-        for t2 in range(1, len(label) + 1):
-            if (pred[t1-1] == label[t2-1]):
-                distances[t1][t2] = distances[t1 - 1][t2 - 1]
+    Args:
+        prediction (str): The predicted sequence
+        ground_truth (str): The ground truth sequence
+        
+    Returns:
+        float: Character Error Rate as a value between 0 and 1
+    """
+    # Convert input lists to strings if they're lists
+    if isinstance(prediction, list):
+        prediction = ''.join(prediction)
+    if isinstance(ground_truth, list):
+        ground_truth = ''.join(ground_truth)
+    print(f"prediction: {prediction}")
+    print(f"ground_truth: {ground_truth}")
+        
+    # Handle empty strings
+    if len(ground_truth) == 0:
+        return 1.0 if len(prediction) > 0 else 0.0
+    
+    # Initialize the matrix
+    matrix = np.zeros((len(prediction) + 1, len(ground_truth) + 1))
+    
+    # Fill first row and column
+    for i in range(len(prediction) + 1):
+        matrix[i, 0] = i
+    for j in range(len(ground_truth) + 1):
+        matrix[0, j] = j
+    
+    # Fill in the rest of the matrix
+    for i in range(1, len(prediction) + 1):
+        for j in range(1, len(ground_truth) + 1):
+            if prediction[i-1] == ground_truth[j-1]:
+                matrix[i, j] = matrix[i-1, j-1]
             else:
-                a = distances[t1][t2 - 1]
-                b = distances[t1 - 1][t2]
-                c = distances[t1 - 1][t2 - 1]
-                
-                if (a <= b and a <= c):
-                    distances[t1][t2] = a + 1
-                elif (b <= a and b <= c):
-                    distances[t1][t2] = b + 1
-                else:
-                    distances[t1][t2] = c + 1
+                substitution = matrix[i-1, j-1] + 1
+                insertion = matrix[i, j-1] + 1
+                deletion = matrix[i-1, j] + 1
+                matrix[i, j] = min(substitution, insertion, deletion)
+    
+    # Calculate CER
+    distance = matrix[len(prediction), len(ground_truth)]
+    return distance / len(ground_truth)
 
-    return distances[len(pred)][len(label)] / len(label)
 def preprocess_ipa(ipa_string):
     """Preprocess an IPA string by removing unsupported symbols. Suggestions by David Mortensen, creator of panphon."""
     replacement_map = {
@@ -96,7 +114,6 @@ def panphon_model_eval(label, predicted):
     feature_dist = panphon.distance.Distance().feature_edit_distance(label_sequence, pred_sequence)
     weighted_feature_dist =  panphon.distance.Distance().weighted_feature_edit_distance(label_sequence, pred_sequence)
     hamming_feature_dist = panphon.distance.Distance().hamming_feature_edit_distance(label_sequence, pred_sequence)
- 
     # calculate hamming distance with fastdtw
     # dist, path = fastdtw(feature_array, second_feature_array, dist=hamming_distance)
 
@@ -110,9 +127,9 @@ def panphon_model_eval(label, predicted):
         "feature_dist": feature_dist, 
         "weighted_feature_dist": weighted_feature_dist,
         "hamming_feature_dist": hamming_feature_dist,
-        "cer_score": cer_score
+        "cer_score": cer_score,
     }
-
+# TEST CASE 
 # ground_truth = "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
 # test = "aɪ ɹ eɪ t ʔ æ k t ɚ s t ʌ m p ð ə w eɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i"
 # # Call panphon_model_eval with label and predictedipa
@@ -124,3 +141,4 @@ def panphon_model_eval(label, predicted):
 # print(f"Weighted feature edit distance: {results['weighted_feature_dist']}")
 # print(f"Hamming distance: {results['hamming_feature_dist']}")
 # print(f"CER: {results['cer_score']}")
+# print
