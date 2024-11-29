@@ -7,6 +7,8 @@ data/allosaurus_data/data
 data/allosaurus_data/train/
 data/allosaurus_data/validate/
 notebooks/results
+notebooks/results-b
+notebooks/results-b1
 NVIDIA-Linux-x86_64-525.125.06.run
 
 # secrets
