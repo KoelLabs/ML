@@ -6,10 +6,13 @@ notebooks/wandb/
 data/allosaurus_data/data
 data/allosaurus_data/train/
 data/allosaurus_data/validate/
-notebooks/results
-notebooks/results-b
-notebooks/results-b1
+
+notebooks/sweep_results
+notebooks/results-b4
 notebooks/results-b3
+notebooks/results-b0
+notebooks/results-b10
+notebooks/results
 NVIDIA-Linux-x86_64-525.125.06.run
 
 # secrets
