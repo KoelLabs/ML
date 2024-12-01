@@ -19,6 +19,7 @@ if sys.platform == "darwin":
 
 # list of English IPA XLSR models that work (all model files uploaded correctly, not empty results)
 MODEL_IDS = [
+    "KoelLabs/xlsr-timit-b0",  # Our model
     "facebook/wav2vec2-lv-60-espeak-cv-ft",  # Samir's recommended best for English
     "facebook/wav2vec2-xlsr-53-espeak-cv-ft",  # very similar to 60
     "ctaguchi/wav2vec2-large-xlsr-japlmthufielta-ipa1000-ns",  # Recommended by Samir, but not for English
@@ -41,7 +42,7 @@ MODEL_IDS = [
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-nl",  # smaller, still weird
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.5",  # OK, a bit unconventional spelling
     "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.9.2WithoutSpaces",  # not bad, not good
-    "vitouphy/wav2vec2-xls-r-300m-timit-phoneme" # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
+    "vitouphy/wav2vec2-xls-r-300m-timit-phoneme",  # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
 ]
 
 pipelines = {}
@@ -54,6 +55,7 @@ def xlsr_transcribe(input_path, model_id=MODEL_IDS[0]):
         device="cpu",
     )
     return pipelines[model_id](input_path).get("text", "")
+
 
 def xlsr_transcribe_from_mic(model_id=MODEL_IDS[0]):
     with NamedTemporaryFile(suffix=".wav") as f:
