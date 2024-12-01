@@ -13,6 +13,7 @@ notebooks/results-b3
 notebooks/results-b0
 notebooks/results-b10
 notebooks/results
+notebooks/xlsr-timit-b0
 NVIDIA-Linux-x86_64-525.125.06.run
 
 # secrets

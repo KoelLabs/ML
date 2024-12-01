@@ -19,6 +19,7 @@ if sys.platform == "darwin":
 
 # list of English IPA XLSR models that work (all model files uploaded correctly, not empty results)
 MODEL_IDS = [
+    "KoelLabs/xlsr-timit-b0", # our amazing model! 
     "facebook/wav2vec2-lv-60-espeak-cv-ft",  # Samir's recommended best for English
     "facebook/wav2vec2-xlsr-53-espeak-cv-ft",  # very similar to 60
     "ctaguchi/wav2vec2-large-xlsr-japlmthufielta-ipa1000-ns",  # Recommended by Samir, but not for English
