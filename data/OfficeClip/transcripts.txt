@@ -61,3 +61,5 @@ How this was generated:
 4. Convert clips to single channel: `ffmpeg -i data/OfficeClip/clip1.wav -ac 1 data/OfficeClip/clip1s.wav`
 5. Transcribe clips: `python ./scripts/ipa_transcription/xlsr_timestamped.py data/OfficeClip/clip1s.wav`
 6. Screenshot each clip: `ffmpeg -ss 00:00:09.00 -i data/OfficeClip/video.mp4 -frames:v 1 data/OfficeClip/clip1.jpg`
+
+https://www.youtube.com/watch?v=lC5lsemxaJo

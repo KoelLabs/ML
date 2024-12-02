@@ -68,3 +68,5 @@ How this was generated:
     - Some experimentation is needed to find the exact start and end times
 5. Transcribe clips: `python ./scripts/ipa_transcription/xlsr_timestamped.py data/ParksClip/clip1.wav`
 6. Screenshot each clip: `ffmpeg -ss 00:00:05.50 -i data/ParksClip/video.mp4 -frames:v 1 data/ParksClip/clip1.jpg`
+
+https://www.youtube.com/watch?v=w3J2-kIj2lE&list=PL2MMJQZLcgJIje4jB1p_ngX2_HRG6eYtq&index=16
