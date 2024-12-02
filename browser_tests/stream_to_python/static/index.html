@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Real-Time Transcription</title>
+  </head>
+  <body>
+    <h1>Real-Time Transcription</h1>
+    <button id="start">Start</button>
+    <button id="stop" disabled>Stop</button>
+    <button id="analyze">Analyze</button>
+    <p>Transcription: <span id="transcription"></span></p>
+    <p id="scored_words"></p>
+    <p id="feedback"></p>
+
+    <script type="module">
+      import { FeedbackGiver } from './FeedbackGiver.js';
+
+      const transcriptionElement = document.getElementById("transcription");
+      const scoredWordsElement = document.getElementById("scored_words");
+      const feedbackElement = document.getElementById("feedback");
+
+      async function on_transcription(transcription) {
+        transcriptionElement.textContent = transcription;
+        const [scoredWords, overall] = await feedbackGiver.getCER();
+        scoredWordsElement.innerHTML = "";
+        console.log(overall);
+        for (const wordscore of scoredWords) {
+          const word = wordscore[0];
+          const score = wordscore.at(-1);
+          scoredWordsElement.innerHTML += `<span style="background-color: hsl(${score * 120}, 100%, 50%)">${word}</span> `;
+        }
+      }
+
+      const target = 'ɔliŋkɑɹdsʔɑɹðəweɪvəvðifjutʃɹ';
+      const target_by_word = [
+        ['Calling', 'ɔliŋ'],
+        ['cards', 'kɑɹdsʔ'],
+        ['are', 'ɑɹ'],
+        ['the', 'ðə'],
+        ['wave', 'weɪv'],
+        ['of', 'əv'],
+        ['the', 'ði'],
+        ['future', 'fjutʃɹ'],
+      ];
+      const feedbackGiver = new FeedbackGiver(target, target_by_word, on_transcription);
+
+      document.getElementById("analyze").addEventListener("click", async () => {
+        const [perWordFeedback, top3feedback] = await feedbackGiver.getFeedback();
+        feedbackElement.innerHTML = "";
+        for (const [word, feedback] of perWordFeedback) {
+          feedbackElement.innerHTML += `<p>${word}: ${feedback}</p>`;
+        }
+        feedbackElement.innerHTML += `<h2>Top 3 feedback</h2>`;
+        for (const [word, feedback] of top3feedback) {
+          feedbackElement.innerHTML += `<p>${word}: ${feedback}</p>`;
+        }
+      });
+
+      document.getElementById("start").addEventListener("click", () => {
+        feedbackGiver.start();
+        document.getElementById("start").disabled = true;
+        document.getElementById("stop").disabled = false;
+      });
+
+      document.getElementById("stop").addEventListener("click", () => {
+        feedbackGiver.stop();
+        document.getElementById("start").disabled = false;
+        document.getElementById("stop").disabled = true;
+      });
+    </script>
+  </body>
+</html>
