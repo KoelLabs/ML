@@ -128,7 +128,7 @@ def feedback(target, target_by_words, speech, good_enough_threshold=0.4):
                 (
                     word,
                     f"""
-                You pronounced the "{t['phonemicSpelling']}" sound in {word} as the "{s['phonemicSpelling']}" sound.
+                The actor made the '{t['phonemicSpelling']}' sound in "{word}" but you made the '{s['phonemicSpelling']}' sound.
                 It is supposed to be {t['description'][0].lower() + t['description'][1:]}
                 {t["exampleWord"]}
                 """.strip(),

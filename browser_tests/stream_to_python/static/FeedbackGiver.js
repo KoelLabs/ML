@@ -1,5 +1,5 @@
 export class FeedbackGiver {
-  constructor(target, target_by_word, on_transcription) {
+  constructor(target, target_by_word, on_transcription, on_word_spoken) {
     this.target = target;
     this.target_by_word = target_by_word;
     this.transcription = "";
@@ -7,9 +7,19 @@ export class FeedbackGiver {
     this.socket = null;
     this.audioContext = null;
     this.audioWorkletNode = null;
+
+    this.on_word_spoken = on_word_spoken;
+    this.words = [];
+    this.are_words_correct = [];
+    for (const [word, _] of target_by_word) {
+      this.words.push(word);
+      this.are_words_correct.push(false);
+    }
+    this.next_word_ix = 0;
+    this.recognition = null;
   }
 
-  set_transcription(transcription) {
+  #setTranscription(transcription) {
     this.transcription = transcription;
     this.on_transcription(this.transcription);
   }
@@ -55,14 +65,14 @@ export class FeedbackGiver {
 
   async start() {
     // Clear previous transcription
-    this.set_transcription("");
+    this.#setTranscription("");
 
     // Open WebSocket connection
     this.socket = new WebSocket(`ws://${location.host}/stream`);
 
     // Handle incoming transcriptions
     this.socket.onmessage = async (event) => {
-      this.set_transcription(event.data);
+      this.#setTranscription(event.data);
     };
 
     // Start capturing audio
@@ -98,6 +108,8 @@ export class FeedbackGiver {
         this.socket.send(event.data);
       }
     };
+
+    this.#startWordTranscription();
   }
 
   async stop() {
@@ -107,8 +119,87 @@ export class FeedbackGiver {
     if (this.socket) {
       this.socket.close();
     }
+    if (this.recognition) {
+      this.recognition.onend = null;
+      this.recognition.stop();
+    }
     if (this.audioContext) {
       await this.audioContext.close();
+      this.audioContext = null;
     }
+  }
+
+  #startWordTranscription() {
+    this.next_word_ix = 0;
+    for (let i = 0; i < this.words.length; i++) {
+      this.are_words_correct[i] = false;
+    }
+
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    this.recognition = new SpeechRecognition();
+    this.recognition.lang = "en-US";
+    this.recognition.interimResults = true;
+    this.recognition.maxAlternatives = 1;
+    this.recognition.start();
+    this.recognition.onend = () => this.recognition.start();
+    const finalWords = [];
+    let numCorrect = 0;
+    this.recognition.onresult = (event) => {
+      const wordlist = [...event.results]
+        .map((result) => result[0].transcript.split(" "))
+        .reduce((a, b) => a.concat(b))
+        .filter((w) => w.length > 0);
+      const isFinal = [...event.results].at(-1).isFinal;
+      if (isFinal) {
+        finalWords.push(...wordlist);
+        wordlist.length = 0;
+      }
+
+      const allWords = finalWords.concat(wordlist);
+      if (
+        allWords[0].toLowerCase().replace(/[^a-z]/g, "") !=
+          this.words[0].toLowerCase().replace(/[^a-z]/g, "") &&
+        allWords.length > 0
+      ) {
+        allWords.shift();
+      }
+      numCorrect = 0;
+      for (let i = 0; i < allWords.length; i++) {
+        const word = allWords[i];
+        const target = this.words[i];
+
+        if (
+          word.toLowerCase().replace(/[^a-z]/g, "") ===
+          target.toLowerCase().replace(/[^a-z]/g, "")
+        ) {
+          this.are_words_correct[i] = true;
+          numCorrect++;
+        } else {
+          this.are_words_correct[i] = false;
+        }
+        this.next_word_ix = i + 1;
+        if (this.next_word_ix < this.words.length) {
+          this.on_word_spoken(
+            this.words,
+            this.are_words_correct,
+            this.next_word_ix,
+            Math.round((1000 * numCorrect) / this.next_word_ix) / 10,
+            false
+          );
+        } else {
+          this.recognition.onend = null;
+          this.recognition.stop();
+          this.on_word_spoken(
+            this.words,
+            this.are_words_correct,
+            this.next_word_ix,
+            Math.round((1000 * numCorrect) / this.words.length) / 10,
+            true
+          );
+        }
+      }
+    };
   }
 }

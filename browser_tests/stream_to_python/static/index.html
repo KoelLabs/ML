@@ -11,6 +11,7 @@
     <button id="stop" disabled>Stop</button>
     <button id="analyze">Analyze</button>
     <p>Transcription: <span id="transcription"></span></p>
+    <p>Accent Similarity: <span id="score"></span>%</p>
     <p id="scored_words"></p>
     <p id="feedback"></p>
 
@@ -20,16 +21,52 @@
       const transcriptionElement = document.getElementById("transcription");
       const scoredWordsElement = document.getElementById("scored_words");
       const feedbackElement = document.getElementById("feedback");
+      const scoreElement = document.getElementById("score");
+
+      function color_word(el) {
+        const score = parseFloat(el.dataset.pscore);
+        const isCorrect = el.dataset.wordCorrect === "true";
+        if (isCorrect || score > 0.8) {
+          el.style.backgroundColor = `hsl(${score * 120}, 100%, 50%)`;
+        } else {
+          el.style.backgroundColor = `red`;
+        }
+      }
 
       async function on_transcription(transcription) {
         transcriptionElement.textContent = transcription;
         const [scoredWords, overall] = await feedbackGiver.getCER();
-        scoredWordsElement.innerHTML = "";
-        console.log(overall);
-        for (const wordscore of scoredWords) {
-          const word = wordscore[0];
+        console.log('Phoneme Score:', overall);
+        const wordElements = document.querySelectorAll("#scored_words span");
+        for (let i = 0; i < scoredWords.length; i++) {
+          const wordscore = scoredWords[i];
           const score = wordscore.at(-1);
-          scoredWordsElement.innerHTML += `<span style="background-color: hsl(${score * 120}, 100%, 50%)">${word}</span> `;
+          wordElements[i].dataset.pscore = score;
+          if (i < feedbackGiver.next_word_ix) {
+            color_word(wordElements[i]);
+          }
+        }
+        scoreElement.textContent = Math.round(1000 * overall) / 10;
+      }
+
+      function on_word_spoken(words, are_words_correct, next_word_ix, percentage_correct, is_done) {
+        console.log('Percentage Words Correct:', percentage_correct);
+        const wordElements = document.querySelectorAll("#scored_words span");
+        for (let i = 0; i < next_word_ix; i++) {
+          const el = wordElements[i];
+          el.dataset.wordCorrect = are_words_correct[i];
+          el.style.border = "none";
+          color_word(el);
+        }
+        if (is_done) {
+          setTimeout(() => {
+            feedbackGiver.stop();
+            document.getElementById("start").disabled = false;
+            document.getElementById("stop").disabled = true;
+          }, 1000);
+        } else {
+          const el = wordElements[next_word_ix];
+          el.style.border = "3px solid red";
         }
       }
 
@@ -44,7 +81,10 @@
         ['the', 'ði'],
         ['future', 'fjutʃɹ'],
       ];
-      const feedbackGiver = new FeedbackGiver(target, target_by_word, on_transcription);
+      const feedbackGiver = new FeedbackGiver(target, target_by_word, on_transcription, on_word_spoken);
+      for (const word of feedbackGiver.words) {
+        scoredWordsElement.innerHTML += `<span data-pscore="0" data-word-correct="false">${word}</span> `;
+      }
 
       document.getElementById("analyze").addEventListener("click", async () => {
         const [perWordFeedback, top3feedback] = await feedbackGiver.getFeedback();
@@ -59,9 +99,16 @@
       });
 
       document.getElementById("start").addEventListener("click", () => {
-        feedbackGiver.start();
+        const wordElements = document.querySelectorAll("#scored_words span");
+        for (const wordEl of wordElements) {
+          wordEl.style.backgroundColor = "none";
+          wordEl.style.border = "none";
+          wordEl.dataset.pscore = 0;
+          wordEl.dataset.wordCorrect = false;
+        }
         document.getElementById("start").disabled = true;
         document.getElementById("stop").disabled = false;
+        feedbackGiver.start();
       });
 
       document.getElementById("stop").addEventListener("click", () => {
