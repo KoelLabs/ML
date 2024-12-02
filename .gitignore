@@ -6,6 +6,7 @@ notebooks/wandb/
 data/allosaurus_data/data
 data/allosaurus_data/train/
 data/allosaurus_data/validate/
+data/allosaurus_data/train/feat.ark
 
 notebooks/sweep_results
 notebooks/results-b4
@@ -29,4 +30,4 @@ __pycache__
 
 # node
 node_modules
-data/allosaurus_data/train/feat.ark
+

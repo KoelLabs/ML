@@ -13,6 +13,7 @@ import os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from scripts.audio import audio_record_to_file
+
 model_name = "eng2102"
 model = read_recognizer(model_name)
 

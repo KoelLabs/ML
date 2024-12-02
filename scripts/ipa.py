@@ -87,15 +87,15 @@ def ipa2timit(ipa_string, language="eng"):
     raise NotImplementedError
 
 
-def timit2ipa(timit_string, language="eng"): 
+def timit2ipa(timit_string, language="eng"):
     # Replace ASCII 'G' with Unicode 'ɡ' (IPA symbol) dynamically
     # Call the original phonecodes.timit2ipa function
     ipa_result = phonecodes.timit2ipa(timit_string, language)
     # G -> g (ASCII)
     # g -> g (Unicode)
-     # Ensure ASCII 'g' and Unicode 'ɡ' are normalized to the IPA Unicode 'ɡ'
-    ipa_result = ipa_result.replace('g', '\u0261').replace('ɡ', '\u0261')  
-    
+    # Ensure ASCII 'g' and Unicode 'ɡ' are normalized to the IPA Unicode 'ɡ'
+    ipa_result = ipa_result.replace("g", "\u0261").replace("ɡ", "\u0261")
+
     return ipa_result
 
 

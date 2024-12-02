@@ -46,6 +46,14 @@ def audio_wav_file_play(input_path, start_sec=None, end_sec=None):
     audio_array_play(data, rate)
 
 
+def audio_wav_file_crop(input_path, start_sec, end_sec, output_path):
+    rate, data = wavfile.read(input_path)
+    start = int(float(start_sec) * rate)
+    end = int(float(end_sec) * rate)
+    data = data[start:end]
+    audio_array_to_wav_file(data, output_path, rate)
+
+
 def audio_record_to_array(output_sample_rate=16000):
     print("Recording, please speak and press Ctrl+C when done")
     samples = np.array([], dtype=np.int16)
@@ -103,6 +111,8 @@ def main(args):
             start, end = args[2].split(":")
             start, end = float(start), float(end)
         audio_wav_file_play(args[1], start, end)
+    elif args[0] == "crop":
+        audio_wav_file_crop(args[1], float(args[2]), float(args[3]), args[4])
     elif args[0] == "text":
         audio_file_from_text(args[1], args[2])
     else:
@@ -114,6 +124,9 @@ def main(args):
             "Usage: python ./scripts/audio.py convert <input_path> <output_path> <output_sample_rate>"
         )
         print("Usage: python ./scripts/audio.py text <text> <output_wav_path>")
+        print(
+            "Usage: python ./scripts/audio.py crop <input_wav_path> <start> <end> <output_wav_path>"
+        )
 
 
 if __name__ == "__main__":
