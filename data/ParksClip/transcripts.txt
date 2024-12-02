@@ -48,7 +48,7 @@ Hi Anne, this is April. I'm just calling to let you know that Chris can't make l
     ['today', 'tideɪ']
 ]
 
-Clip4: 10.4 - 108
+Clip4: 106.4 - 108
 She also sent me flowers
 ('ʃiɔlsʊsɛtmiflaɹz', [('ʃ', 0.3240506329113924, 0.36455696202531646), ('i', 0.38481012658227853, 0.40506329113924056), ('ɔ', 0.4658227848101266, 0.48607594936708864), ('l', 0.48607594936708864, 0.5063291139240507), ('s', 0.5670886075949367, 0.5873417721518988), ('ʊ', 0.6278481012658228, 0.6481012658227848), ('s', 0.7291139240506329, 0.7493670886075949), ('ɛ', 0.7898734177215191, 0.830379746835443), ('t', 0.830379746835443, 0.850632911392405), ('m', 0.8708860759493672, 0.9113924050632912), ('i', 0.9316455696202532, 0.9518987341772152), ('f', 1.0531645569620254, 1.0936708860759494), ('l', 1.1139240506329116, 1.1341772151898735), ('a', 1.2354430379746837, 1.2556962025316456), ('ɹ', 1.377215189873418, 1.4177215189873418)])
 [
@@ -67,3 +67,4 @@ How this was generated:
 3. Crop out clips: `python ./scripts/audio.py crop data/ParksClip/audios.wav 5.5 9 data/ParksClip/clip1.wav`
     - Some experimentation is needed to find the exact start and end times
 5. Transcribe clips: `python ./scripts/ipa_transcription/xlsr_timestamped.py data/ParksClip/clip1.wav`
+6. Screenshot each clip: `ffmpeg -ss 00:00:05.50 -i data/ParksClip/video.mp4 -frames:v 1 data/ParksClip/clip1.jpg`
