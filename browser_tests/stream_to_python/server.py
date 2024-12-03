@@ -125,7 +125,6 @@ def get_feedback():
 
 # WebSocket endpoint for transcription
 @sock.route("/stream")
-@cross_origin()
 def stream(ws):
     buffer = b""  # Buffer to hold audio chunks
 
