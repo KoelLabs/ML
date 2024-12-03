@@ -1,4 +1,5 @@
 from flask import Flask, send_from_directory, request
+from flask_cors import CORS, cross_origin
 from flask_sock import Sock
 import torch
 from transformers import AutoProcessor, AutoModelForCTC
@@ -18,6 +19,8 @@ DEBUG = False
 
 # Initialize Flask app
 app = Flask(__name__)
+cors = CORS(app)  # allow CORS for all domains on all routes.
+app.config["CORS_HEADERS"] = "Content-Type"
 sock = Sock(app)
 
 # Load Wav2Vec2 model
@@ -74,18 +77,21 @@ def zero_out_non_speech(audio: np.ndarray) -> np.ndarray:
 
 # server /
 @app.route("/")
+@cross_origin()
 def index():
     return send_from_directory("static", "index.html")
 
 
 # serve static files
 @app.route("/<path:path>")
+@cross_origin()
 def send_static(path):
     return send_from_directory("static", path)
 
 
 # REST endpoint
 @app.route("/score_words_cer", methods=["GET"])
+@cross_origin()
 def get_score_words_cer():
     target = request.args.get("target", "").strip()
     target_by_word = json.loads(request.args.get("tbw") or "null")
@@ -97,6 +103,7 @@ def get_score_words_cer():
 
 
 @app.route("/score_words_wfed", methods=["GET"])
+@cross_origin()
 def get_score_words_wfed():
     target = request.args.get("target", "").strip()
     target_by_word = json.loads(request.args.get("tbw") or "null")
@@ -108,6 +115,7 @@ def get_score_words_wfed():
 
 
 @app.route("/feedback", methods=["GET"])
+@cross_origin()
 def get_feedback():
     target = request.args.get("target", "").strip()
     target_by_word = json.loads(request.args.get("tbw") or "null")
@@ -117,6 +125,7 @@ def get_feedback():
 
 # WebSocket endpoint for transcription
 @sock.route("/stream")
+@cross_origin()
 def stream(ws):
     buffer = b""  # Buffer to hold audio chunks
 
