@@ -1,3 +1,5 @@
+const serverhost = location.host;
+
 export class FeedbackGiver {
   constructor(target, target_by_word, on_transcription, on_word_spoken) {
     this.target = target;
@@ -26,7 +28,7 @@ export class FeedbackGiver {
 
   async getFeedback() {
     const res = await fetch(
-      `http://${location.host}/feedback?target=${encodeURIComponent(
+      `http://${serverhost}/feedback?target=${encodeURIComponent(
         this.target
       )}&tbw=${encodeURIComponent(
         JSON.stringify(this.target_by_word)
@@ -39,7 +41,7 @@ export class FeedbackGiver {
 
   async getCER() {
     const res = await fetch(
-      `http://${location.host}/score_words_cer?target=${encodeURIComponent(
+      `http://${serverhost}/score_words_cer?target=${encodeURIComponent(
         this.target
       )}&tbw=${encodeURIComponent(
         JSON.stringify(this.target_by_word)
@@ -52,7 +54,7 @@ export class FeedbackGiver {
 
   async getWFED() {
     const res = await fetch(
-      `http://${location.host}/score_words_wfed?target=${encodeURIComponent(
+      `http://${serverhost}/score_words_wfed?target=${encodeURIComponent(
         this.target
       )}&tbw=${encodeURIComponent(
         JSON.stringify(this.target_by_word)
@@ -63,12 +65,23 @@ export class FeedbackGiver {
     return [scoredWords, overall];
   }
 
+  async getSideBySideDescription() {
+    const res = await fetch(
+      `http://${serverhost}/side_by_side_description?target=${encodeURIComponent(`
+        ${this.target}
+        `)}&tbw=${encodeURIComponent(
+        JSON.stringify(this.target_by_word)
+      )}&speech=${encodeURIComponent(this.transcription)}`
+    );
+    return await res.json();
+  }
+
   async start() {
     // Clear previous transcription
     this.#setTranscription("");
 
     // Open WebSocket connection
-    this.socket = new WebSocket(`ws://${location.host}/stream`);
+    this.socket = new WebSocket(`ws://${serverhost}/stream`);
 
     // Handle incoming transcriptions
     this.socket.onmessage = async (event) => {

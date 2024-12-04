@@ -14,6 +14,18 @@
     <p>Accent Similarity: <span id="score"></span>%</p>
     <p id="scored_words"></p>
     <p id="feedback"></p>
+    <div>
+      <h2>Word by Word</h2>
+      <span id="word"></span>
+      <button id="prev_word">Previous Word</button>
+      <button id="next_word">Next Word</button><br><br>
+      <img id="target_image" src="" alt="Target Image" style="width: 200px; height: 200px;" />
+      <img id="transcription_image" src="" alt="Transcription Image" style="width: 200px; height: 200px;"/>
+      <button id="play_word">Play</button>
+      <input type="range" id="phoneme_pair" min="0" max="0" step="1" />
+      <p id="target_phoneme_discription"></p>
+      <p id="transcription_phoneme_discription"></p>
+    </div>
 
     <script type="module">
       import { FeedbackGiver } from './FeedbackGiver.js';
@@ -61,6 +73,7 @@
         if (is_done) {
           setTimeout(() => {
             feedbackGiver.stop();
+            initWordDiagramExplorer();
             document.getElementById("start").disabled = false;
             document.getElementById("stop").disabled = true;
           }, 1000);
@@ -84,6 +97,57 @@
       const feedbackGiver = new FeedbackGiver(target, target_by_word, on_transcription, on_word_spoken);
       for (const word of feedbackGiver.words) {
         scoredWordsElement.innerHTML += `<span data-pscore="0" data-word-correct="false">${word}</span> `;
+      }
+
+      const wordElement = document.getElementById("word");
+      const phonemePairElement = document.getElementById("phoneme_pair");
+      const targetImageElement = document.getElementById("target_image");
+      const transcriptionImageElement = document.getElementById("transcription_image");
+      const targetPhonemeDescriptionElement = document.getElementById("target_phoneme_discription");
+      const transcriptionPhonemeDescriptionElement = document.getElementById("transcription_phoneme_discription");
+      let activeWordIX, activePhonemIX;
+      async function initWordDiagramExplorer() {
+        const words = await feedbackGiver.getSideBySideDescription();
+        activeWordIX = 0;
+        activePhonemIX = 0;
+        function updatePhonemePair() {
+          const [word, phoneme_details] = words[activeWordIX];
+          const [target_phoneme, transcription_phoneme] = phoneme_details[activePhonemIX];
+          wordElement.textContent = word;
+          phonemePairElement.max = phoneme_details.length - 1;
+          targetPhonemeDescriptionElement.innerHTML = `Target (${target_phoneme['phonemicSpelling']}): ${target_phoneme['description']} ${target_phoneme['exampleWord']} E.g., ${target_phoneme['example_words'].map(s => s.replace('*','<b>').replace('*','</b>')).join(', ')}.`;
+          transcriptionPhonemeDescriptionElement.innerHTML = `Transcription (${transcription_phoneme['phonemicSpelling']}): ${transcription_phoneme['description']} ${transcription_phoneme['exampleWord']} E.g., ${transcription_phoneme['example_words'].map(s => s.replace('*','<b>').replace('*','</b>')).join(', ')}.`;
+          targetImageElement.src = `/visemes/viseme-id-${target_phoneme['viseme_id']}.jpg`;
+          transcriptionImageElement.src = `/visemes/viseme-id-${transcription_phoneme['viseme_id']}.jpg`;
+        }
+        document.getElementById("prev_word").addEventListener("click", () => {
+          activeWordIX = Math.max(0, activeWordIX - 1);
+          activePhonemIX = 0;
+          updatePhonemePair();
+        });
+        document.getElementById("next_word").addEventListener("click", () => {
+          activeWordIX = Math.min(words.length - 1, activeWordIX + 1);
+          activePhonemIX = 0;
+          updatePhonemePair();
+        });
+        phonemePairElement.addEventListener("input", () => {
+          activePhonemIX = parseInt(phonemePairElement.value);
+          updatePhonemePair();
+        });
+        document.getElementById("play_word").addEventListener("click", () => {
+          activePhonemIX = 0;
+          phonemePairElement.value = activePhonemIX;
+          const inter = setInterval(() => {
+            if (activePhonemIX + 1 >= words[activeWordIX][1].length) {
+              clearInterval(inter);
+              return;
+            }
+            phonemePairElement.value = activePhonemIX + 1;
+            activePhonemIX = activePhonemIX + 1;
+            updatePhonemePair();
+          }, 240);
+        });
+        updatePhonemePair();
       }
 
       document.getElementById("analyze").addEventListener("click", async () => {
@@ -113,6 +177,7 @@
 
       document.getElementById("stop").addEventListener("click", () => {
         feedbackGiver.stop();
+        initWordDiagramExplorer();
         document.getElementById("start").disabled = false;
         document.getElementById("stop").disabled = true;
       });

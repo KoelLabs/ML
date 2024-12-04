@@ -7,7 +7,12 @@ import numpy as np
 import scipy.io.wavfile as wavfile
 import webrtcvad
 
-from feedback import score_words_cer, score_words_wfed, feedback
+from feedback import (
+    score_words_cer,
+    score_words_wfed,
+    feedback,
+    side_by_side_description,
+)
 import json
 
 # Constants
@@ -121,6 +126,15 @@ def get_feedback():
     target_by_word = json.loads(request.args.get("tbw") or "null")
     speech = request.args.get("speech", "").strip()
     return json.dumps(feedback(target, target_by_word, speech))
+
+
+@app.route("/side_by_side_description", methods=["GET"])
+@cross_origin()
+def get_side_by_side_description():
+    target = request.args.get("target", "").strip()
+    target_by_word = json.loads(request.args.get("tbw") or "null")
+    speech = request.args.get("speech", "").strip()
+    return json.dumps(side_by_side_description(target, target_by_word, speech))
 
 
 # WebSocket endpoint for transcription
