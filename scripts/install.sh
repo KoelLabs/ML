@@ -1,13 +1,5 @@
 # Tested with Python 3.8.10 on MacOS 14.4.1
 
-# create a virtual environment
-python -m venv ./venv
-# conda create --prefix ./venv python=3.8.10
-
-# activate the virtual environment
-source ./venv/bin/activate
-# conda activate ./venv
-
 # dependencies
 if [ "$(uname)" == "Darwin" ]; then
     # Do something under Mac OS X platform  
