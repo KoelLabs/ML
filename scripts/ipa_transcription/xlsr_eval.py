@@ -7,7 +7,10 @@ from tempfile import NamedTemporaryFile
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.eval_tests.panphon_model_eval import panphon_model_eval  # Import the function
+from scripts.eval_tests.panphon_model_eval import (
+    panphon_model_eval,
+)  # Import the function
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
 from scripts.audio import audio_record_to_file
 
@@ -35,11 +38,12 @@ MODEL_IDS = [
     # "Jubliano/wav2vec2-large-xls-r-300m-ipa-nl",  # smaller, still weird
     # "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.5",  # OK, a bit unconventional spelling
     # "Jubliano/wav2vec2-large-xls-r-300m-ipa-INTERNATIONAL1.9.2WithoutSpaces",  # not bad, not good
-    "vitouphy/wav2vec2-xls-r-300m-timit-phoneme" # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
+    "vitouphy/wav2vec2-xls-r-300m-timit-phoneme",  # specifically for arpabet phoneme prediction, works well, similar to snu-nia-12
 ]
 
 
 pipelines = {}
+
 
 def xlsr_transcribe(input_path, model_id=MODEL_IDS[0]):
     pipelines[model_id] = pipelines.get(model_id) or pipeline(
@@ -48,6 +52,7 @@ def xlsr_transcribe(input_path, model_id=MODEL_IDS[0]):
         device="cpu",
     )
     return pipelines[model_id](input_path).get("text", "")
+
 
 def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
     # Transcribe the input audio file using the selected model
@@ -67,19 +72,24 @@ def evaluate_xlsr(input_path, ground_truth, model_id=MODEL_IDS[0]):
     print(f"Weighted feature edit distance: {results['weighted_feature_dist']}")
     print(f"Hamming distance: {results['hamming_feature_dist']}")
     print(f"CER: {results['cer_score']}")
-    
+
     return results
-    
-    
+
 
 def main(args):
     """this coder simply does an evaluation against one sample of timit audio and phonemic transcription"""
-    # USAGE: python xlsr_eval.py <model_id or --all-models> 
+    # USAGE: python xlsr_eval.py <model_id or --all-models>
     # Check for the '--all-models' argument
     if "--all-models" in args:
-        input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        input_path = (
+            args[1]
+            if len(args) > 1
+            else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        )
         ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
-        print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
+        print(
+            "Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i"
+        )
         print(f"Starting evaluation on TIMIT audio sample: {input_path}")
 
         # Loop through and evaluate all models
@@ -88,12 +98,19 @@ def main(args):
     else:
         # Single model evaluation
         model_id = args[0] if len(args) > 0 else MODEL_IDS[0]
-        input_path = args[1] if len(args) > 1 else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        input_path = (
+            args[1]
+            if len(args) > 1
+            else "/home/arunasrivastava/ML/data/TIMIT_sample_0.wav"
+        )
         ground_truth = args[2] if len(args) > 2 else "ðɨaɪɹeɪtʔækɚstɑmpəweɪʔɨɾiɑɾɨkli"
-        print("Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i")
+        print(
+            "Ground truth:  ð ɨ a ɪ ɹ e ɪ t ʔ æ k ɚ s t ɑ m p ə w e ɪ ʔ ɨ ɾ i ɑ ɾ ɨ k l i"
+        )
         print(f"Starting evaluation on TIMIT audio sample: {input_path}")
-        
+
         evaluate_xlsr(input_path, ground_truth, model_id)
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
