@@ -8,10 +8,7 @@
 ### Q/A checklist
 
 - [ ] If you added new dependencies, did you update the requirements.txt file? `pip freeze > requirements.txt`
-- [ ] Run formatting, linting, tests, and security checks `. scripts/alltests.sh` 
-- [ ] Do a self code review of the changes - Read the diff at least twice.
-- [ ] I have written tests for any new features and regression tests for any bug fixes.
-- [ ] If you changed/updated/added ML models, did you update `scripts/Dockerfile.prod` to cache the weights?
+- [ ] Run formatting and security checks `gitleaks detect && zizmor . && black .`
  
 ### Legal Boilerplate
 
