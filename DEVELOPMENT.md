@@ -16,8 +16,7 @@
     - Pro-tip: select the virtual environment in your IDE, e.g. in VSCode, click the Python version in the bottom left corner and select the virtual environment
 2. Duplicate the `.env.example` file and rename it to `.env`. Fill in the necessary environment variables.
 3. Run the commands in './scripts/install.sh', e.g., with `. ./scripts/install.sh`. 
-    - This will create a virtual environment and install the necessary dependencies. You should always activate the virtual environment with `. ./venv/bin/activate` before running any scripts. 
-    - You can select the virtual environment in VS Code by clicking on the Python version in the bottom left corner in any Python file (enter 'venv/bin/python' as the interpreter path).
+    - This will install dependencies. You should always activate your virtual environment `. ./venv/bin/activate` before running any scripts. 
 
 ### With Conda
 
@@ -32,8 +31,7 @@
     - Pro-tip: select the virtual environment in your IDE, e.g. in VSCode, click the Python version in the bottom left corner and select the virtual environment
 2. Duplicate the `.env.example` file and rename it to `.env`. Fill in the necessary environment variables.
 3. Run the commands in './scripts/install.sh', e.g., with `. ./scripts/install.sh`. 
-    - This will create a virtual environment and install the necessary dependencies. You should always activate the virtual environment with `. ./venv/bin/activate` before running any scripts. 
-    - You can select the virtual environment in VS Code by clicking on the Python version in the bottom left corner in any Python file (enter 'venv/bin/python' as the interpreter path).
+    - This will install dependencies. You should always activate your virtual environment `conda activate ./venv` before running any scripts. 
 
 ### Useful Commands
 
