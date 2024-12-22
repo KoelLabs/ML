@@ -158,7 +158,7 @@ ppft==1.7.6.9
 prompt_toolkit==3.0.48
 propcache==0.2.0
 proto-plus==1.25.0
-protobuf==5.28.3
+protobuf
 psutil==6.0.0
 ptyprocess==0.7.0
 pure_eval==0.2.3
