@@ -58,7 +58,8 @@ All checks are run as github actions when you push code. You can also run them m
 ML/
 ├── .github/                     # GitHub actions and issue templates
 ├── data/                        # Small samples of test data
-├── notebooks/                   # Interactive python notebooks
+├── guides/                      # Finetuning, evaluation, and other guides (these should be well-documented and run standalone)
+├── notebooks/                   # Interactive python notebooks (these are more for exploration and not necessarily well-documented)
 ├── .data/                       # Large datasets and other hidden data
 ├── models/                      # Trained models organized in subfolders by third-party source
 ├── repos/                       # Git submodules for third-party repositories

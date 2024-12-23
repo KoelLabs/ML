@@ -15,6 +15,9 @@ Read about all our repositories [here](https://github.com/KoelLabs).
 
 ## Setup
 
+Checkout the [guides](./guides) directory for standalone guides on finetuning, evaluation, dataset processing, and other topics. 
+These can be run independently of the setup for the rest of the codebase, e.g., in a Colab notebook.
+
 See the [DEVELOPMENT.md](DEVELOPMENT.md) for alternative setup instructions and details.
 
 0. `git clone https://github.com/KoelLabs/ML.git`
