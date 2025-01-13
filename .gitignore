@@ -8,6 +8,11 @@ data/allosaurus_data/train/
 data/allosaurus_data/validate/
 data/allosaurus_data/train/feat.ark
 
+notebooks/results-b0-noise
+notebooks/results-b0-noiseB
+notebooks/results-b0-noiseC
+
+
 notebooks/noise_samples
 notebooks/sweep_results
 notebooks/results-b4
