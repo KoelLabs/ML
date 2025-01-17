@@ -11,6 +11,7 @@ data/allosaurus_data/train/feat.ark
 notebooks/results-b0-noise
 notebooks/results-b0-noiseB
 notebooks/results-b0-noiseC
+notebooks/results-no-resize
 
 
 notebooks/noise_samples
