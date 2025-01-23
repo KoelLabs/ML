@@ -25,6 +25,8 @@ notebooks/xlsr-timit-b0
 notebooks/xlsr-timit-a0
 NVIDIA-Linux-x86_64-525.125.06.run
 
+/notebooks/xlsr-timit-b1
+
 # secrets
 .env
 
