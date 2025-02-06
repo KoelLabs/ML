@@ -1,4 +1,4 @@
-<img width="100%" alt="KoelLabsLogoLong" src="https://github.com/user-attachments/assets/b8232261-eb8f-40a8-a33e-630eca206c9f">
+<img width="100%" alt="KoelLabsLogoLong" src="https://github.com/user-attachments/assets/fee3d829-6207-439b-bda0-1695562328fa">
 
 [![Mozilla Builders](https://img.shields.io/badge/Mozilla-000000.svg?style=for-the-badge&logo=Mozilla&logoColor=white)](https://future.mozilla.org/builders/)
 ![Patreon](https://img.shields.io/badge/Patreon-F96854?style=for-the-badge&logo=patreon&logoColor=white)
