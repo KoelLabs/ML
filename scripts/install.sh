@@ -44,14 +44,14 @@ cd ./repos
 git clone https://github.com/jhasegaw/phonecodes.git
 cd ../
 
-# install ./.data/TIMIT.zip from https://www.kaggle.com/datasets/mfekadu/darpa-timit-acousticphonetic-continuous-speech?resource=download
-curl -L -o ./.data/TIMIT.zip\
-  https://www.kaggle.com/api/v1/datasets/download/mfekadu/darpa-timit-acousticphonetic-continuous-speech
-
 # install https://github.com/xenova/transformers.js
 cd ./repos
 git clone https://github.com/xenova/transformers.js.git
 cd ../
+
+# install ./.data/TIMIT.zip from https://www.kaggle.com/datasets/mfekadu/darpa-timit-acousticphonetic-continuous-speech?resource=download
+curl -L -o ./.data/TIMIT.zip\
+  https://www.kaggle.com/api/v1/datasets/download/mfekadu/darpa-timit-acousticphonetic-continuous-speech
 
 # download https://affective-meld.github.io/
 cd ./.data
