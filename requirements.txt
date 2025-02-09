@@ -403,3 +403,4 @@ xxhash==3.5.0
 yarl==1.13.1
 zipp==3.20.2
 psstdata==1.0.1
+praat-textgrids==1.4.0
