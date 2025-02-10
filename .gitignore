@@ -13,6 +13,8 @@ notebooks/results-b0-noiseB
 notebooks/results-b0-noiseC
 notebooks/results-no-resize
 
+data/speech-bank-aphasia
+
 
 notebooks/noise_samples
 notebooks/sweep_results
@@ -24,6 +26,12 @@ notebooks/results
 notebooks/xlsr-timit-b0
 notebooks/xlsr-timit-a0
 NVIDIA-Linux-x86_64-525.125.06.run
+
+notebooks/TIMIT_Evaluation_all_PTB.ipynb
+notebooks/TIMIT_Evaluation_ALL.ipynb
+notebooks/TIMIT_Evaluation_b0_all_background_room.ipynb
+notebooks/TIMIT_Evaluation_baseline.ipynb
+notebooks/INTERSPEECH_E0_resize_noiseC_train
 
 /notebooks/xlsr-timit-b1
 
@@ -39,4 +47,6 @@ __pycache__
 
 # node
 node_modules
+
+
 
