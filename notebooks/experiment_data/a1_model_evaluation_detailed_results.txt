@@ -1,0 +1,72 @@
+=== Model Evaluation Detailed Results ===
+
+KoelLabs/xlsr-timit-a1:
+CER: 0.7000
+Feature Distance: 28.7476
+
+Suspicious Cases (High CER, Low Feature Distance): 21
+
+Pattern Analysis:
+
+Top Character Substitution Patterns:
+  ʌʃ → oʊɡɪn: 1 times
+  wɑʃɪŋ → əfɔɹʒʔɛn: 1 times
+  ʊm → wæɡəθ: 1 times
+  t → d: 1 times
+  θbɹ → fl: 1 times
+  ʃ → ddʒs: 1 times
+  koʊ → ɑ: 1 times
+  peɪ → ihini: 1 times
+  ɪŋ → imd: 1 times
+  ɑlbɑl → æthidɔd: 1 times
+
+Average length difference: 2.29 characters
+
+Common Additions:
+  Added 'm': 2 times
+  Added 'fɹt': 1 times
+  Added 'ðə': 1 times
+  Added 'ʌnɹɛlli': 1 times
+  Added 'ɹuθ': 1 times
+
+Common Deletions:
+  Deleted 'b': 2 times
+  Deleted 'k': 1 times
+  Deleted 'ɔɹn': 1 times
+  Deleted 'ɪdo': 1 times
+  Deleted 'ʃ': 1 times
+
+Example Cases:
+
+Case 1:
+Ground Truth: bɹʌʃ
+Prediction:   ɹoʊɡɪn
+CER: 1.5000
+FER: 22.1250
+
+Case 2:
+Ground Truth: wɑʃɪŋ
+Prediction:   əfɔɹʒʔɛn
+CER: 1.6000
+FER: 25.8750
+
+Case 3:
+Ground Truth: koʊm
+Prediction:   owæɡəθ
+CER: 1.5000
+FER: 21.3125
+
+Case 4:
+Ground Truth: tuθbɹʌʃ
+Prediction:   duflʌddʒs
+CER: 1.1429
+FER: 23.1875
+
+Case 5:
+Ground Truth: koʊm
+Prediction:   ɑmfɹt
+CER: 1.2500
+FER: 17.1875
+
+==================================================
+
