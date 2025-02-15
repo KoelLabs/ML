@@ -11,7 +11,7 @@
     - for i in *.m4a; do ffmpeg -i "$i" -acodec pcm_s16le -ac 1 -ar 16000 "${i%.*}.wav"; done
     - rm *.m4a
 - Then transcribed using
-    - for i in data/real-world-noise-through-zoom/*.wav; do python ./scripts/ipa_transcription/xlsr.py "$i" KoelLabs/xlsr-timit-c0 > "${i%.*}.txt"; done
+    - for i in data/real-world-noise-through-zoom/*.wav; do python ./scripts/ipa_transcription/xlsr.py "$i" KoelLabs/xlsr-timit-c0 > "${i%.*}.c0.txt"; done
     - for i in data/real-world-noise-through-zoom/*.wav; do python ./scripts/ipa_transcription/xlsr.py "$i" KoelLabs/xlsr-timit-c1 > "${i%.*}.c1.txt"; done
     - for i in data/real-world-noise-through-zoom/*.wav; do python ./scripts/ipa_transcription/xlsr.py "$i" "ginic/gender_split_70_female_4_wav2vec2-large-xlsr-53-buckeye-ipa" > "${i%.*}.taguchi.txt"; done
     - for i in data/real-world-noise-through-zoom/*.wav; do python ./scripts/ipa_transcription/xlsr.py "$i" "mrrubino/wav2vec2-large-xlsr-53-l2-arctic-phoneme" > "${i%.*}.rubino.txt"; done
