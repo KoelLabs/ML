@@ -6,6 +6,14 @@ import numpy as np
 WAV_HEADER_SIZE = 44
 TARGET_SAMPLE_RATE = 16000
 
+# IPA copy paste: https://westonruter.github.io/ipa-chart/keyboard/
+IPA_SUBSTITUTIONS = {
+    "ɝ": "ɜɹ",  # Expand rhotacized schwa
+    "ɚ": "əɹ",  # Expand rhotacized schwa
+    "\u02de": "ɹ",  # Replace rhoticity marker (˞) with 'ɹ'
+    "g": "ɡ",  # Replace ASCII 'g' with IPA 'ɡ'
+}
+
 
 def show_sample(sample):
     import matplotlib.pyplot as plt

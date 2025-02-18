@@ -1,4 +1,4 @@
-from .common import BaseDataset, audio_from_bytes
+from .common import BaseDataset, audio_from_bytes, IPA_SUBSTITUTIONS
 
 import zipfile
 import textgrids
@@ -107,16 +107,6 @@ class L2ArcticDataset(BaseDataset):
 
 
 ARPABET2IPA = {'AA':'ɑ','AE':'æ','AH':'ʌ','AH0':'ə','AO':'ɔ','AW':'aʊ','AY':'aɪ','EH':'ɛ','ER':'ɝ','ER0':'ɚ','EY':'eɪ','IH':'ɪ','IH0':'ɨ','IY':'i','OW':'oʊ','OY':'ɔɪ','UH':'ʊ','UW':'u','B':'b','CH':'tʃ','D':'d','DH':'ð','EL':'l̩','EM':'m̩','EN':'n̩','F':'f','G':'ɡ','HH':'h','JH':'dʒ','K':'k','L':'l','M':'m','N':'n','NG':'ŋ','P':'p','Q':'ʔ','R':'ɹ','S':'s','SH':'ʃ','T':'t','TH':'θ','V':'v','W':'w','WH':'ʍ','Y':'j','Z':'z','ZH':'ʒ'}  # fmt: skip
-IPA_SUBSTITUTIONS = {
-    "ɝ": "ɹ",  # Simplify rhotacized schwa to 'ɹ'
-    "ɚ": "ɹ",  # Simplify rhotacized schwa to 'ɹ'
-    "l̩": "l",  # Remove syllabic marker from 'l̩'
-    "m̩": "m",  # Remove syllabic marker from 'm̩'
-    "n̩": "n",  # Remove syllabic marker from 'n̩'
-    "̩": "",  # Remove syllabic marker
-    "ɨ": "i",  # Replace high central unrounded vowel with high front unrounded vowel
-    " ": "",  # Remove nasalization marker
-}
 for k in ARPABET2IPA.keys():
     if ARPABET2IPA[k] in IPA_SUBSTITUTIONS:
         ARPABET2IPA[k] = IPA_SUBSTITUTIONS[ARPABET2IPA[k]]
