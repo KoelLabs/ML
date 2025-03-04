@@ -6,13 +6,11 @@ import os
 import sys
 from tempfile import NamedTemporaryFile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.audio import audio_record_to_file
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_record_to_file
+from core.secrets import load_secrets
 
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+load_secrets()
 
 # Instantiates a client
 client = SpeechClient()

@@ -7,8 +7,8 @@ import sys
 import os
 from tempfile import NamedTemporaryFile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.audio import audio_record_to_file
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_record_to_file
 
 # model_size = "large-v3"
 model_size = "small"

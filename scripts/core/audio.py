@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+# Audio processing utilities
+# Convert between audio formats, play audio, record audio, etc.
+
 import ffmpeg
 import sys
 import sounddevice as sd
@@ -7,32 +10,51 @@ import scipy.io.wavfile as wavfile
 import numpy as np
 import requests
 import os
-from dotenv import load_dotenv
+from .secrets import load_secrets
 
-# Load environment variables from .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "../.env"))
+load_secrets()
+
+WAV_HEADER_SIZE = 44
+TARGET_SAMPLE_RATE = 16000
 
 
-def audio_convert(input_path, output_path, output_sample_rate=16000):
+def audio_convert(input_path, output_path, output_sample_rate=TARGET_SAMPLE_RATE):
     ffmpeg.input(input_path).output(output_path, ar=output_sample_rate).run()
 
 
-def audio_array_to_wav_file(input_array, output_path, output_sample_rate=16000):
+def audio_array_to_wav_file(
+    input_array, output_path, output_sample_rate=TARGET_SAMPLE_RATE
+):
     wavfile.write(output_path, output_sample_rate, input_array)
 
 
-def audio_file_to_array(input_path, desired_sample_rate=16000):
+def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
+    if src_sample_rate == target_sample_rate:
+        return array
+    return np.interp(
+        np.linspace(
+            0,
+            len(array),
+            int(len(array) * target_sample_rate / src_sample_rate),
+        ),
+        np.arange(len(array)),
+        array,
+    ).astype(np.int16)
+
+
+def audio_bytes_to_array(data, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
+    audio = np.frombuffer(data, dtype=np.int16)[WAV_HEADER_SIZE // 2 :]
+    audio = audio_resample(audio, src_sample_rate, target_sample_rate)
+    return audio
+
+
+def audio_file_to_array(input_path, desired_sample_rate=TARGET_SAMPLE_RATE):
     rate, data = wavfile.read(input_path)
-    if rate != desired_sample_rate:
-        data = np.interp(
-            np.linspace(0, len(data), int(len(data) * desired_sample_rate / rate)),
-            np.arange(len(data)),
-            data,
-        ).astype(np.int16)
+    data = audio_resample(data, rate, desired_sample_rate)
     return data
 
 
-def audio_array_play(input_array, sample_rate=16000):
+def audio_array_play(input_array, sample_rate=TARGET_SAMPLE_RATE):
     sd.play(input_array, sample_rate)
     sd.wait()
 
@@ -54,7 +76,7 @@ def audio_wav_file_crop(input_path, start_sec, end_sec, output_path):
     audio_array_to_wav_file(data, output_path, rate)
 
 
-def audio_record_to_array(output_sample_rate=16000):
+def audio_record_to_array(output_sample_rate=TARGET_SAMPLE_RATE):
     print("Recording, please speak and press Ctrl+C when done")
     samples = np.array([], dtype=np.int16)
     try:
@@ -69,7 +91,7 @@ def audio_record_to_array(output_sample_rate=16000):
     return samples
 
 
-def audio_record_to_file(output_path, output_sample_rate=16000):
+def audio_record_to_file(output_path, output_sample_rate=TARGET_SAMPLE_RATE):
     samples = audio_record_to_array(output_sample_rate)
     audio_array_to_wav_file(samples, output_path, output_sample_rate)
 
@@ -117,15 +139,17 @@ def main(args):
         audio_file_from_text(args[1], args[2])
     else:
         print("Invalid command")
-        print("Usage: python ./scripts/audio.py record <output_wav_path>")
-        print("Usage: python ./scripts/audio.py play <input_wav_path> [start:end]")
-        print("Usage: python ./scripts/audio.py convert <input_path> <output_path>")
+        print("Usage: python ./scripts/core/audio.py record <output_wav_path>")
+        print("Usage: python ./scripts/core/audio.py play <input_wav_path> [start:end]")
         print(
-            "Usage: python ./scripts/audio.py convert <input_path> <output_path> <output_sample_rate>"
+            "Usage: python ./scripts/core/audio.py convert <input_path> <output_path>"
         )
-        print("Usage: python ./scripts/audio.py text <text> <output_wav_path>")
         print(
-            "Usage: python ./scripts/audio.py crop <input_wav_path> <start> <end> <output_wav_path>"
+            "Usage: python ./scripts/core/audio.py convert <input_path> <output_path> <output_sample_rate>"
+        )
+        print("Usage: python ./scripts/core/audio.py text <text> <output_wav_path>")
+        print(
+            "Usage: python ./scripts/core/audio.py crop <input_wav_path> <start> <end> <output_wav_path>"
         )
 
 

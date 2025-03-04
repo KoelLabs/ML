@@ -3,10 +3,11 @@
 import azure.cognitiveservices.speech as speechsdk
 import os
 import sys
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "../../.env"))
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.secrets import load_secrets
+
+load_secrets()
 
 speech_config = speechsdk.SpeechConfig(
     subscription=os.environ.get("AZURE_SPEECH_KEY"),

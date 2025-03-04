@@ -1,18 +1,12 @@
+import os
+import sys
+
 from torch.utils.data import Dataset
 from abc import abstractmethod, ABCMeta
 from collections import Iterable
-import numpy as np
 
-WAV_HEADER_SIZE = 44
-TARGET_SAMPLE_RATE = 16000
-
-# IPA copy paste: https://westonruter.github.io/ipa-chart/keyboard/
-IPA_SUBSTITUTIONS = {
-    "ɝ": "ɜɹ",  # Expand rhotacized schwa
-    "ɚ": "əɹ",  # Expand rhotacized schwa
-    "\u02de": "ɹ",  # Replace rhoticity marker (˞) with 'ɹ'
-    "g": "ɡ",  # Replace ASCII 'g' with IPA 'ɡ'
-}
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import TARGET_SAMPLE_RATE
 
 
 def show_sample(sample):
@@ -27,21 +21,6 @@ def show_sample(sample):
     plt.plot(audio)
     plt.show()
     display(Audio(audio, rate=TARGET_SAMPLE_RATE))
-
-
-def audio_from_bytes(data, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
-    audio = np.frombuffer(data, dtype=np.int16)[WAV_HEADER_SIZE // 2 :]
-    if src_sample_rate != target_sample_rate:
-        audio = np.interp(
-            np.linspace(
-                0,
-                len(audio),
-                int(len(audio) * target_sample_rate / src_sample_rate),
-            ),
-            np.arange(len(audio)),
-            audio,
-        ).astype(np.int16)
-    return audio
 
 
 class BaseDataset(Dataset, metaclass=ABCMeta):

@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+
+# Manage files in AWS S3 bucket
+# Useful for certain APIs that require a file to be uploaded to S3 before processing
+
 import os
 import uuid
 from contextlib import contextmanager
@@ -7,10 +12,9 @@ import boto3
 from boto3.s3.transfer import S3UploadFailedError
 from botocore.exceptions import ClientError
 
-from dotenv import load_dotenv
+from .secrets import load_secrets
 
-# Load environment variables from .env file
-load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+load_secrets()
 
 BUCKET_NAME = os.environ.get("AWS_BUCKET_NAME")
 
