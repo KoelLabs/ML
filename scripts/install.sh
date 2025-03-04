@@ -2,13 +2,13 @@
 
 # dependencies
 if [ "$(uname)" == "Darwin" ]; then
-    # Do something under Mac OS X platform  
+    # Mac OS X specific  
     brew install espeak
     brew install ffmpeg      
     brew install portaudio
     pip install pyaudio
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
-    # Do something under GNU/Linux platform
+    # GNU/Linux specific
     sudo apt-get update
     sudo apt-get install ffmpeg espeak-ng libportaudio2 python3-pyaudio
 else
@@ -37,11 +37,6 @@ cd ../../
 # install https://github.com/PKlumpp/phd_model
 cd ./repos
 git clone https://github.com/PKlumpp/phd_model.git
-cd ../
-
-# install https://github.com/jhasegaw/phonecodes
-cd ./repos
-git clone https://github.com/jhasegaw/phonecodes.git
 cd ../
 
 # install https://github.com/xenova/transformers.js
