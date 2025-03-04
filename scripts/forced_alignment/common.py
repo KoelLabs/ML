@@ -4,6 +4,7 @@ import panphon.distance
 
 # Create a panphon feature table
 ft = panphon.FeatureTable()
+panphon_dist = panphon.distance.Distance()
 
 
 # Convert a phoneme to a numerical feature vector
@@ -21,12 +22,12 @@ def sequence_to_vectors(seq):
 
 
 def weighted_substitution_cost(x, y):
-    return -abs(panphon.distance.Distance().weighted_substitution_cost(x, y))
+    return -abs(panphon_dist.weighted_substitution_cost(x, y))
 
 
 def weighted_insertion_cost(x):
-    return -abs(panphon.distance.Distance().weighted_insertion_cost(x))
+    return -abs(panphon_dist.weighted_insertion_cost(x))
 
 
 def weighted_deletion_cost(x):
-    return -abs(panphon.distance.Distance().weighted_deletion_cost(x))
+    return -abs(panphon_dist.weighted_deletion_cost(x))
