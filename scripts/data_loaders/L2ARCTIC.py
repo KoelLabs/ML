@@ -109,6 +109,7 @@ class L2ArcticDataset(BaseDataset):
                 .replace("_", "")  # typo
                 .replace("`", "")  # typo
                 .replace("8", "")  # typo
+                .replace("!", "")  # typo
                 .upper()
                 for c in arpa
                 if c.lower()
