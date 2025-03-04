@@ -1,4 +1,9 @@
 import numpy as np
+
+from yaml import warnings
+
+warnings({"YAMLLoadWarning": False})
+
 import panphon
 import panphon.distance
 
