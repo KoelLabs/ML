@@ -49,7 +49,7 @@ def dtw_phoneme_alignment_weighted(seq1, seq2):
         aligned_seq1.append(seq1[i] if i < len(seq1) else "-")
         aligned_seq2.append(seq2[j] if j < len(seq2) else "-")
 
-    return "".join(aligned_seq1), "".join(aligned_seq2)
+    return aligned_seq1, aligned_seq2
 
 
 def main(args):
@@ -65,6 +65,8 @@ def main(args):
         aligned_seq1, aligned_seq2 = dtw_phoneme_alignment_weighted(seq1, seq2)
     else:
         aligned_seq1, aligned_seq2 = dtw_phoneme_alignment(seq1, seq2)
+    aligned_seq1 = "".join(aligned_seq1)
+    aligned_seq2 = "".join(aligned_seq2)
     print(aligned_seq1)
     print(aligned_seq2)
 

@@ -62,7 +62,22 @@ def needleman_wunsch(
             aligned_seq2.append(seq2[j - 1])
             j -= 1
 
-    return reversed(aligned_seq1), reversed(aligned_seq2)
+    return list(reversed(aligned_seq1)), list(reversed(aligned_seq2))
+
+
+def weighted_needleman_wunsch(seq1, seq2):
+    vector_seq1 = sequence_to_vectors(seq1)
+    vector_seq2 = sequence_to_vectors(seq2)
+    aligned_seq1, aligned_seq2 = needleman_wunsch(
+        [(s, v) for s, v in zip(seq1, vector_seq1)],
+        [(s, v) for s, v in zip(seq2, vector_seq2)],
+        lambda x, y: weighted_substitution_cost(list(x[1]), list(y[1])),
+        lambda x: weighted_deletion_cost(list(x[1])),
+        lambda x: weighted_insertion_cost(list(x[1])),
+    )
+    return [s if s == "-" else s[0] for s in aligned_seq1], [
+        s if s == "-" else s[0] for s in aligned_seq2
+    ]
 
 
 def main(args):
@@ -75,21 +90,11 @@ def main(args):
     seq1 = args[1]
     seq2 = args[2]
     if weighted:
-        vector_seq1 = sequence_to_vectors(seq1)
-        vector_seq2 = sequence_to_vectors(seq2)
-        aligned_seq1, aligned_seq2 = needleman_wunsch(
-            [(s, v) for s, v in zip(seq1, vector_seq1)],
-            [(s, v) for s, v in zip(seq2, vector_seq2)],
-            lambda x, y: weighted_substitution_cost(list(x[1]), list(y[1])),
-            lambda x: weighted_deletion_cost(list(x[1])),
-            lambda x: weighted_insertion_cost(list(x[1])),
-        )
-        aligned_seq1 = "".join([s if s == "-" else s[0] for s in aligned_seq1])
-        aligned_seq2 = "".join([s if s == "-" else s[0] for s in aligned_seq2])
+        aligned_seq1, aligned_seq2 = weighted_needleman_wunsch(seq1, seq2)
     else:
         aligned_seq1, aligned_seq2 = needleman_wunsch(seq1, seq2)
-        aligned_seq1 = "".join(aligned_seq1)
-        aligned_seq2 = "".join(aligned_seq2)
+    aligned_seq1 = "".join(aligned_seq1)
+    aligned_seq2 = "".join(aligned_seq2)
     print(aligned_seq1)
     print(aligned_seq2)
 
