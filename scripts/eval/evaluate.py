@@ -10,6 +10,8 @@ from core.ipa import filter_chars
 
 
 def preprocess_ipa(ipa_string):
+    # remove all whitespace and numbers
+    ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
     return filter_chars(ipa_string, "letters_rmv_tie")
 
 
