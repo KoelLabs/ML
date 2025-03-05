@@ -24,9 +24,11 @@ FILTERS = set(
 )
 
 
-def canonize(ipa_string):
+def canonize(ipa_string, ignore=False):
     """canonize the Unicode representation of the IPA string"""
-    return IPAString(unicode_string=ipa_string).canonical_representation
+    return str(
+        IPAString(unicode_string=ipa_string, ignore=ignore).canonical_representation
+    )
 
 
 def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
