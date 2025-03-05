@@ -4,6 +4,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.ipa import canonize
 from core.codes import string2symbols
 
 from yaml import warnings
@@ -21,7 +22,7 @@ IPA_SYMBOLS = [ipa for ipa, *_ in ft.segments]
 
 
 def group_phonemes(phoneme_string):
-    return string2symbols(phoneme_string, IPA_SYMBOLS)[0]
+    return string2symbols(str(canonize(phoneme_string)), IPA_SYMBOLS)[0]
 
 
 # Convert a phoneme to a numerical feature vector
