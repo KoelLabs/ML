@@ -31,7 +31,7 @@ class KokoraDataset(BaseDataset):
         super().__init__(split, include_timestamps, include_speaker_info)
 
         if include_timestamps:
-            raise NotImplementedError("Timestamps are available but not parsed yet.")
+            raise ValueError("Timestamps are not available for Kokoro dataset.")
 
         metadata_zip = zipfile.ZipFile(DATA_ZIP, "r")
         splits = [
