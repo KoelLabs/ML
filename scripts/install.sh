@@ -53,6 +53,10 @@ cd ./.data
 wget https://huggingface.co/datasets/declare-lab/MELD/resolve/main/MELD.Raw.tar.gz
 cd ../
 
+# download https://www.kaggle.com/rtatman/speech-accent-archive
+curl -L -o ./.data/speech-accent-snake-snack.zip\
+  https://www.kaggle.com/api/v1/datasets/download/rtatman/speech-accent-archive
+
 # download Kokoro-Speech-Dataset
 curl -L -o ./.data/Kokoro-Speech-Dataset.zip\
   https://github.com/kaiidams/Kokoro-Speech-Dataset/releases/download/1.3/kokoro-speech-v1_3.zip
