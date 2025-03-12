@@ -10,6 +10,7 @@ import scipy.io.wavfile as wavfile
 import numpy as np
 import requests
 import os
+from io import BytesIO
 from .secrets import load_secrets
 
 load_secrets()
@@ -20,6 +21,21 @@ TARGET_SAMPLE_RATE = 16000
 
 def audio_convert(input_path, output_path, output_sample_rate=TARGET_SAMPLE_RATE):
     ffmpeg.input(input_path).output(output_path, ar=output_sample_rate).run()
+
+
+def audio_bytes_to_wav_array(bytes, format, output_sample_rate=TARGET_SAMPLE_RATE):
+    wav_bytes = (
+        ffmpeg.input("pipe:0", format=format)
+        .output("pipe:1", format="wav", ar=output_sample_rate)
+        .run(input=bytes, capture_stdout=True)
+    )
+    return audio_bytes_to_array(wav_bytes[0], output_sample_rate)
+
+
+def audio_array_to_bytes(array, sample_rate=TARGET_SAMPLE_RATE):
+    with BytesIO() as f:
+        wavfile.write(f, sample_rate, array)
+        return f.getvalue()
 
 
 def audio_array_to_wav_file(
