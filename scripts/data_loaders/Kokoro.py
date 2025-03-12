@@ -21,7 +21,7 @@ SUBSTITUTE = {
 g2p = ja.JAG2P()
 
 
-class KokoraDataset(BaseDataset):
+class KokoroDataset(BaseDataset):
     def __init__(
         self,
         split="meian-by-soseki-natsume",
@@ -114,6 +114,6 @@ class KokoraDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    data = KokoraDataset(include_speaker_info=True)
+    data = KokoroDataset(include_speaker_info=True)
 
     print(data[0])
