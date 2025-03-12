@@ -1,11 +1,10 @@
 import os
 import sys
 
-from .common import BaseDataset
-
 import zipfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array
 from core.codes import parse_timit
 

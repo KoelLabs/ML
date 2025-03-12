@@ -3,13 +3,12 @@
 import os
 import sys
 
-from .common import BaseDataset
-
 import zipfile
 import textgrids
 from torch.utils.data import ConcatDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array
 from core.codes import arpabet2ipa
 
