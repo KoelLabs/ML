@@ -7,7 +7,7 @@ import os
 from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.audio import audio_record_to_file
+from scripts.core.audio import audio_record_to_file
 
 # set espeak library path for macOS
 if sys.platform == "darwin":
