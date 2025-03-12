@@ -2,6 +2,7 @@ import os
 import sys
 
 from metrics import per, fer
+
 # Given transcript
 # given_transcript = "p l iː s k oʊ l s t ɛ l ɚ ɑː s k ɚ t ə b ɹ ɪ ŋ ð iː z θ ɪ ŋ z w ɪ v h ɚ f ɹ ʌ m ð ə s t oʊ s ɪ k s p uː n z ʌ v f ɹ ɪ s n oʊ p iː s f aɪ v θ ɪ k s l æ p s ʌ v b l uː tʃ iː z æ n d m eɪ b i ɐ s n æ k f ɔːɹ h ɜː b ɹ ʌ ð ɚ ɚ b ɹ æ ð ɚ b ɔ w iː ɔː l s oʊ n iː d ɐ s m oʊ l p l æ s t ɪ k s n eɪ k æ n d ɐ b ɪ ɡ t uː ɐ f ɹ ɔ k f ɔːɹ ð ə k ɪ d z ʃ iː k æ n s k uː p ð iː z θ ɪ ŋ z ɪ n t ʊ f ɹ iː ɹ ɪ t b æ k s æ n w iː w ɪ l ɡ oʊ m iː ɾ ɐ w ɪ n s t eɪ æ t ə d ɹ eɪ n s t eɪ ʃ ə n"
 # given_transcript = "p l iː z k ɔː l s t ɛ l ɐ ɛ s k ɚ ɾ ə b ɹ ɪ ŋ ð oʊ z θ ɪ ŋ z w ɪ ð h ɚ f ɹ ʌ m ð ə s t oːɹ s ɪ k s p uː n z ʌ v f ɹ ɛ ʃ s n oʊ p iː z f aɪ v θ ɪ k s l æ b z ʌ v b l uː tʃ iː z æ n d m eɪ b i ɐ s n æ k f ɔːɹ h ɚ b ɹ ʌ ð ɚ b ɹ ɔː b ɑː b w iː ɔː l s oʊ n iː d ɐ s m ɔː l p l eɪ s t ɪ k s n eɪ k æ n d ɐ b ɪ ɡ t ɔːɹ f ɹ ɔː ɡ f ɔːɹ ð ə k ɪ d z ʃ iː k æ n s k uː p ð iː s θ ɪ ŋ z ɪ n t ə θ ɹ iː ɹ ɛ d b æ ɡ z æ n d w iː w əl ɡ oʊ m iː ɾ h ɚ w ɛ n z d eɪ æ t ð ə t ɹ eɪ n s t eɪ ʃ ə n"
@@ -25,11 +26,23 @@ british_g2p = british_g2p.strip().replace(" ", "")
 dist_american = per(given_transcript, american_g2p)
 dist_british = per(given_transcript, british_g2p)
 
-print("Levenshtein Distance between given transcript and American G2P transcription: ", dist_american)
-print("Levenshtein Distance between given transcript and British G2P transcription: ", dist_british)
+print(
+    "Levenshtein Distance between given transcript and American G2P transcription: ",
+    dist_american,
+)
+print(
+    "Levenshtein Distance between given transcript and British G2P transcription: ",
+    dist_british,
+)
 
 feature_error_rate = fer(given_transcript, american_g2p)
-print("Feature Error Rate between given transcript and American G2P transcription: ", feature_error_rate)
+print(
+    "Feature Error Rate between given transcript and American G2P transcription: ",
+    feature_error_rate,
+)
 
 feature_error_rate = fer(given_transcript, british_g2p)
-print("Feature Error Rate between given transcript and British G2P transcription: ", feature_error_rate)
+print(
+    "Feature Error Rate between given transcript and British G2P transcription: ",
+    feature_error_rate,
+)
