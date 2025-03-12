@@ -31,6 +31,11 @@ def canonize(ipa_string, ignore=False):
     )
 
 
+def remove_length_diacritics(ipa_string):
+    """Remove length diacritics from the IPA string"""
+    return "".join(c for c in ipa_string if c not in {"ː", "ˑ"})
+
+
 def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
     """Filter characters to only include any of FILTERS"""
     remove_tie = filter_type.endswith("_rmv_tie")
