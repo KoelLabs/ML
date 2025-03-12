@@ -76,6 +76,10 @@ a j ɹ e j tʰ æ k t ɻ̩ s t ɒ m p t ə w e j i ɾʲ a ɾ ə k uə i
 
 Facebook 60 XLSR Result:
 aɪ ɹ aɪ t æ k t ɚ s t ʌ m p t ə w eɪ ɪ d i ɑː ɾ ɪ k l i
+
+british g2p: aɪˈreɪt ˈæktə stɒmpt əˈweɪ ˌɪdiˈɒtɪkᵊli
+american g2p: aɪˈreɪt ˈæktər stɑmpt əˈweɪ ˌɪdiˈɑtɪkli
+
 [('a ɪ', 0.040362179487179496, 0.060543269230769234)
 ('ɹ', 0.16144871794871798, 0.18162980769230772)
 ('a ɪ', 0.20181089743589745, 0.2219919871794872)
