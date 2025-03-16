@@ -5,7 +5,7 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.secrets import load_secrets
+from core.load_secrets import load_secrets
 
 load_secrets()
 
