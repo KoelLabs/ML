@@ -1,4 +1,4 @@
-# download from https://psi.engr.tamu.edu/l2-arctic-corpus/
+# L2 English Speech from https://psi.engr.tamu.edu/l2-arctic-corpus/
 
 import os
 import sys

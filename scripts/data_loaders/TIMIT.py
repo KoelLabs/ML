@@ -1,3 +1,5 @@
+# L1 American English Dialects from https://catalog.ldc.upenn.edu/LDC93S1
+
 import os
 import sys
 
