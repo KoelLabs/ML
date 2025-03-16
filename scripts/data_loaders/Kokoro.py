@@ -1,3 +1,5 @@
+# Japanese speech from https://github.com/kaiidams/Kokoro-Speech-Dataset
+
 import os
 import sys
 

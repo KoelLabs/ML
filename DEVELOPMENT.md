@@ -37,10 +37,10 @@
 
 - `pip freeze > requirements.txt` - Save the current environment to a requirements file
 - `pip install -r requirements.txt` - Install the requirements from a file
-- `python ./scripts/audio.py record ./data/test.wav` - Record audio to a file
-- `python ./scripts/audio.py play ./data/alexIsConfused.wav` - Play audio from a file
-- `python ./scripts/audio.py convert ./data/openai_tts.mp3 ./data/openai_tts.wav` - Convert audio from one format to another
-- `python ./scripts/audio.py text "hello there" ./data/hello_tts.wav` - Synthesize audio from text for testing
+- `python ./scripts/core/audio.py record ./data/test.wav` - Record audio to a file
+- `python ./scripts/core/audio.py play ./data/alexIsConfused.wav` - Play audio from a file
+- `python ./scripts/core/audio.py convert ./data/openai_tts.mp3 ./data/openai_tts.wav` - Convert audio from one format to another
+- `python ./scripts/core/audio.py text "hello there" ./data/hello_tts.wav` - Synthesize audio from text for testing
 
 ## Formatting, Linting, Automated Tests and Secret Scanning
 

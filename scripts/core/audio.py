@@ -11,7 +11,9 @@ import numpy as np
 import requests
 import os
 from io import BytesIO
-from .secrets import load_secrets
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.load_secrets import load_secrets
 
 load_secrets()
 

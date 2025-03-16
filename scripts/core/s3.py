@@ -4,6 +4,7 @@
 # Useful for certain APIs that require a file to be uploaded to S3 before processing
 
 import os
+import sys
 import uuid
 from contextlib import contextmanager
 from urllib import parse
@@ -12,7 +13,8 @@ import boto3
 from boto3.s3.transfer import S3UploadFailedError
 from botocore.exceptions import ClientError
 
-from .secrets import load_secrets
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.load_secrets import load_secrets
 
 load_secrets()
 

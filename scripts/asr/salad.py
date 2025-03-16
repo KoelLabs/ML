@@ -9,7 +9,7 @@ from tempfile import NamedTemporaryFile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.s3 import get_presigned_url, create_temp_object
 from core.audio import audio_record_to_file
-from core.secrets import load_secrets
+from core.load_secrets import load_secrets
 
 load_secrets()
 
