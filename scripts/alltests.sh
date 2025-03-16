@@ -1,0 +1,3 @@
+black .
+gitleaks detect
+zizmor .
