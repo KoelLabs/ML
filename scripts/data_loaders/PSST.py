@@ -51,16 +51,16 @@ class PSSTDataset(BaseDataset):
 
     def _get_ix(self, ix):
         utterance = self.utterances[ix]
-        ipa = arpabet2ipa(utterance.transcript.replace("<spn>", "").replace("<sil>", ""))
-        audio = audio_file_to_array(utterance.filename_absolute)
+        ipa = arpabet2ipa(utterance.transcript.replace("<spn>", "").replace("<sil>", "")) # type: ignore
+        audio = audio_file_to_array(utterance.filename_absolute) # type: ignore
         if self.include_speaker_info:
             return ipa, audio, {
-                "utterance_id": utterance.utterance_id,
-                "test": utterance.test,
-                "session": utterance.session,
-                "text_prompt": utterance.prompt,
-                "correct": utterance.correctness,
-                "aq_index": utterance.aq_index,
+                "utterance_id": utterance.utterance_id, # type: ignore
+                "test": utterance.test, # type: ignore
+                "session": utterance.session, # type: ignore
+                "text_prompt": utterance.prompt, # type: ignore
+                "correct": utterance.correctness, # type: ignore
+                "aq_index": utterance.aq_index, # type: ignore
             }
         else:
             return ipa, audio
