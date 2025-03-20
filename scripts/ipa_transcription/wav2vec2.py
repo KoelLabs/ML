@@ -9,7 +9,12 @@ if sys.platform == "darwin":
     _ESPEAK_LIBRARY = "/opt/homebrew/Cellar/espeak/1.48.04_1/lib/libespeak.1.1.48.dylib"
     EspeakWrapper.set_library(_ESPEAK_LIBRARY)
 
-DEVICE = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
+
 
 def transcribe_batch(batch, model, processor):
     input_values = (
