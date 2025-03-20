@@ -12,6 +12,8 @@ from forced_alignment.common import IPA_SYMBOLS, group_phonemes
 def simplify_ipa(ipa_string):
     # remove all whitespace and numbers
     ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
+    # expand rhotized vowels
+    ipa_string = ipa_string.replace("ɚ", "ər").replace("ɝ", "ɜr")
     # remove anything that is not a vowel/consonant including tie bars
     return filter_chars(ipa_string, "letters_rmv_tie")
 
