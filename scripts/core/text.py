@@ -13,19 +13,24 @@ import g2p_en
 
 g2p = g2p_en.G2p()
 
+
 def english2ipa(text):
     arpa = g2p(text)
+
     def arpa2ipa(a):
-        if a == ' ':
-            return ' '
+        if a == " ":
+            return " "
         try:
             return arpabet2ipa(a)
         except:
             return a
-    return ''.join(map(arpa2ipa, arpa))
+
+    return "".join(map(arpa2ipa, arpa))
+
 
 def remove_punctuation(text):
-    return ''.join([c for c in text if c not in punctuation])
+    return "".join([c for c in text if c not in punctuation])
+
 
 def main(args):
     if len(args) < 2:
@@ -39,6 +44,7 @@ def main(args):
         print(remove_punctuation(text))
     else:
         print("Unknown command")
+
 
 if __name__ == "__main__":
     main(sys.argv[1:])
