@@ -15,7 +15,7 @@ g2p = g2p_en.G2p()
 
 
 def english2ipa(text):
-    arpa = g2p(text)
+    arpa = [g2p(line) for line in text.split("\n")]
 
     def arpa2ipa(a):
         if a == " ":
@@ -25,7 +25,7 @@ def english2ipa(text):
         except:
             return a
 
-    return "".join(map(arpa2ipa, arpa))
+    return "\n".join("".join(map(arpa2ipa, arp)) for arp in arpa)
 
 
 def remove_punctuation(text):
