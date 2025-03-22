@@ -31,6 +31,8 @@ def english2ipa(text):
 def remove_punctuation(text):
     return "".join([c for c in text if c not in punctuation])
 
+def remove_stress_marks(text):
+    return text.replace("ˈ", "").replace("ˌ", "")
 
 def main(args):
     if len(args) < 2:
@@ -42,6 +44,8 @@ def main(args):
         print(english2ipa(text))
     elif command == "remove_punctuation":
         print(remove_punctuation(text))
+    elif command == "remove_stress_marks":
+        print(remove_stress_marks(text))
     else:
         print("Unknown command")
 
