@@ -17,9 +17,16 @@ SOURCE_SAMPLE_RATE = 16000
 
 class TIMITDataset(BaseDataset):
     def __init__(
-        self, split="train", include_timestamps=False, include_speaker_info=False, include_text=False, include_g2p=False
+        self,
+        split="train",
+        include_timestamps=False,
+        include_speaker_info=False,
+        include_text=False,
+        include_g2p=False,
     ):
-        super().__init__(split, include_timestamps, include_speaker_info, include_text, include_g2p)
+        super().__init__(
+            split, include_timestamps, include_speaker_info, include_text, include_g2p
+        )
         self.zip = zipfile.ZipFile("../.data/TIMIT.zip", "r")
         files = self.zip.namelist()
         self.files = list(
@@ -51,13 +58,12 @@ class TIMITDataset(BaseDataset):
             )
         ipa = "".join([x[0] for x in timestamped_phonemes])
 
-         # grab text transcripts 
-        with self.zip.open(filename + '.TXT') as txt_file:
-            text = ' '.join(txt_file.read().decode('utf-8').strip().split(' ')[2:])
+        # grab text transcripts
+        with self.zip.open(filename + ".TXT") as txt_file:
+            text = " ".join(txt_file.read().decode("utf-8").strip().split(" ")[2:])
             text = remove_punctuation(text)
             g2p_ipa = english2ipa(text)
             g2p_ipa = remove_stress_marks(g2p_ipa)
-
 
         start_signal = timestamped_phonemes.pop(0)
         audio = audio[start_signal[2] :]
