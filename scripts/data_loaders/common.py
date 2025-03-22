@@ -25,7 +25,12 @@ def show_sample(sample):
 
 class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(
-        self, split="train", include_timestamps=False, include_speaker_info=False, include_text=False, include_g2p=False
+        self,
+        split="train",
+        include_timestamps=False,
+        include_speaker_info=False,
+        include_text=False,
+        include_g2p=False,
     ):
         self.split = split
         self.include_timestamps = include_timestamps
