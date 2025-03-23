@@ -7,6 +7,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.codes import arpabet2ipa
+from core.ipa import filter_chars
 
 from string import punctuation
 import g2p_en
@@ -14,7 +15,7 @@ import g2p_en
 g2p = g2p_en.G2p()
 
 
-def english2ipa(text):
+def english2ipa(text, filter_type="letters_rmv_tie"):
     arpa = [g2p(line) for line in text.split("\n")]
 
     def arpa2ipa(a):
@@ -25,7 +26,8 @@ def english2ipa(text):
         except:
             return a
 
-    return "\n".join("".join(map(arpa2ipa, arp)) for arp in arpa)
+    text = remove_punctuation("\n".join("".join(map(arpa2ipa, arp)) for arp in arpa))
+    return filter_chars(text, filter_type)
 
 
 def remove_punctuation(text):

@@ -10,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array
 from core.codes import parse_timit
-from core.ipa import filter_chars
 from core.text import english2ipa, remove_punctuation
 
 
@@ -66,12 +65,14 @@ class TIMITDataset(BaseDataset):
             )
         ipa = "".join([x[0] for x in timestamped_phonemes])
 
-        # grab text transcripts
-        with self.zip.open(filename + ".TXT") as txt_file:
-            text = " ".join(txt_file.read().decode("utf-8").strip().split(" ")[2:])
-            text = remove_punctuation(text)
-            g2p_ipa = english2ipa(text)
-            g2p_ipa = filter_chars(g2p_ipa, filter_type=self.g2p_filter_type)
+        if self.include_text:
+            with self.zip.open(filename + ".TXT") as txt_file:
+                text = " ".join(txt_file.read().decode("utf-8").strip().split(" ")[2:])
+                text = remove_punctuation(text)
+        if self.include_g2p:
+            g2p_ipa = english2ipa(
+                text, filter_type=self.g2p_filter_type
+            )  # removes punctuation and converts to ipa
 
         start_signal = timestamped_phonemes.pop(0)
         audio = audio[start_signal[2] :]
