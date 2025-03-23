@@ -32,10 +32,6 @@ def remove_punctuation(text):
     return "".join([c for c in text if c not in punctuation])
 
 
-def remove_stress_marks(text):
-    return text.replace("ˈ", "").replace("ˌ", "")
-
-
 def main(args):
     if len(args) < 2:
         print("Usage: python ./scripts/core/text.py <command> <text>")
