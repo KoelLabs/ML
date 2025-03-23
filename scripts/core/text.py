@@ -42,8 +42,6 @@ def main(args):
         print(english2ipa(text))
     elif command == "remove_punctuation":
         print(remove_punctuation(text))
-    elif command == "remove_stress_marks":
-        print(remove_stress_marks(text))
     else:
         print("Unknown command")
 

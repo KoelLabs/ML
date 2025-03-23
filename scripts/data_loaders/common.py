@@ -31,12 +31,14 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         include_speaker_info=False,
         include_text=False,
         include_g2p=False,
+        g2p_filter_type="letters_rmv_tie",
     ):
         self.split = split
         self.include_timestamps = include_timestamps
         self.include_speaker_info = include_speaker_info
         self.include_text = include_text
         self.include_g2p = include_g2p
+        self.g2p_filter_type = g2p_filter_type
 
     def __len__(self):
         return 0
