@@ -406,3 +406,4 @@ psstdata==1.0.1
 praat-textgrids==1.4.0
 g2p-en==2.1.0
 misaki[ja]==0.8.4
+speechbrain @ git+https://github.com/speechbrain/speechbrain.git@00b981c7afdf72dca8ee7ecbea01cdda15c79e65
