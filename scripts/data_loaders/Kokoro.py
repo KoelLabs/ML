@@ -8,7 +8,7 @@ from misaki import ja
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
-from core.audio import audio_bytes_to_array
+from core.audio import audio_bytes_to_wav_array
 from forced_alignment.common import group_phonemes
 
 SOURCE_SAMPLE_RATE = 22050
@@ -81,8 +81,10 @@ class KokoroDataset(BaseDataset):
     def _get_ix(self, ix):
         metadata = self.metadata[ix]
         filename = metadata["file"]
-        with self.zip.open(filename) as wav_file:
-            audio = audio_bytes_to_array(wav_file.read(), SOURCE_SAMPLE_RATE)
+        with self.zip.open(filename) as file:
+            audio = audio_bytes_to_wav_array(
+                file.read(), format=filename.split(".")[-1]
+            )
 
         transcript = (
             metadata["transcription"]

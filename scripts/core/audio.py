@@ -61,6 +61,7 @@ def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE
 
 
 def audio_bytes_to_array(data, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
+    # TODO: rename to make clear this assumes WAV format
     audio = np.frombuffer(data, dtype=np.int16)[WAV_HEADER_SIZE // 2 :]
     audio = audio_resample(audio, src_sample_rate, target_sample_rate)
     return audio
