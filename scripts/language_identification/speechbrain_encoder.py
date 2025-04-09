@@ -3,13 +3,12 @@
 import os, sys
 import warnings
 from speechbrain.dataio.encoder import logger
-from tempfile import NamedTemporaryFile
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 logger.setLevel("ERROR")
 
 sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.core.audio import audio_record_to_file
+from scripts.core.audio import audio_record_to_array
 
 import torch
 import numpy as np
@@ -39,13 +38,12 @@ def identify_language_from_array(wav_array: np.ndarray) -> str:
 
 def identify_language_from_file(audio_path: str) -> str:
     signal = language_id.load_audio(audio_path)  # type: ignore
-    return identify_language_from_array(signal)
+    return language_id.classify_batch(signal)[3][0]  # type: ignore
 
 
 def identify_language_from_mic() -> str:
-    with NamedTemporaryFile(suffix=".wav") as f:
-        audio_record_to_file(f.name)
-        return identify_language_from_file(f.name)
+    signal = audio_record_to_array()
+    return identify_language_from_array(signal)
 
 
 def main(args):
