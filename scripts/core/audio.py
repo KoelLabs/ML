@@ -67,8 +67,15 @@ def audio_bytes_to_array(data, src_sample_rate, target_sample_rate=TARGET_SAMPLE
     return audio
 
 
+def audio_dual_channel_to_mono(input_array):
+    if input_array.ndim == 2 and input_array.shape[1] == 2:
+        return np.mean(input_array, axis=1).astype(np.int16)
+    return input_array
+
+
 def audio_file_to_array(input_path, desired_sample_rate=TARGET_SAMPLE_RATE):
     rate, data = wavfile.read(input_path)
+    data = audio_dual_channel_to_mono(data)
     data = audio_resample(data, rate, desired_sample_rate)
     return data
 
