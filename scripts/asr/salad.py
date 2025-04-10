@@ -8,7 +8,7 @@ from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.s3 import get_presigned_url, create_temp_object
-from core.audio import audio_record_to_file
+from core.audio import audio_record_to_file, audio_array_to_wav_file
 from core.load_secrets import load_secrets
 
 load_secrets()
@@ -23,7 +23,7 @@ assert API_KEY, "SALAD_API_KEY is not set"
 def salad_transcribe(audio_path):
     print(f"Status: uploading audio")
     with create_temp_object(audio_path) as key:
-        url = get_presigned_url(key)
+        url = get_presigned_url(key, expiration=7200)
         response = requests.post(
             API_URL,  # type: ignore
             headers={
@@ -66,12 +66,19 @@ def salad_transcribe(audio_path):
 
     if status == "succeeded":
         output = response["output"]  # type: ignore
+        print(output)
         response = requests.get(output["url"])
         response.raise_for_status()
         output = response.json()
         return output
     else:
         return None
+
+
+def salad_transcribe_from_array(input_array):
+    with NamedTemporaryFile(suffix=".wav") as f:
+        audio_array_to_wav_file(input_array, f.name)
+        return salad_transcribe(f.name)
 
 
 def salad_transcribe_from_mic():

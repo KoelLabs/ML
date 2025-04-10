@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 
 import azure.cognitiveservices.speech as speechsdk
+
 import os
 import sys
+from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.load_secrets import load_secrets
+from core.audio import audio_array_to_wav_file
 
 load_secrets()
 
@@ -21,13 +24,24 @@ def azure_transcribe(input_path):
         speech_config=speech_config, audio_config=audio_config
     )
 
-    speech_recognition_result = speech_recognizer.recognize_once_async().get()
-    if not speech_recognition_result:
-        return ""
-    assert (
-        speech_recognition_result.reason == speechsdk.ResultReason.RecognizedSpeech
-    ), speech_recognition_result
-    return speech_recognition_result.text
+    # listen for all utterances and return them as a list
+    speech_recognition_results = []
+    while True:
+        speech_recognition_result = speech_recognizer.recognize_once_async().get()
+        if (
+            not speech_recognition_result
+            or speech_recognition_result.reason
+            != speechsdk.ResultReason.RecognizedSpeech
+        ):
+            break
+        speech_recognition_results.append(speech_recognition_result.text)
+    return speech_recognition_results
+
+
+def azure_transcribe_from_array(input_array):
+    with NamedTemporaryFile(suffix=".wav") as f:
+        audio_array_to_wav_file(input_array, f.name)
+        return azure_transcribe(f.name)
 
 
 def azure_transcribe_from_mic():

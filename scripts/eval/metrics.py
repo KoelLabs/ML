@@ -8,6 +8,7 @@ warnings({"YAMLLoadWarning": False})
 
 import panphon
 import panphon.distance
+from jiwer import wer as jiwer_wer
 
 ft = panphon.FeatureTable()
 panphon_dist = panphon.distance.Distance()
@@ -35,8 +36,12 @@ def fer(prediction, ground_truth):
     )
 
 
+def wer(prediction, ground_truth):
+    return jiwer_wer(ground_truth, prediction)
+
+
 def usage():
-    print("Usage: python ./scripts/eval/metrics.py <per|fer> <predicted> <label>")
+    print("Usage: python ./scripts/eval/metrics.py <per|fer|wer> <predicted> <label>")
     return
 
 
@@ -51,6 +56,8 @@ def main(args):
         print(per(predicted, label))
     elif metric == "fer":
         print(fer(predicted, label))
+    elif metric == "wer":
+        print(wer(predicted, label))
     else:
         usage()
         return
