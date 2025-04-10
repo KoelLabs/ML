@@ -13,14 +13,20 @@ from core.audio import audio_bytes_to_array
 from core.codes import arpabet2ipa
 
 SOURCE_SAMPLE_RATE = 44100
+DATA_ZIP = os.path.join(
+    os.path.dirname(__file__), "..", "..", ".data", "l2arctic_release_v5.0.zip"
+)
 
 
-def all_arctic_speaker_splits(include_timestamps=False, include_speaker_info=False):
+def all_arctic_speaker_splits(
+    include_timestamps=False, include_speaker_info=False, include_text=False
+):
     return ConcatDataset(
         L2ArcticDataset(
             split=s,
             include_timestamps=include_timestamps,
             include_speaker_info=include_speaker_info,
+            include_text=include_text,
         )
         for s in SPEAKERS.keys()
     )
@@ -35,14 +41,18 @@ class L2ArcticDataset(BaseDataset):
     """
 
     def __init__(
-        self, split="ABA", include_timestamps=False, include_speaker_info=False
+        self,
+        split="ABA",
+        include_timestamps=False,
+        include_speaker_info=False,
+        include_text=False,
     ):
-        super().__init__(split, include_timestamps, include_speaker_info)
+        super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
         if include_timestamps:
             raise NotImplementedError("Timestamps are available but not parsed yet.")
 
-        self.arctic = zipfile.ZipFile("../.data/l2arctic_release_v5.0.zip", "r")
+        self.arctic = zipfile.ZipFile(DATA_ZIP, "r")
         self.suitcase = self.arctic.open(f"{split}.zip")
         self.zip = zipfile.ZipFile(self.suitcase, "r")
         files = self.zip.namelist()
@@ -98,6 +108,10 @@ class L2ArcticDataset(BaseDataset):
                 print(data.decode("utf-8"))
                 raise e
 
+            if self.include_text:
+                words = tg.interval_tier_to_array("words")
+                text = " ".join(c["label"] for c in words if c["label"])
+
             arpa = tg.interval_tier_to_array("phones")
             arpa = [c["label"] for c in arpa]
             arpa = [c.split(",")[1].strip() if "," in c else c for c in arpa]
@@ -122,12 +136,15 @@ class L2ArcticDataset(BaseDataset):
             arpa = " ".join(arpa)
             arpa = [c if not c.isdigit() else f" {c}" for c in arpa]
             ipa = arpabet2ipa("".join(arpa))
+
+        result = [ipa, audio]
         if self.include_speaker_info:
             speaker_id = self.split if self.split != "suitcase_corpus" else filename
             speaker = SPEAKERS[speaker_id.upper()]
-            return ipa, audio, speaker
-        else:
-            return ipa, audio
+            result.append(speaker)
+        if self.include_text:
+            result.append(text)
+        return tuple(result)
 
 
 SPEAKERS = {
@@ -228,3 +245,9 @@ SPEAKERS = {
         "native-language": "Vietnamese",
     },
 }
+
+if __name__ == "__main__":
+    suitcase = L2ArcticDataset(
+        "suitcase_corpus", include_speaker_info=True, include_text=True
+    )
+    print(suitcase[0])

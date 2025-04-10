@@ -62,7 +62,7 @@ f5-tts @ git+https://github.com/SWivid/F5-TTS.git@2a844ae064deb2ff0e6d99b8d0aafa
 fast_ctc_decode==0.3.6
 fastapi==0.115.5
 fastdtw==0.3.4
-faster-whisper==1.0.3
+faster-whisper==1.1.0
 ffmpeg-python==0.2.0
 ffmpy==0.4.0
 filelock==3.13.4
@@ -407,3 +407,4 @@ praat-textgrids==1.4.0
 g2p-en==2.1.0
 misaki[ja]==0.8.4
 speechbrain @ git+https://github.com/speechbrain/speechbrain.git@00b981c7afdf72dca8ee7ecbea01cdda15c79e65
+jiwer==3.1.0

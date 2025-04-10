@@ -8,7 +8,7 @@ import os
 from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.audio import audio_record_to_file
+from core.audio import audio_record_to_file, audio_array_to_wav_file
 
 # model_size = "large-v3"
 model_size = "small"
@@ -22,11 +22,23 @@ else:
 
 
 def whisper_transcribe(input_path):
-    return model.transcribe(input_path, beam_size=5)
+    return model.transcribe(input_path, language="en")
 
 
 def whisper_transcribe_timestamped(input_path):
-    return model.transcribe(input_path, word_timestamps=True)
+    return model.transcribe(input_path, language="en", word_timestamps=True)
+
+
+def whisper_transcribe_from_array(wav_array):
+    with NamedTemporaryFile(suffix=".wav") as f:
+        audio_array_to_wav_file(wav_array, f.name)
+        return whisper_transcribe(f.name)
+
+
+def whisper_transcribe_timestamped_from_array(wav_array):
+    with NamedTemporaryFile(suffix=".wav") as f:
+        audio_array_to_wav_file(wav_array, f.name)
+        return whisper_transcribe_timestamped(f.name)
 
 
 def whisper_transcribe_from_mic():

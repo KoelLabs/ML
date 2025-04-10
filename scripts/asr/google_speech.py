@@ -2,12 +2,12 @@
 
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
+
 import os
 import sys
-from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.audio import audio_record_to_file
+from core.audio import audio_record_to_array, audio_array_to_bytes
 from core.load_secrets import load_secrets
 
 load_secrets()
@@ -16,11 +16,7 @@ load_secrets()
 client = SpeechClient()
 
 
-def google_transcribe(input_path):
-    # Reads a file as bytes
-    with open(input_path, "rb") as f:
-        audio_content = f.read()
-
+def google_transcribe_from_bytes(input_bytes):
     config = cloud_speech.RecognitionConfig(
         auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
         language_codes=["en-US"],
@@ -30,17 +26,28 @@ def google_transcribe(input_path):
     request = cloud_speech.RecognizeRequest(
         recognizer=f"projects/{os.environ.get('GOOGLE_PROJECT_ID')}/locations/global/recognizers/_",
         config=config,
-        content=audio_content,
+        content=input_bytes,
     )
 
     # Transcribes the audio into text
     return client.recognize(request=request)
 
 
+def google_transcribe_from_file(input_path):
+    with open(input_path, "rb") as f:
+        input_bytes = f.read()
+
+    return google_transcribe_from_bytes(input_bytes)
+
+
+def google_transcribe_from_array(input_array):
+    input_bytes = audio_array_to_bytes(input_array)
+    return google_transcribe_from_bytes(input_bytes)
+
+
 def google_transcribe_from_mic():
-    with NamedTemporaryFile(suffix=".wav") as f:
-        audio_record_to_file(f.name)
-        return google_transcribe(f.name)
+    input_array = audio_record_to_array()
+    return google_transcribe_from_array(input_array)
 
 
 def main(args):
@@ -51,7 +58,7 @@ def main(args):
     else:
         try:
             input_path = args[0]
-            response = google_transcribe(input_path)
+            response = google_transcribe_from_file(input_path)
             for result in response.results:
                 print(f"Transcript: {result.alternatives[0].transcript}")
         except Exception as e:
