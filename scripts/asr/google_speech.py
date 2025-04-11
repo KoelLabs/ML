@@ -66,12 +66,14 @@ def google_transcribe_from_file(input_path, longer_than_one_minute=True, timeout
     )
 
 
-def google_transcribe_from_array(input_array, min_timeout=120):
+def google_transcribe_from_array(input_array, force_long_model=False, min_timeout=120):
     duration = len(input_array) / TARGET_SAMPLE_RATE
     timeout = int(max(min_timeout, duration * 2))
     input_bytes = audio_array_to_bytes(input_array)
     return google_transcribe_from_bytes(
-        input_bytes, longer_than_one_minute=duration > 60, timeout=timeout
+        input_bytes,
+        longer_than_one_minute=force_long_model or duration > 60,
+        timeout=timeout,
     )
 
 
