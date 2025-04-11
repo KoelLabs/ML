@@ -8,6 +8,7 @@ import sys
 import uuid
 from contextlib import contextmanager
 from urllib import parse
+from tempfile import NamedTemporaryFile
 
 import boto3
 from boto3.s3.transfer import S3UploadFailedError
@@ -75,6 +76,16 @@ def create_temp_object(file_path, key=None):
     )
     yield key
     bucket.Object(key).delete()
+
+
+@contextmanager
+def create_temp_object_from_bytes(input_bytes, key=None):
+    with NamedTemporaryFile() as temp_file:
+        temp_file.write(input_bytes)
+        temp_file.flush()
+        temp_file.seek(0)
+        with create_temp_object(temp_file.name, key) as key:  # type: ignore
+            yield key
 
 
 def main(args):
