@@ -51,28 +51,28 @@ def salad_transcribe(audio_path):
         response.raise_for_status()
         job_id = response.json()["id"]
 
-    status = "pending"
-    print(f"Status: {status}")
-    while status not in ["succeeded", "failed"]:
-        response = requests.get(
-            f"{API_URL}/{job_id}",
-            headers={"Salad-Api-Key": API_KEY},
-        )
-        response.raise_for_status()
-        response = response.json()
-        status = response["status"]
+        status = "pending"
         print(f"Status: {status}")
-        sleep(0.5)
+        while status not in ["succeeded", "failed"]:
+            response = requests.get(
+                f"{API_URL}/{job_id}",
+                headers={"Salad-Api-Key": API_KEY},
+            )
+            response.raise_for_status()
+            response = response.json()
+            status = response["status"]
+            print(f"Status: {status}")
+            sleep(0.5)
 
-    if status == "succeeded":
-        output = response["output"]  # type: ignore
-        print(output)
-        response = requests.get(output["url"])
-        response.raise_for_status()
-        output = response.json()
-        return output
-    else:
-        return None
+        if status == "succeeded":
+            output = response["output"]  # type: ignore
+            print(output)
+            response = requests.get(output["url"])
+            response.raise_for_status()
+            output = response.json()
+            return output
+        else:
+            return None
 
 
 def salad_transcribe_from_array(input_array):
