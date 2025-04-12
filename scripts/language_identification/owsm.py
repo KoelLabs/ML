@@ -32,12 +32,12 @@ def owsm_detect_language_from_array(
 def owsm_detect_language_from_file(
     input_path: str,
 ):
-    wav_array = audio_file_to_array(input_path)
+    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768
     return owsm_detect_language_from_array(wav_array)
 
 
 def owsm_detect_language_from_mic():
-    wav_array = audio_record_to_array()
+    wav_array = audio_record_to_array().astype(np.float64) / 32768
     return owsm_detect_language_from_array(wav_array)
 
 
