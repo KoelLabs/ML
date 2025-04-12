@@ -2,6 +2,7 @@
 
 import torch
 import numpy as np
+from langcodes import standardize_tag
 from faster_whisper import WhisperModel
 
 import os
@@ -24,19 +25,26 @@ else:
 def whisper_detect_language_from_array(
     wav_array: np.ndarray,
 ) -> "tuple[str, float, list[tuple[str, float]]]":
+    if wav_array.dtype != np.float64:
+        wav_array = wav_array.astype(np.float64) / 32768
+
     language, language_probabiliy, all_probabilities = model.detect_language(wav_array)
-    return language, language_probabiliy, all_probabilities
+    return (
+        standardize_tag(language),
+        language_probabiliy,
+        [(standardize_tag(l), p) for l, p in all_probabilities],
+    )
 
 
 def whisper_detect_language_from_file(
     input_path: str,
 ) -> "tuple[str, float, list[tuple[str, float]]]":
-    wav_array = audio_file_to_array(input_path)
+    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768
     return whisper_detect_language_from_array(wav_array)
 
 
 def whisper_detect_language_from_mic():
-    wav_array = audio_record_to_array()
+    wav_array = audio_record_to_array().astype(np.float64) / 32768
     return whisper_detect_language_from_array(wav_array)
 
 
@@ -48,9 +56,15 @@ def main(args):
 
     input_path = args[0]
     if input_path == "mic":
-        print(whisper_detect_language_from_mic()[:2])
+        language, language_probabiliy, all_probabilities = (
+            whisper_detect_language_from_mic()
+        )
     else:
-        print(whisper_detect_language_from_file(input_path)[:2])
+        language, language_probabiliy, all_probabilities = (
+            whisper_detect_language_from_file(input_path)
+        )
+
+    print((language, language_probabiliy, all_probabilities[:3]))
 
 
 if __name__ == "__main__":

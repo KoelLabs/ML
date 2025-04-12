@@ -5,6 +5,7 @@
 
 import torch
 import numpy as np
+from langcodes import standardize_tag
 from espnet2.bin.s2t_inference_language import Speech2Language
 
 import os
@@ -25,8 +26,15 @@ s2l = Speech2Language.from_pretrained(
 def owsm_detect_language_from_array(
     wav_array: np.ndarray,
 ):
+    if wav_array.dtype != np.float64:
+        wav_array = wav_array.astype(np.float64) / 32768
+
     result = s2l(wav_array)
-    return result[0][0], result
+    return (
+        standardize_tag(result[0][0].replace("<", "").replace(">", "")),
+        result[0][1],
+        [(standardize_tag(l.replace("<", "").replace(">", "")), p) for l, p in result],
+    )
 
 
 def owsm_detect_language_from_file(
