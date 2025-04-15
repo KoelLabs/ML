@@ -6,12 +6,15 @@ import re
 
 import sys
 
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from data_loaders.common import BaseDataset
+
 # go back two directories
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from scripts.core.text import remove_punctuation
 
 
-class L1ArcticDataset:
+class L1ArcticDataset(BaseDataset):
     """
     Dataset class for CMU ARCTIC corpus that loads audio data and corresponding text
     """
@@ -124,7 +127,7 @@ class L1ArcticDataset:
         """Return the number of samples in the dataset"""
         return len(self.data_samples)
 
-    def __getitem__(self, idx):
+    def _get_ix(self, idx):
         """Get a sample from the dataset"""
         sample = self.data_samples[idx]
 
@@ -137,7 +140,7 @@ class L1ArcticDataset:
                 f"Expected 16-bit signed integer audio, but got {audio_data.dtype}"
             )
 
-        result = [audio_data]
+        result = [None, audio_data]
         if self.include_text:
             text = remove_punctuation(sample["text"].lower())
             result.append(text)
