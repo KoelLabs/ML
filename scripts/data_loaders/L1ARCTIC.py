@@ -3,6 +3,11 @@ import glob
 import numpy as np
 from scipy.io import wavfile
 import re
+
+import sys
+
+# go back two directories
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from scripts.core.text import remove_punctuation
 
 
@@ -165,13 +170,13 @@ if __name__ == "__main__":
         data_dir=".data/CMU_ARCTIC",
         include_speaker_info=True,
         include_text=True,
-        speaker_list=["bdl"],  # Only the male US English speaker
+        speaker_list=["bdl"],
     )
 
     print(f"\nLoaded {len(bdl_dataset)} samples for speaker 'bdl'")
 
     if len(bdl_dataset) > 0:
         bdl_sample = bdl_dataset[0]
-        bdl_audio, bdl_speaker_info, bdl_text = bdl_sample
+        bdl_audio, bdl_text, bdl_speaker_info = bdl_sample
         print(f"BDL speaker info: {bdl_speaker_info}")
         print(f"BDL text sample: {bdl_text}")
