@@ -410,3 +410,5 @@ speechbrain @ git+https://github.com/speechbrain/speechbrain.git@00b981c7afdf72d
 jiwer==3.1.0
 espnet==202412
 espnet_model_zoo==0.1.7
+langcodes==3.4.1
+fasttext==0.9.3
