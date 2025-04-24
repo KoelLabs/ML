@@ -162,3 +162,7 @@ curl -L -o ./.data/CORAAL/audio/VLD_2.tar.gz http://lingtools.uoregon.edu/coraal
 curl -L -o ./.data/CORAAL/audio/VLD_3.tar.gz http://lingtools.uoregon.edu/coraal/vld/2021.07/VLD_audio_part03_2021.07.tar.gz
 curl -L -o ./.data/CORAAL/audio/VLD_4.tar.gz http://lingtools.uoregon.edu/coraal/vld/2021.07/VLD_audio_part04_2021.07.tar.gz
 curl -L -o ./.data/CORAAL/transcripts/VLD.tar.gz http://lingtools.uoregon.edu/coraal/vld/2021.07/VLD_textfiles_2021.07.tar.gz
+
+# Download CMU ARCTIC dataset (individual speakers)
+echo "Downloading CMU ARCTIC dataset..."
+mkdir -p .data/CMU_ARCTIC && for spk in aew ahw aup awb axb bdl clb eey fem gka jmk ksp ljm lnh rms rxr slp slt; do wget -q --show-progress "http://festvox.org/cmu_arctic/packed/cmu_us_${spk}_arctic.tar.bz2" -O - | tar -xj -C .data/CMU_ARCTIC; done
