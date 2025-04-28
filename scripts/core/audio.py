@@ -60,9 +60,25 @@ def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE
     ).astype(np.int16)
 
 
-def audio_bytes_to_array(data, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
+def audio_bytes_to_array(
+    data, src_sample_rate=None, target_sample_rate=TARGET_SAMPLE_RATE
+):
     # TODO: rename to make clear this assumes WAV format
-    audio = np.frombuffer(data, dtype=np.int16)[WAV_HEADER_SIZE // 2 :]
+    if src_sample_rate == None:
+        # read 32 bit integer from bytes 25-28 in header
+        src_sample_rate = int.from_bytes(data[24:28], byteorder="little")
+        assert src_sample_rate == 44100
+    # read bits per sample from bytes 35-36 in header
+    bits_per_sample = int.from_bytes(data[34:36], byteorder="little")
+    dtype = np.int16 if bits_per_sample == 16 else np.int32
+    # read number of channels from bytes 23-24 in header
+    num_channels = int.from_bytes(data[22:24], byteorder="little")
+    data = data[WAV_HEADER_SIZE:]
+    audio = np.frombuffer(data, dtype=dtype).astype(np.int16)
+    # average in chunks of num_channels
+    if num_channels > 1:
+        audio = audio.reshape(-1, num_channels)
+        audio = np.mean(audio, axis=1).astype(np.int16)
     audio = audio_resample(audio, src_sample_rate, target_sample_rate)
     return audio
 

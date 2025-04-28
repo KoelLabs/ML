@@ -166,3 +166,10 @@ curl -L -o ./.data/CORAAL/transcripts/VLD.tar.gz http://lingtools.uoregon.edu/co
 # Download CMU ARCTIC dataset (individual speakers)
 echo "Downloading CMU ARCTIC dataset..."
 mkdir -p .data/CMU_ARCTIC && for spk in aew ahw aup awb axb bdl clb eey fem gka jmk ksp ljm lnh rms rxr slp slt; do wget -q --show-progress "http://festvox.org/cmu_arctic/packed/cmu_us_${spk}_arctic.tar.bz2" -O - | tar -xj -C .data/CMU_ARCTIC; done
+
+# Download DoReCo Southern British English data
+mkdir -p .data/DoReCo
+curl -L https://sharedocs.huma-num.fr/?module=weblinks&section=public&multidownload=1&id=eGPAXNlp1L6E2aP9efkr4YCXiXFlDLI3 > ./.data/DoReCo/sout3282_audio_core_v2.zip
+curl -L https://multicast.aspra.uni-bamberg.de/data/audio/english/wav/mc_english__wav.zip > ./.data/DoReCo/sout3282_audio_v2.zip
+# curl -L https://sharedocs.huma-num.fr/wl/?id=JHfkc54sOLrj1zgkihIf9qKkrcfuQbsr&fmode=download > ./.data/DoReCo/sout3282_annotations_v2.zip
+curl -L https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&fmode=download > ./.data/DoReCo/sout3282_annotations_v2.zip
