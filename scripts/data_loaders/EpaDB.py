@@ -21,8 +21,6 @@ DATA_ZIP = os.path.join(
 class EpaDBDataset(BaseDataset):
     """
     Valid splits are "train" and "test" which contain scripted utterances spoken by Argentenian spanish speakers
-    Two annotations of the dataset are provided (annotation1 and annotation2) when annotations conflict (which are only four samples)
-    but only the first annotation is used and we discard the utterances that appear in the second one to remove ambuious annptations.
     """
 
     def __init__(
