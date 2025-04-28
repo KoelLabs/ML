@@ -37,18 +37,24 @@ def remove_length_diacritics(ipa_string):
 
 
 def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
-    """Filter characters to only include any of FILTERS"""
+    """Filter characters to only include any of FILTERS and remap rhotic schwas"""
     remove_tie = filter_type.endswith("_rmv_tie")
     if remove_tie:
         filter_type = filter_type[: -len("_rmv_tie")]
-    filtered = str(
+
+    ipa = str(
         IPAString(unicode_string=ipa_string)
         .filter_chars(filter_type)
         .canonical_representation
     )
+
     if remove_tie:
-        filtered = "".join({"͡": ""}.get(c, c) for c in filtered)
-    return filtered
+        ipa = "".join({"͡": ""}.get(c, c) for c in ipa)
+
+    # Remap rhotic schwas
+    ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
+
+    return ipa
 
 
 def is_equivalent(ipa_string1, ipa_string2):
