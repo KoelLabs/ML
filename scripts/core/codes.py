@@ -180,6 +180,28 @@ def arpabet2ipa(arpabet_string, lang="eng"):
 
 
 #########################################################################
+# EpaDB
+EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɡɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'ä', 'E': 'e', 'O': 'o'})  # fmt: skip
+IPA2EPADB = {v: k for k, v in EPADB2IPA.items()}
+
+
+def ipa2epadb(ipa_string, lang="eng"):
+    update_dict_with_tones(EPADB2IPA, IPA2EPADB, lang)
+    ipa_symbols = string2symbols(ipa_string, IPA2EPADB.keys())[0]
+    epadb_symbols = [IPA2EPADB[x] for x in ipa_symbols]
+    return " ".join(epadb_symbols)
+
+
+def epadb2ipa(epadb_string, lang="eng"):
+    update_dict_with_tones(EPADB2IPA, IPA2EPADB, lang)
+    if " " in epadb_string:
+        epadb_symbols = epadb_string.split()
+    else:
+        epadb_symbols = string2symbols(epadb_string, EPADB2IPA.keys())[0]
+    return "".join([EPADB2IPA[x] for x in epadb_symbols])
+
+
+#########################################################################
 # TIMIT
 CLOSURE_INTERVALS = {
     "BCL": ["B"],
