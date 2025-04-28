@@ -46,13 +46,22 @@ def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb", remap_rhotic=T
     remove_tie = filter_type.endswith("_rmv_tie")
     if remove_tie:
         filter_type = filter_type[: -len("_rmv_tie")]
+    if "˧" in ipa_string:
+        raise ValueError(
+            "Warning: we use this IPA ˧ as a temporary marker for ŋ̍ which is an unsupported IPA symbol,any ˧ will get mapped to ŋ̍."
+        )
+    # temporarily replace with a tone marker as a placeholder
+    if "ŋ̍" in ipa_string:
+        ipa_string.replace("ŋ̍", "˧")
 
     ipa = str(
         IPAString(unicode_string=ipa_string)
         .filter_chars(filter_type)
         .canonical_representation
     )
-
+    # map back to the original syllabic n-g
+    if "˧" in ipa:
+        ipa = ipa.replace("˧", "ŋ̍")
     if remove_tie:
         ipa = "".join({"͡": ""}.get(c, c) for c in ipa)
 
