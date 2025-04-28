@@ -13,7 +13,7 @@ model = fasttext.load_model(model_path)
 
 def facebook_identify_language(text: str, top_k=1) -> str:
     label, probability = model.predict(text, k=top_k)
-    tag = label[0].replace("__label__", "")
+    tag = label[0].replace("__label__", "")  # type: ignore
     return standardize_tag(tag), probability.item()  # type: ignore
 
 
