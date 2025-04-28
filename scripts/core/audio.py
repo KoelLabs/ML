@@ -63,7 +63,10 @@ def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE
 def audio_bytes_to_array(
     data, src_sample_rate=None, target_sample_rate=TARGET_SAMPLE_RATE
 ):
-    # TODO: rename to make clear this assumes WAV format
+    # TODO: rename to make clear this requires WAV format
+    assert data[:4] == b"RIFF", "Not a WAV file, first 4 bytes are not RIFF: " + data[
+        :4
+    ].decode("utf-8")
     if src_sample_rate == None:
         # read 32 bit integer from bytes 25-28 in header
         src_sample_rate = int.from_bytes(data[24:28], byteorder="little")

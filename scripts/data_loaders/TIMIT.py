@@ -12,7 +12,7 @@ from core.audio import audio_bytes_to_array
 from core.codes import parse_timit
 from core.text import english2ipa, remove_punctuation
 
-
+TIMIT_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "TIMIT.zip")
 SOURCE_SAMPLE_RATE = 16000
 
 
@@ -34,7 +34,7 @@ class TIMITDataset(BaseDataset):
             include_g2p,
             g2p_filter_type,
         )
-        self.zip = zipfile.ZipFile("../.data/TIMIT.zip", "r")
+        self.zip = zipfile.ZipFile(TIMIT_ZIP, "r")
         files = self.zip.namelist()
         self.files = list(
             set(
@@ -56,7 +56,7 @@ class TIMITDataset(BaseDataset):
         speaker_id = filename.split("/")[-2][-4:]
         speaker = SPEAKERS[speaker_id]
 
-        with self.zip.open(filename + ".WAV") as wav_file:
+        with self.zip.open(filename + ".WAV.wav") as wav_file:
             audio = audio_bytes_to_array(wav_file.read(), SOURCE_SAMPLE_RATE)
 
         with self.zip.open(filename + ".PHN") as phn_file:
@@ -108,7 +108,7 @@ DIALECTS = {
 }
 
 SPEAKERS = {}
-with zipfile.ZipFile("../.data/TIMIT.zip", "r") as zip:
+with zipfile.ZipFile(TIMIT_ZIP, "r") as zip:
     with zip.open("SPKRINFO.TXT") as file:
         # read as csv with ; indicating comment and double space as separator
         for line in file:
@@ -127,3 +127,7 @@ with zipfile.ZipFile("../.data/TIMIT.zip", "r") as zip:
                 }
                 if len(parts) == 10:
                     SPEAKERS[parts[0]]["COMMENTS"] = parts[9]
+
+if __name__ == "__main__":
+    dataset = TIMITDataset()
+    print(dataset[0])
