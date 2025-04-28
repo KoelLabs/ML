@@ -52,7 +52,7 @@ def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb", remap_rhotic=T
         )
     # temporarily replace with a tone marker as a placeholder
     if "ŋ̍" in ipa_string:
-        ipa_string.replace("ŋ̍", "˧")
+        ipa_string = ipa_string.replace("ŋ̍", "˧")
 
     ipa = str(
         IPAString(unicode_string=ipa_string)
