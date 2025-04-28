@@ -70,7 +70,6 @@ def audio_bytes_to_array(
     if src_sample_rate == None:
         # read 32 bit integer from bytes 25-28 in header
         src_sample_rate = int.from_bytes(data[24:28], byteorder="little")
-        assert src_sample_rate == 44100
     # read bits per sample from bytes 35-36 in header
     bits_per_sample = int.from_bytes(data[34:36], byteorder="little")
     dtype = np.int16 if bits_per_sample == 16 else np.int32

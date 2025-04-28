@@ -36,12 +36,15 @@ class EpaDBDataset(BaseDataset):
 
         self.zip = zipfile.ZipFile(DATA_ZIP, "r")
 
+        files = self.zip.namelist()
         self.files = [
             f
-            for f in self.zip.namelist()
+            for f in files
             if f"/{self.split}/" in f
             and "/annotations_1/" in f
             and f.endswith(".TextGrid")
+            and f.replace("annotations_1", "waveforms").replace(".TextGrid", ".wav")
+            in files
         ]
 
     def __del__(self):
@@ -66,15 +69,20 @@ class EpaDBDataset(BaseDataset):
             tg.parse(annotation_file.read())
 
         phones = tg.interval_tier_to_array("annotation")
-        timestamped_phonemes = [
-            (
-                epadb2ipa(c["label"]),
-                int(c["begin"] * TARGET_SAMPLE_RATE),
-                int(c["end"] * TARGET_SAMPLE_RATE),
-            )
-            for c in phones
-            if c["label"].lower() not in ["sil", "sp", "spn", "err", ""]
-        ]
+        timestamped_phonemes = []
+        try:
+            timestamped_phonemes = [
+                (
+                    epadb2ipa(c["label"].upper().replace("+", "").replace("*", "")),
+                    int(c["begin"] * TARGET_SAMPLE_RATE),
+                    int(c["end"] * TARGET_SAMPLE_RATE),
+                )
+                for c in phones
+                if c["label"].lower() not in ["sil", "sp", "spn", "err", ""]
+            ]
+        except KeyError as e:
+            print(phones)
+            raise e
         ipa = "".join(t[0] for t in timestamped_phonemes)
 
         outputs = [ipa, audio]
