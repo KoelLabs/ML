@@ -36,8 +36,13 @@ def remove_length_diacritics(ipa_string):
     return "".join(c for c in ipa_string if c not in {"ː", "ˑ"})
 
 
-def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
-    """Filter characters to only include any of FILTERS and remap rhotic schwas"""
+def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb", remap_rhotic=True):
+    """Filter characters to only include any of FILTERS.
+
+    Optional:
+    - remove_tie: if "_rmv_tie" in filter_type
+    - remap_rhotic: replace ɚ and ɝ with əɹ
+    """
     remove_tie = filter_type.endswith("_rmv_tie")
     if remove_tie:
         filter_type = filter_type[: -len("_rmv_tie")]
@@ -51,8 +56,8 @@ def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
     if remove_tie:
         ipa = "".join({"͡": ""}.get(c, c) for c in ipa)
 
-    # Remap rhotic schwas
-    ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
+    if remap_rhotic:
+        ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
 
     return ipa
 
