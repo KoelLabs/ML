@@ -169,10 +169,10 @@ mkdir -p .data/CMU_ARCTIC && for spk in aew ahw aup awb axb bdl clb eey fem gka 
 
 # Download DoReCo Southern British English data
 mkdir -p .data/DoReCo
-curl -L https://sharedocs.huma-num.fr/?module=weblinks&section=public&multidownload=1&id=eGPAXNlp1L6E2aP9efkr4YCXiXFlDLI3 > ./.data/DoReCo/sout3282_audio_core_v2.zip
-curl -L https://multicast.aspra.uni-bamberg.de/data/audio/english/wav/mc_english__wav.zip > ./.data/DoReCo/sout3282_audio_v2.zip
+curl -L "https://sharedocs.huma-num.fr/?module=weblinks&section=public&multidownload=1&id=eGPAXNlp1L6E2aP9efkr4YCXiXFlDLI3" > ./.data/DoReCo/sout3282_audio_core_v2.zip
+curl -L "https://multicast.aspra.uni-bamberg.de/data/audio/english/wav/mc_english__wav.zip" > ./.data/DoReCo/sout3282_audio_v2.zip
 # curl -L https://sharedocs.huma-num.fr/wl/?id=JHfkc54sOLrj1zgkihIf9qKkrcfuQbsr&fmode=download > ./.data/DoReCo/sout3282_annotations_v2.zip
-curl -L https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&fmode=download > ./.data/DoReCo/sout3282_annotations_v2.zip
+curl -L "https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&fmode=download" > ./.data/DoReCo/sout3282_annotations_v2.zip
 
 # Download EpaDB
 curl -L https://github.com/JazminVidal/EpaDB/archive/refs/heads/master.zip > ./.data/EpaDB-master.zip
