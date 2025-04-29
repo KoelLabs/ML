@@ -31,12 +31,48 @@ def canonize(ipa_string, ignore=False):
     )
 
 
-def remove_length_diacritics(ipa_string):
+def remove_length_diacritics(ipa_string: str):
     """Remove length diacritics from the IPA string"""
     return "".join(c for c in ipa_string if c not in {"ː", "ˑ"})
 
 
-def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb", remap_rhotic=True):
+def remove_tones_and_stress(ipa_string: str):
+    """Remove tones and stress from the IPA string"""
+    tones_and_stresss = ["˨˩h", "˧ʔ˥", "˧˨ʔ", "ˈ", "ˌ", "˥", "˧", "˨", "˩", "˦"]  # fmt: skip
+    for tone in tones_and_stresss:
+        ipa_string = ipa_string.replace(tone, "")
+    return ipa_string
+
+
+def remove_tie_marker(ipa_string: str):
+    """Remove tie marker from the IPA string"""
+    return "".join({"͡": ""}.get(c, c) for c in ipa_string)
+
+
+def simplify_ipa(ipa_string: str):
+    """Simplify the IPA string by removing length markers, ties, expanding rhotics, and using the most common symbol for each sound"""
+
+    if "˧" in ipa_string:
+        raise ValueError(
+            "Warning: we use this IPA ˧ as a temporary marker for ŋ̍ which is an unsupported IPA symbol, any ˧ will get mapped to ŋ̍."
+        )
+    if "ŋ̍" in ipa_string:
+        ipa_string = ipa_string.replace("ŋ̍", "˧")
+
+    ipa = str(IPAString(unicode_string=ipa_string).canonical_representation)
+
+    if "˧" in ipa:
+        ipa = ipa.replace("˧", "ŋ̍")
+
+    ipa = remove_tie_marker(ipa)
+    ipa = remove_length_diacritics(ipa)
+    ipa = remove_tones_and_stress(ipa)
+    ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
+
+    return ipa
+
+
+def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
     """Filter characters to only include any of FILTERS.
 
     Optional:
@@ -46,27 +82,15 @@ def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb", remap_rhotic=T
     remove_tie = filter_type.endswith("_rmv_tie")
     if remove_tie:
         filter_type = filter_type[: -len("_rmv_tie")]
-    if "˧" in ipa_string:
-        raise ValueError(
-            "Warning: we use this IPA ˧ as a temporary marker for ŋ̍ which is an unsupported IPA symbol,any ˧ will get mapped to ŋ̍."
-        )
-    # temporarily replace with a tone marker as a placeholder
-    if "ŋ̍" in ipa_string:
-        ipa_string = ipa_string.replace("ŋ̍", "˧")
 
     ipa = str(
         IPAString(unicode_string=ipa_string)
         .filter_chars(filter_type)
         .canonical_representation
     )
-    # map back to the original syllabic n-g
-    if "˧" in ipa:
-        ipa = ipa.replace("˧", "ŋ̍")
-    if remove_tie:
-        ipa = "".join({"͡": ""}.get(c, c) for c in ipa)
 
-    if remap_rhotic:
-        ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
+    if remove_tie:
+        ipa = remove_tie_marker(ipa)
 
     return ipa
 
@@ -110,6 +134,7 @@ def usage():
     print("Usage: python ./scripts/core/ipa.py check <ipa_string> ...")
     print("Usage: python ./scripts/core/ipa.py clean <ipa_string> ...")
     print("Usage: python ./scripts/core/ipa.py canonize <ipa_string> ...")
+    print("Usage: python ./scripts/core/ipa.py simplify <ipa_string> ...")
     print("Usage: python ./scripts/core/ipa.py filter [<filter_type>] <ipa_string> ...")
     print("Usage: python ./scripts/core/ipa.py cmp <ipa_string1> <ipa_string2>")
     print("Usage: python ./scripts/core/ipa.py describe <ipa_string>")
@@ -128,6 +153,9 @@ def main(args):
     elif action == "canonize":
         for arg in args:
             print(arg, "=>", canonize(arg))
+    elif action == "simplify":
+        for arg in args:
+            print(arg, "=>", simplify_ipa(arg))
     elif action == "filter":
         if len(args) < 2:
             filter_type = "cns_vwl_str_len_wb_sb"
