@@ -133,10 +133,6 @@ class DoReCoDataset(BaseDataset):
         ]
         ipa = "".join(x[0] for x in timestamped_phonemes)
 
-        if len(timestamped_phonemes) < 1:
-            print(phoneme_units, utterance)
-            phoneme_units.to_csv("test.csv")
-
         word_ids = phoneme_units["wd_ID"].unique()
         timestamped_words = [
             (

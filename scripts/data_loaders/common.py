@@ -39,6 +39,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.include_text = include_text
         self.include_g2p = include_g2p
         self.g2p_filter_type = g2p_filter_type
+        self.vocab: "set | None" = None
 
     def __len__(self):
         return 0

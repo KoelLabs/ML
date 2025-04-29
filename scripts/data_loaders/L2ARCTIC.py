@@ -10,7 +10,7 @@ from torch.utils.data import ConcatDataset
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array
-from core.codes import arpabet2ipa
+from core.codes import arpabet2ipa, IPA2ARPABET
 
 SOURCE_SAMPLE_RATE = 44100
 DATA_ZIP = os.path.join(
@@ -52,9 +52,9 @@ class L2ArcticDataset(BaseDataset):
         if include_timestamps:
             raise NotImplementedError("Timestamps are available but not parsed yet.")
 
-        self.arctic = zipfile.ZipFile(DATA_ZIP, "r")
+        self.arctic = zipfile.ZipFile(DATA_ZIP)
         self.suitcase = self.arctic.open(f"{split}.zip")
-        self.zip = zipfile.ZipFile(self.suitcase, "r")
+        self.zip = zipfile.ZipFile(self.suitcase)
         files = self.zip.namelist()
         self.files = list(
             map(
@@ -66,6 +66,7 @@ class L2ArcticDataset(BaseDataset):
                 ),
             )
         )
+        self.vocab = set(IPA2ARPABET.keys())
 
     def __del__(self):
         self.zip.close()

@@ -9,7 +9,7 @@ import textgrids
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
-from core.codes import epadb2ipa
+from core.codes import epadb2ipa, IPA2EPADB
 
 SOURCE_SAMPLE_RATE = None  # Auto detect because it varies by file
 
@@ -46,6 +46,7 @@ class EpaDBDataset(BaseDataset):
             and f.replace("annotations_1", "waveforms").replace(".TextGrid", ".wav")
             in files
         ]
+        self.vocab = set(IPA2EPADB.keys())
 
     def __del__(self):
         self.zip.close()

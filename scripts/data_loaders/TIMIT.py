@@ -9,7 +9,7 @@ import zipfile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import audio_bytes_to_array
-from core.codes import parse_timit
+from core.codes import parse_timit, IPA2TIMIT
 from core.text import english2ipa, remove_punctuation
 
 TIMIT_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "TIMIT.zip")
@@ -44,6 +44,7 @@ class TIMITDataset(BaseDataset):
                 )
             )
         )
+        self.vocab = set(IPA2TIMIT.keys())
 
     def __del__(self):
         self.zip.close()

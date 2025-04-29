@@ -8,7 +8,7 @@ from datasets import load_dataset, Dataset
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import TARGET_SAMPLE_RATE
-from core.codes import arpabet2ipa
+from core.codes import arpabet2ipa, IPA2ARPABET
 
 
 HUGGING_FACE_ID = "mispeech/speechocean762"
@@ -58,6 +58,8 @@ class SpeechOceanDataset(BaseDataset):
             self.dataset = self.dataset.filter(
                 lambda _, ix: ix not in remove_ixs, with_indices=True
             )
+
+        self.vocab = set(IPA2ARPABET.keys())
 
     def __len__(self):
         return len(self.dataset)

@@ -26,6 +26,7 @@ def all_buckeye_speaker_splits(
             include_timestamps=include_timestamps,
             include_speaker_info=include_speaker_info,
             include_text=include_text,
+            split_config=split_config,
         )
         for s in SPEAKERS.keys()
     )
@@ -113,6 +114,7 @@ class BuckeyeDataset(BaseDataset):
             len(get_utterances(self.speaker_zip, conversation, self.split_config))
             for conversation in self.conversations
         ]
+        self.vocab = set(BUCKEYE2IPA.values())
 
     def __del__(self):
         self.speaker_zip.close()

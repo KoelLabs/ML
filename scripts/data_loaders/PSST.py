@@ -9,7 +9,7 @@ from contextlib import contextmanager
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
 from core.audio import audio_file_to_array
-from core.codes import arpabet2ipa
+from core.codes import arpabet2ipa, IPA2ARPABET
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "psst-data")
 
@@ -59,6 +59,8 @@ class PSSTDataset(BaseDataset):
             self.utterances = data.test
         else:
             raise ValueError(f"Unknown split: {split}")
+
+        self.vocab = set(IPA2ARPABET.keys())
 
     def __len__(self):
         return len(self.utterances)
