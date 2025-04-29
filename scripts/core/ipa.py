@@ -52,18 +52,17 @@ def remove_tie_marker(ipa_string: str):
 def simplify_ipa(ipa_string: str):
     """Simplify the IPA string by removing length markers, ties, expanding rhotics, and using the most common symbol for each sound"""
 
-    if "˧" in ipa_string:
-        raise ValueError(
-            "Warning: we use this IPA ˧ as a temporary marker for ŋ̍ which is an unsupported IPA symbol, any ˧ will get mapped to ŋ̍."
-        )
+    if "̄" in ipa_string:
+        raise ValueError("Warning: we use this IPA as a temporary marker for ŋ̍")
     if "ŋ̍" in ipa_string:
-        ipa_string = ipa_string.replace("ŋ̍", "˧")
+        ipa_string = ipa_string.replace("ŋ̍", "̄")
 
-    ipa = str(IPAString(unicode_string=ipa_string).canonical_representation)
+    ipa = str(
+        IPAString(unicode_string=ipa_string, ignore=True).canonical_representation
+    )
 
-    if "˧" in ipa:
-        ipa = ipa.replace("˧", "ŋ̍")
-
+    ipa = ipa.replace("̄", "ŋ̍")
+    ipa = ipa.replace(" ", "")
     ipa = remove_tie_marker(ipa)
     ipa = remove_length_diacritics(ipa)
     ipa = remove_tones_and_stress(ipa)
