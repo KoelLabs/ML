@@ -73,12 +73,7 @@ def simplify_ipa(ipa_string: str):
 
 
 def filter_chars(ipa_string, filter_type="cns_vwl_str_len_wb_sb"):
-    """Filter characters to only include any of FILTERS.
-
-    Optional:
-    - remove_tie: if "_rmv_tie" in filter_type
-    - remap_rhotic: replace ɚ and ɝ with əɹ
-    """
+    """Filter characters to only include any of FILTERS."""
     remove_tie = filter_type.endswith("_rmv_tie")
     if remove_tie:
         filter_type = filter_type[: -len("_rmv_tie")]
