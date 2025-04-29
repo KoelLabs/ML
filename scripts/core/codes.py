@@ -181,7 +181,7 @@ def arpabet2ipa(arpabet_string, lang="eng"):
 
 #########################################################################
 # EpaDB
-EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɡɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'ä', 'E': 'e', 'O': 'o', 'U': ARPABET2IPA['UW'], 'I': ARPABET2IPA['IY']})  # fmt: skip
+EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɡɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'ä', 'E': 'e', 'O': 'o', 'U': ARPABET2IPA['UW'], 'I': ARPABET2IPA['IY'], 'LL': 'ʟ'})  # fmt: skip
 IPA2EPADB = {v: k for k, v in EPADB2IPA.items()}
 
 
