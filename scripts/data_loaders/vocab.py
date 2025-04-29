@@ -91,7 +91,7 @@ def parse_vocab_aligned_with_model(
                 else:
                     unmatched_tokens.add(c)
         else:
-            unmatched_tokens |= fallback([(ipa)], transform=transform)
+            unmatched_tokens |= fallback([(ipa, None)], transform=transform)
 
     # remove redundant tokens introduced by keep_symbols_paired, this is a simplification
     to_remove = set()
