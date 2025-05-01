@@ -30,6 +30,27 @@ def parse_vocab_by_groups(dataset: BaseDataset, transform=lambda x: x):
         vocab |= set([transform(x.replace("̄", "ŋ̍")) for x in group_phonemes(ipa)])
     return vocab - {""}
 
+def get_unmatched_groups():
+    grouped_phoneme_vocab = get_vocab_superset_fast(data, simplify_ipa)
+    matched_tokens, _ = parse_vocab_aligned_with_model(
+        data, model_vocab, simplify_ipa
+    )
+    
+    unmatched_new_tokens_grouped = set()
+    unmatched_seen_tokens_grouped = set()
+    for p in grouped_phoneme_vocab:
+        seen = False
+        if p not in matched_tokens.keys():
+            for c in p: 
+                if c in matched_tokens.keys(): # if a subtoken matches, we do not consider it unmatched
+                    unmatched_seen_tokens_grouped.add(p)
+                    seen = True
+                    break   
+            if not seen: 
+                unmatched_new_tokens_grouped.add(p)
+    
+
+    return [unmatched_new_tokens_grouped, unmatched_seen_tokens_grouped]
 
 def get_vocab_superset_fast(
     dataset: BaseDataset, transform=lambda x: x, fallback=parse_vocab_by_groups
@@ -124,47 +145,47 @@ if __name__ == "__main__":
 
     from core.ipa import simplify_ipa
 
-    for dataloader in [
-        TIMITDataset,
-        PSSTDataset,
-        L2ArcticDataset,
-        DoReCoDataset,
-        EpaDBDataset,
-        SpeechOceanDataset,
-        BuckeyeDataset,
-    ]:
-        data = (
-            dataloader(force_offline=True)  # type: ignore
-            if dataloader.__qualname__ == "PSSTDataset"
-            else dataloader()
-        )
-        print(len(data))
-        print(
-            f"Fast Vocab Raw ({dataloader.__qualname__}):",
-            get_vocab_superset_fast(data),
-        )
-        print(
-            f"Fast Vocab Filtered ({dataloader.__qualname__}):",
-            get_vocab_superset_fast(data, simplify_ipa),
-        )
+    # for dataloader in [
+    #     TIMITDataset,
+    #     PSSTDataset,
+    #     L2ArcticDataset,
+    #     DoReCoDataset,
+    #     EpaDBDataset,
+    #     SpeechOceanDataset,
+    #     BuckeyeDataset,
+    # ]:
+    #     data = (
+    #         dataloader(force_offline=True)  # type: ignore
+    #         if dataloader.__qualname__ == "PSSTDataset"
+    #         else dataloader()
+    #     )
+    #     print(len(data))
+    #     print(
+    #         f"Fast Vocab Raw ({dataloader.__qualname__}):",
+    #         get_vocab_superset_fast(data),
+    #     )
+    #     print(
+    #         f"Fast Vocab Filtered ({dataloader.__qualname__}):",
+    #         get_vocab_superset_fast(data, simplify_ipa),
+    #     )
 
     print("------")
 
-    data = TIMITDataset()
-    print("Raw Vocab:", parse_vocab_by_character(data))
-    print("Filtered Vocab:", parse_vocab_by_character(data, simplify_ipa))
+    data = EpaDBDataset()
+    # print("Raw Vocab:", parse_vocab_by_character(data))
+    # print("Filtered Vocab:", parse_vocab_by_character(data, simplify_ipa))
 
-    print("------")
+    # print("------")
 
-    print("Raw Vocab by Group:", parse_vocab_by_groups(data))
-    print("Filtered Vocab by Group:", parse_vocab_by_groups(data, simplify_ipa))
+    # print("Raw Vocab by Group:", parse_vocab_by_groups(data))
+    # print("Filtered Vocab by Group:", parse_vocab_by_groups(data, simplify_ipa))
 
-    print("------")
+    # print("------")
 
     import ipa_transcription.wav2vec2  # import this for the espeak patch
     from transformers import AutoProcessor
 
-    processor = AutoProcessor.from_pretrained("facebook/wav2vec2-xlsr-53-espeak-cv-ft")
+    processor = AutoProcessor.from_pretrained("facebook/wav2vec2-lv-60-espeak-cv-ft")
     tokenizor = processor.tokenizer
     model_vocab = tokenizor.get_vocab()
 
@@ -175,3 +196,4 @@ if __name__ == "__main__":
     )
     print("Matched Vocab:", matched_tokens)
     print("Unmatched Vocab:", unmatched_tokens)
+    print("get unmatched groups:", get_unmatched_groups())
