@@ -30,27 +30,28 @@ def parse_vocab_by_groups(dataset: BaseDataset, transform=lambda x: x):
         vocab |= set([transform(x.replace("̄", "ŋ̍")) for x in group_phonemes(ipa)])
     return vocab - {""}
 
+
 def get_unmatched_groups():
     grouped_phoneme_vocab = get_vocab_superset_fast(data, simplify_ipa)
-    matched_tokens, _ = parse_vocab_aligned_with_model(
-        data, model_vocab, simplify_ipa
-    )
-    
+    matched_tokens, _ = parse_vocab_aligned_with_model(data, model_vocab, simplify_ipa)
+
     unmatched_new_tokens_grouped = set()
     unmatched_seen_tokens_grouped = set()
     for p in grouped_phoneme_vocab:
         seen = False
         if p not in matched_tokens.keys():
-            for c in p: 
-                if c in matched_tokens.keys(): # if a subtoken matches, we do not consider it unmatched
+            for c in p:
+                if (
+                    c in matched_tokens.keys()
+                ):  # if a subtoken matches, we do not consider it unmatched
                     unmatched_seen_tokens_grouped.add(p)
                     seen = True
-                    break   
-            if not seen: 
+                    break
+            if not seen:
                 unmatched_new_tokens_grouped.add(p)
-    
 
     return [unmatched_new_tokens_grouped, unmatched_seen_tokens_grouped]
+
 
 def get_vocab_superset_fast(
     dataset: BaseDataset, transform=lambda x: x, fallback=parse_vocab_by_groups
