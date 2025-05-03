@@ -31,28 +31,6 @@ def parse_vocab_by_groups(dataset: BaseDataset, transform=lambda x: x):
     return vocab - {""}
 
 
-def get_unmatched_groups():
-    grouped_phoneme_vocab = get_vocab_superset_fast(data, simplify_ipa)
-    matched_tokens, _ = parse_vocab_aligned_with_model(data, model_vocab, simplify_ipa)
-
-    unmatched_new_tokens_grouped = set()
-    unmatched_seen_tokens_grouped = set()
-    for p in grouped_phoneme_vocab:
-        seen = False
-        if p not in matched_tokens.keys():
-            for c in p:
-                if (
-                    c in matched_tokens.keys()
-                ):  # if a subtoken matches, we do not consider it unmatched
-                    unmatched_seen_tokens_grouped.add(p)
-                    seen = True
-                    break
-            if not seen:
-                unmatched_new_tokens_grouped.add(p)
-
-    return [unmatched_new_tokens_grouped, unmatched_seen_tokens_grouped]
-
-
 def get_vocab_superset_fast(
     dataset: BaseDataset, transform=lambda x: x, fallback=parse_vocab_by_groups
 ):
@@ -134,6 +112,32 @@ def parse_vocab_aligned_with_model(
     return matched_tokens, unmatched_tokens
 
 
+def verify_matched_tokens_with_model_vocab(
+    final_simple_vocab, matched_tokens, model_vocab
+):
+    """
+    checks unmatched group-phoneme vocab entries against model vocab and adds direct matches.
+    Returns updated matched_tokens and the new unmatched set.
+    """
+    unverified_vocab_full_unmatched = final_simple_vocab - set(matched_tokens.keys())
+    print("Unverified unmatched vocab (all phones):", unverified_vocab_full_unmatched)
+
+    for phone in unverified_vocab_full_unmatched:
+        if model_vocab.get(phone) is not None:
+            print(
+                "OOPS! there is a match in model vocab for this group phone. ADDING as identified matched phones",
+                phone,
+                model_vocab.get(phone),
+            )
+            matched_tokens[phone] = model_vocab[phone]
+
+    verified_vocab_full_unmatched = final_simple_vocab - set(matched_tokens.keys())
+    print("new verified matched vocab (all phones):", matched_tokens)
+    print("new verified unmatched vocab (all phones):", verified_vocab_full_unmatched)
+
+    return matched_tokens, verified_vocab_full_unmatched
+
+
 # Example code:
 if __name__ == "__main__":
     from data_loaders.TIMIT import TIMITDataset
@@ -146,42 +150,35 @@ if __name__ == "__main__":
 
     from core.ipa import simplify_ipa
 
-    # for dataloader in [
-    #     TIMITDataset,
-    #     PSSTDataset,
-    #     L2ArcticDataset,
-    #     DoReCoDataset,
-    #     EpaDBDataset,
-    #     SpeechOceanDataset,
-    #     BuckeyeDataset,
-    # ]:
-    #     data = (
-    #         dataloader(force_offline=True)  # type: ignore
-    #         if dataloader.__qualname__ == "PSSTDataset"
-    #         else dataloader()
-    #     )
-    #     print(len(data))
-    #     print(
-    #         f"Fast Vocab Raw ({dataloader.__qualname__}):",
-    #         get_vocab_superset_fast(data),
-    #     )
-    #     print(
-    #         f"Fast Vocab Filtered ({dataloader.__qualname__}):",
-    #         get_vocab_superset_fast(data, simplify_ipa),
-    #     )
-
+    final_simple_vocab = set()
+    for dataloader in [
+        TIMITDataset,
+        PSSTDataset,
+        L2ArcticDataset,
+        DoReCoDataset,
+        EpaDBDataset,
+        SpeechOceanDataset,
+        BuckeyeDataset,
+    ]:
+        data = (
+            dataloader(force_offline=True)  # type: ignore
+            if dataloader.__qualname__ == "PSSTDataset"
+            else dataloader()
+        )
+        print(len(data))
+        print(
+            f"Fast Vocab Raw ({dataloader.__qualname__}):",
+            get_vocab_superset_fast(data),
+        )
+        print(
+            f"Fast Vocab Filtered ({dataloader.__qualname__}):",
+            get_vocab_superset_fast(data, simplify_ipa),
+        )
+        final_simple_vocab.update(get_vocab_superset_fast(data, simplify_ipa))
+    print("Final Simple Vocab:", final_simple_vocab)
     print("------")
 
-    data = EpaDBDataset()
-    # print("Raw Vocab:", parse_vocab_by_character(data))
-    # print("Filtered Vocab:", parse_vocab_by_character(data, simplify_ipa))
-
-    # print("------")
-
-    # print("Raw Vocab by Group:", parse_vocab_by_groups(data))
-    # print("Filtered Vocab by Group:", parse_vocab_by_groups(data, simplify_ipa))
-
-    # print("------")
+    # final_simple_vocab = {'eɪ', 'ɾ', 'kʰ', 'n', 'θ', 'aɪ', 's', 'f', 'v', 'o', 'w', 'æ', 'z', 'ð', 'ʌ', 'ɡ', 'ə̥', 'r', 'ʔ', 'm', 'β', 't', 'ɔɪ', 'd', 'ɨ', 'oʊ', 'ŋ', 'i', 'e', 'l', 'n̩', 'ts', 'ɜ', 'm̩', 'ŋ̍', 'sʰ', 'j', 'aʊ', 'k', 'ɹ', 'h', 'ɦ', 'ɒ', 'θʰ', 'ʍ', 'ʒ', 'a', 'l̩', 'dʒ', 'u', 'ɑ', 'b', 'pʰ', 'p', 'ʊ', 'ʟ', 'ɾ̃', 'ɡɣ', 'ɪ', 'x', 'ə', 'ʉ', 'ʃ', 'əɹ', 'ɔ', 'ɛ', 'tʃ'}
 
     import ipa_transcription.wav2vec2  # import this for the espeak patch
     from transformers import AutoProcessor
@@ -193,8 +190,13 @@ if __name__ == "__main__":
     print("Facebook Vocab:", model_vocab.keys())
 
     matched_tokens, unmatched_tokens = parse_vocab_aligned_with_model(
-        data, model_vocab, simplify_ipa
+        final_simple_vocab, model_vocab, simplify_ipa
     )
-    print("Matched Vocab:", matched_tokens)
-    print("Unmatched Vocab:", unmatched_tokens)
-    print("get unmatched groups:", get_unmatched_groups())
+    print("Perfectly Matched Vocab (single char):", matched_tokens)
+    print("Unmatched Vocab (single char):", unmatched_tokens)
+    # temporary logic: we will correct the matched tokens for the grouped-phoneme case
+    matched_tokens, verified_vocab_full_unmatched = (
+        verify_matched_tokens_with_model_vocab(
+            final_simple_vocab, matched_tokens, model_vocab
+        )
+    )
