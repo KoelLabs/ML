@@ -145,7 +145,8 @@ class L2ArcticDataset(BaseDataset):
             ipa = "".join([x[0] for x in timestamped_phonemes])
 
         result = [ipa, audio]
-
+        if self.include_timestamps:
+            result.append(timestamped_phonemes)
         if self.include_speaker_info:
             speaker_id = self.split if self.split != "suitcase_corpus" else filename
             speaker = SPEAKERS[speaker_id.upper()]
