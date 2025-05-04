@@ -19,7 +19,9 @@ DATA_ZIP = os.path.join(
 
 
 def all_arctic_speaker_splits(
-    include_timestamps=False, include_speaker_info=False, include_text=False
+    include_timestamps=False,
+    include_speaker_info=False,
+    include_text=False,
 ):
     return ConcatDataset(
         L2ArcticDataset(
@@ -30,6 +32,29 @@ def all_arctic_speaker_splits(
         )
         for s in SPEAKERS.keys()
     )
+
+
+def L2Symbol2Phoneme(c):
+    c = c.split(",")[1].strip() if "," in c else c
+    c = (
+        c.split(" ")[0]
+        .replace("*", "")  # nearest english phoneme has been annotated
+        .replace(")", "")  # typo
+        .replace("_", "")  # typo
+        .replace("`", "")  # typo
+        .replace("8", "")  # typo
+        .replace("!", "")  # typo
+        .upper()
+    )
+    if c.lower() in [
+        "sil",
+        "err",
+        "sp",
+        "spn",
+    ]:
+        return ""
+
+    return arpabet2ipa(c)
 
 
 class L2ArcticDataset(BaseDataset):
@@ -48,9 +73,6 @@ class L2ArcticDataset(BaseDataset):
         include_text=False,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
-
-        if include_timestamps:
-            raise NotImplementedError("Timestamps are available but not parsed yet.")
 
         self.arctic = zipfile.ZipFile(DATA_ZIP)
         self.suitcase = self.arctic.open(f"{split}.zip")
@@ -114,31 +136,16 @@ class L2ArcticDataset(BaseDataset):
                 text = " ".join(c["label"] for c in words if c["label"])
 
             arpa = tg.interval_tier_to_array("phones")
-            arpa = [c["label"] for c in arpa]
-            arpa = [c.split(",")[1].strip() if "," in c else c for c in arpa]
-            arpa = [
-                c.split(" ")[0]
-                .replace("*", "")  # nearest english phoneme has been annotated
-                .replace(")", "")  # typo
-                .replace("_", "")  # typo
-                .replace("`", "")  # typo
-                .replace("8", "")  # typo
-                .replace("!", "")  # typo
-                .upper()
+            timestamped_phonemes = [
+                (L2Symbol2Phoneme(c["label"]), c["begin"], c["end"])
                 for c in arpa
-                if c.lower()
-                not in [
-                    "sil",
-                    "err",
-                    "sp",
-                    "spn",
-                ]  # sp/spn are typos (they are fake standin phonemes in Kaldi), sil is silence, err is non-english phoneme
+                if c["label"]
             ]
-            arpa = " ".join(arpa)
-            arpa = [c if not c.isdigit() else f" {c}" for c in arpa]
-            ipa = arpabet2ipa("".join(arpa))
+            # print(timestamped_phonemes)
+            ipa = "".join([x[0] for x in timestamped_phonemes])
 
         result = [ipa, audio]
+
         if self.include_speaker_info:
             speaker_id = self.split if self.split != "suitcase_corpus" else filename
             speaker = SPEAKERS[speaker_id.upper()]
@@ -249,6 +256,9 @@ SPEAKERS = {
 
 if __name__ == "__main__":
     suitcase = L2ArcticDataset(
-        "suitcase_corpus", include_speaker_info=True, include_text=True
+        "suitcase_corpus",
+        include_speaker_info=True,
+        include_text=False,
+        include_timestamps=True,
     )
     print(suitcase[0])
