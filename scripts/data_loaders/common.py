@@ -83,11 +83,11 @@ def split_utterance_into_multiple(
         if prev == "" and phone != "":
             silence = (sil_end - sil_start) / TARGET_SAMPLE_RATE
             if silence > split_convos_at_silence_seconds:
-                significant_silence = True
                 speech = (speech_end - speech_start) / TARGET_SAMPLE_RATE
                 # print('speech', speech)
                 # print('silence', silence)
                 if min_speech_seconds < speech:
+                    significant_silence = True
                     sections.append(
                         (
                             "".join([x[0] for x in speech_phones]),
