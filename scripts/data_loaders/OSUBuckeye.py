@@ -92,6 +92,8 @@ class BuckeyeDataset(BaseDataset):
                 line = line.split(";")[0].strip()
                 fields = line.split()
                 stop = float(fields[0])
+                if fields[2].strip().upper() == "IVER": # zero out audio for interviewer
+                    audio[int(start * TARGET_SAMPLE_RATE):int(stop * TARGET_SAMPLE_RATE)] = 0
                 phone = BUCKEYE2IPA.get(fields[2], "") if len(fields) >= 3 else ""
                 timestamped_phonemes.append(
                     (
@@ -316,6 +318,6 @@ SPEAKERS = {
 }
 
 if __name__ == "__main__":
-    dataset = BuckeyeDataset()
+    dataset = BuckeyeDataset(include_timestamps=True)
     print(len(dataset))
     print(dataset[0])
