@@ -11,7 +11,7 @@ from forced_alignment.common import IPA_SYMBOLS, group_phonemes
 
 def preprocess_ipa(ipa_string, simplify=False):
     if simplify:
-        ipa_string = simplify_ipa(ipa_string)
+        return simplify_ipa(ipa_string)
     # remove white space and phonemes not in panphon (IPA_SYMBOLS)
     phonemes = group_phonemes(ipa_string.replace(" ", ""))
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)
