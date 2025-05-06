@@ -74,7 +74,13 @@ class EpaDBDataset(BaseDataset):
         try:
             timestamped_phonemes = [
                 (
-                    epadb2ipa(c["label"].upper().replace("+", "").replace("*", "")),
+                    epadb2ipa(
+                        c["label"]
+                        .upper()
+                        .replace("+", "")
+                        .replace("*", "")
+                        .replace("`", "")
+                    ),
                     int(c["begin"] * TARGET_SAMPLE_RATE),
                     int(c["end"] * TARGET_SAMPLE_RATE),
                 )
