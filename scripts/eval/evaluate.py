@@ -4,21 +4,14 @@ import os
 import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.ipa import filter_chars
+from core.ipa import simplify_ipa
 from eval.metrics import fer, per
 from forced_alignment.common import IPA_SYMBOLS, group_phonemes
 
 
-def simplify_ipa(ipa_string):
-    # remove all whitespace and numbers
-    ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
-    # expand rhotized vowels
-    ipa_string = ipa_string.replace("ɚ", "ər").replace("ɝ", "ɜr")
-    # remove anything that is not a vowel/consonant including tie bars
-    return filter_chars(ipa_string, "letters_rmv_tie")
-
-
-def preprocess_ipa(ipa_string):
+def preprocess_ipa(ipa_string, simplify=False):
+    if simplify:
+        ipa_string = simplify_ipa(ipa_string)
     # remove white space and phonemes not in panphon (IPA_SYMBOLS)
     phonemes = group_phonemes(ipa_string.replace(" ", ""))
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)
@@ -30,9 +23,9 @@ def preprocess_ipa(ipa_string):
     return "".join(p for p in phonemes if p in IPA_SYMBOLS)
 
 
-def evaluate(label, predicted):
-    label_sequence = preprocess_ipa(label)
-    pred_sequence = preprocess_ipa(predicted)
+def evaluate(label, predicted, simplify=False):
+    label_sequence = preprocess_ipa(label, simplify=simplify)
+    pred_sequence = preprocess_ipa(predicted, simplify=simplify)
 
     fer_score = fer(pred_sequence, label_sequence)
     per_score = per(predicted, label)
