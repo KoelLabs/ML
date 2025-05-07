@@ -412,3 +412,6 @@ espnet==202412
 espnet_model_zoo==0.1.7
 langcodes==3.4.1
 fasttext==0.9.3
+pandarallel==1.6.5
+seaborn==0.13.2
+ipywidgets==8.1.7

@@ -52,6 +52,9 @@ def remove_tie_marker(ipa_string: str):
 def simplify_ipa(ipa_string: str):
     """Simplify the IPA string by removing length markers, ties, expanding rhotics, and using the most common symbol for each sound"""
 
+    # remove spaces and numbers
+    ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
+
     if "̄" in ipa_string:
         raise ValueError("Warning: we use this IPA as a temporary marker for ŋ̍")
     if "ŋ̍" in ipa_string:
@@ -62,7 +65,6 @@ def simplify_ipa(ipa_string: str):
     )
 
     ipa = ipa.replace("̄", "ŋ̍")
-    ipa = ipa.replace(" ", "")
     ipa = remove_tie_marker(ipa)
     ipa = remove_length_diacritics(ipa)
     ipa = remove_tones_and_stress(ipa)

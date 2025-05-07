@@ -1,4 +1,5 @@
 import torch
+from transformers import AutoProcessor, AutoModelForCTC
 
 # set espeak library path for macOS
 import sys
@@ -14,6 +15,19 @@ DEVICE = (
     if torch.cuda.is_available()
     else "mps" if torch.backends.mps.is_available() else "cpu"
 )
+
+
+def clear_cache():
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.ipc_collect()
+    torch.mps.empty_cache()
+
+
+def load_model(model_id, device=DEVICE):
+    processor = AutoProcessor.from_pretrained(model_id)
+    model = AutoModelForCTC.from_pretrained(model_id).to(device)
+    return model, processor
 
 
 def transcribe_batch(batch, model, processor):

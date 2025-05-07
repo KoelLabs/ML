@@ -38,7 +38,7 @@ class PSSTDataset(BaseDataset):
         super().__init__(split, include_timestamps, include_speaker_info)
 
         if include_timestamps:
-            raise NotImplementedError("Timestamps are available but not parsed yet.")
+            raise NotImplementedError("Timestamps are not available for PSST.")
 
         if (
             force_offline
