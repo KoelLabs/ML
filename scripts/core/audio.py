@@ -326,6 +326,14 @@ def main(args):
         audio_wav_file_crop(args[1], float(args[2]), float(args[3]), args[4])
     elif args[0] == "text":
         audio_file_from_text(args[1], args[2])
+    elif args[0] == "speed":
+        speed_factor = float(args[2])
+        audio = audio_file_to_array(args[1])
+        audio_shifted = audio_array_pitchshift(audio, 1 / speed_factor, mode="stretch")
+        if args[3] == "mic":
+            audio_array_play(audio_shifted)
+        else:
+            audio_array_to_wav_file(audio_shifted, args[3])
     else:
         print("Invalid command")
         print("Usage: python ./scripts/core/audio.py record <output_wav_path>")
@@ -339,6 +347,9 @@ def main(args):
         print("Usage: python ./scripts/core/audio.py text <text> <output_wav_path>")
         print(
             "Usage: python ./scripts/core/audio.py crop <input_wav_path> <start> <end> <output_wav_path>"
+        )
+        print(
+            "Usage: python ./scripts/core/audio.py speed <input_wav_path> <speed_factor> <output_wav_path>"
         )
 
 
