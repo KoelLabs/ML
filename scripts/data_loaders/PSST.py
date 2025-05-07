@@ -8,8 +8,9 @@ from contextlib import contextmanager
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
-from core.audio import audio_file_to_array
+from core.audio import audio_file_to_array, TARGET_SAMPLE_RATE
 from core.codes import arpabet2ipa, IPA2ARPABET
+from data_loaders.common import show_sample
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "psst-data")
 
@@ -67,8 +68,16 @@ class PSSTDataset(BaseDataset):
 
     def _get_ix(self, ix):
         utterance = self.utterances[ix]
+
         ipa = arpabet2ipa(utterance.transcript.replace("<spn>", "").replace("<sil>", ""))  # type: ignore
         audio = audio_file_to_array(utterance.filename_absolute)  # type: ignore
+
+        if self.split == "test" and ix == 309:  # sample contains un-annotated speaker
+            # crop after 1.4 seconds
+            start = int(1.4 * TARGET_SAMPLE_RATE)
+            audio = audio_file_to_array(utterance.filename_absolute)[start:]
+            ipa = "oʊoʊoʊpʌnʌɑpɝeɪtɪŋʌm"
+
         if self.include_speaker_info:
             return (
                 ipa,
@@ -83,10 +92,14 @@ class PSSTDataset(BaseDataset):
                 },
             )
         else:
-            return ipa, audio
+            return (
+                ipa,
+                audio,
+                utterance.filename_absolute,
+            )  # type: ignore
 
 
 if __name__ == "__main__":
-    dataset = PSSTDataset(include_speaker_info=True, force_offline=True)
+    dataset = PSSTDataset(split="test", include_speaker_info=True, force_offline=True)
     print(len(dataset))
     print(dataset[0])
