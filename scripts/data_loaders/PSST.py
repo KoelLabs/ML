@@ -8,8 +8,9 @@ from contextlib import contextmanager
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_file_to_array
+from core.audio import audio_file_to_array, TARGET_SAMPLE_RATE
 from core.codes import arpabet2ipa, IPA2ARPABET
+
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "psst-data")
 
@@ -67,8 +68,22 @@ class PSSTDataset(BaseDataset):
 
     def _get_ix(self, ix):
         utterance = self.utterances[ix]
+
         ipa = arpabet2ipa(utterance.transcript.replace("<spn>", "").replace("<sil>", ""))  # type: ignore
         audio = audio_file_to_array(utterance.filename_absolute)  # type: ignore
+
+        # cropping bad samples
+        if self.split == "test":
+            if ix == 309:  # sample contains un-annotated speaker
+                # crop after 1.4 seconds
+                start = int(1.4 * TARGET_SAMPLE_RATE)
+                audio = audio[start:]
+                ipa = "oʊoʊoʊpʌnʌɑpɝeɪtɪŋʌm"
+            if ix == 50:
+                # preserve first 1.2 seconds
+                end = int(1.8 * TARGET_SAMPLE_RATE)
+                audio = audio[:end]
+
         if self.include_speaker_info:
             return (
                 ipa,
@@ -80,6 +95,7 @@ class PSSTDataset(BaseDataset):
                     "text_prompt": utterance.prompt,  # type: ignore
                     "correct": utterance.correctness,  # type: ignore
                     "aq_index": utterance.aq_index,  # type: ignore
+                    "filename": utterance.filename_absolute,  # type: ignore
                 },
             )
         else:
@@ -87,7 +103,7 @@ class PSSTDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    # train = PSSTDataset(include_speaker_info=True, force_offline=True)
-    # interactive_flag_samples(train)
+    train = PSSTDataset(include_speaker_info=True, force_offline=True)
+    interactive_flag_samples(train)
     test = PSSTDataset(split="test", include_speaker_info=True, force_offline=True)
     interactive_flag_samples(test)
