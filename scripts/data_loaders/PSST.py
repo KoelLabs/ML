@@ -12,6 +12,7 @@ from core.audio import audio_file_to_array, TARGET_SAMPLE_RATE
 from core.codes import arpabet2ipa, IPA2ARPABET
 from data_loaders.common import show_sample
 
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "psst-data")
 
 
@@ -72,11 +73,16 @@ class PSSTDataset(BaseDataset):
         ipa = arpabet2ipa(utterance.transcript.replace("<spn>", "").replace("<sil>", ""))  # type: ignore
         audio = audio_file_to_array(utterance.filename_absolute)  # type: ignore
 
-        if self.split == "test" and ix == 309:  # sample contains un-annotated speaker
-            # crop after 1.4 seconds
-            start = int(1.4 * TARGET_SAMPLE_RATE)
-            audio = audio_file_to_array(utterance.filename_absolute)[start:]
-            ipa = "oʊoʊoʊpʌnʌɑpɝeɪtɪŋʌm"
+        if self.split == "test":  # cropping bad samples
+            if ix == 309:  # sample contains un-annotated speaker
+                # crop after 1.4 seconds
+                start = int(1.4 * TARGET_SAMPLE_RATE)
+                audio = audio_file_to_array(utterance.filename_absolute)[start:]
+                ipa = "oʊoʊoʊpʌnʌɑpɝeɪtɪŋʌm"
+            if ix == 50:
+                # preserve first 1.2 seconds
+                end = int(1.8 * TARGET_SAMPLE_RATE)
+                audio = audio_file_to_array(utterance.filename_absolute)[:end]
 
         if self.include_speaker_info:
             return (
