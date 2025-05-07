@@ -46,6 +46,151 @@ def audio_array_to_wav_file(
     wavfile.write(output_path, output_sample_rate, input_array)
 
 
+def audio_array_pitchshift(
+    x: np.ndarray, pitch_ratio: float, mode: str = "tune", window_size: int = 2048
+) -> np.ndarray:
+    """
+    Pitch-shift (or time-stretch) a 16-bit single-channel signal in memory.
+    Adapted from https://github.com/haoyu987/phasevocoder
+
+    Parameters
+    ----------
+    x           : np.ndarray[int16]
+                  Input PCM signal (shape (N,), dtype=int16).
+    pitch_ratio : float
+                  Ratio >1.0 shifts up, <1.0 shifts down.
+    mode        : {'tune','stretch'}
+                  'tune'  = pitch-shift (with resampling)
+                  'stretch' = time-stretch only
+    window_size : int
+                  FFT window size (power of 2), default 2048.
+
+    Returns
+    -------
+    y : np.ndarray[int16]
+        Output PCM signal, dtype=int16.
+    """
+    assert x.dtype == np.int16 and x.ndim == 1
+
+    def resample(signal):
+        output_Length = int((len(signal) - 1) / pitch_ratio)
+        output = np.zeros(output_Length)
+        for i in range(output_Length - 1):
+            x = float(i * pitch_ratio)
+            ix = int(np.floor(x))
+            dx = x - ix
+            output[i] = signal[ix] * (1.0 - dx) + signal[ix + 1] * dx
+        return output
+
+    def locate_peaks(signal):
+        # function to find peaks
+        # a peak is any sample which is greater than its two nearest neighbours
+        index = 0
+        k = 2
+        indices = []
+        while k < len(signal) - 2:
+            seg = signal[k - 2 : k + 3]
+            if np.amax(seg) < 150:
+                k = k + 2
+            else:
+                if seg.argmax() == 2:
+                    indices.append(k)
+                    index = index + 1
+                    k = k + 2
+            k += 1
+        return indices
+
+    # hop sizes
+    synthesis_hop = window_size // 4
+    analysis_hop = int(synthesis_hop / pitch_ratio)
+
+    # zero‑pad so that last frame is complete
+    n_in = len(x)
+    n_pad = (window_size - (n_in - window_size) % analysis_hop) % analysis_hop
+    x_padded = np.concatenate([x.astype(float), np.zeros(n_pad)])
+
+    # prepare STFT buffers
+    win = np.hanning(window_size)
+    num_bins = window_size // 2 + 1
+    last_phase = np.zeros(num_bins)
+    accum_phase = np.zeros(num_bins)
+    expected_phi = (
+        np.linspace(0, num_bins - 1, num_bins) * 2 * np.pi * analysis_hop / window_size
+    )
+
+    # output length estimate
+    est_frames = 1 + (len(x_padded) - window_size) // analysis_hop
+    y_len = est_frames * synthesis_hop + window_size
+    y = np.zeros(y_len)
+
+    read_pt = 0
+    write_pt = 0
+    AmpMax = 2**15 - 1
+
+    # initial dummy peaks
+    pk_indices = list(range(num_bins))
+
+    while read_pt + window_size <= len(x_padded):
+        frame = x_padded[read_pt : read_pt + window_size] * win
+        # FFT
+        X = np.fft.rfft(frame)
+        mag = np.abs(X)
+        phase = np.angle(X)
+
+        # phase difference
+        delta = phase - last_phase
+        last_phase = phase.copy()
+        delta -= expected_phi
+        delta = np.unwrap(delta)
+
+        # accumulate true phase
+        accum_phase += (delta + expected_phi) * (synthesis_hop / analysis_hop)
+
+        # region‑of‑influence re‑assignment around peaks
+        # compute rotation at peaks
+        rotation = accum_phase[pk_indices] - phase[pk_indices]
+        # for each region between peaks, set accum_phase
+        starts = [0] + [
+            (pk_indices[i] + pk_indices[i + 1]) // 2 for i in range(len(pk_indices) - 1)
+        ]
+        ends = [
+            (pk_indices[i] + pk_indices[i + 1]) // 2 for i in range(len(pk_indices) - 1)
+        ] + [num_bins]
+        for r, pk in enumerate(pk_indices):
+            # for bins in region around this peak
+            for b in range(starts[r], ends[r]):
+                accum_phase[b] = rotation[r] + phase[b]
+
+        # detect new peaks for next iteration
+        new_pk = locate_peaks(mag)
+        pk_indices = new_pk if new_pk else [1]
+
+        # inverse FFT with modified phase
+        Y = mag * (np.cos(accum_phase) + 1j * np.sin(accum_phase))
+        y_frame = np.fft.irfft(Y)
+
+        # overlap‑add
+        y[write_pt : write_pt + window_size] += y_frame * win
+
+        read_pt += analysis_hop
+        write_pt += synthesis_hop
+
+    # trim to actual written
+    y = y[:write_pt]
+
+    # clip and convert back to int16
+    y = np.clip(y, -AmpMax, AmpMax)
+    y = y.astype(np.int16)
+
+    if mode == "tune":
+        # final resample to correct pitch
+        y = resample(y).astype(np.int16)
+    elif mode != "stretch":
+        raise ValueError("mode must be 'tune' or 'stretch'")
+
+    return y
+
+
 def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE):
     if src_sample_rate == target_sample_rate:
         return array

@@ -109,3 +109,60 @@ def split_utterance_into_multiple(
         prev = phone
 
     return sections
+
+
+def interactive_flag_samples(
+    dataset,
+    progress_file=os.path.join(
+        os.path.dirname(__file__), "..", "..", ".data", "interactive_progress.txt"
+    ),
+):
+    import json
+    from core.audio import (
+        audio_resample,
+        audio_array_pitchshift,
+        audio_array_play,
+        TARGET_SAMPLE_RATE,
+    )
+
+    if os.path.exists(progress_file):
+        with open(progress_file, "r") as f:
+            progress = json.load(f)
+    else:
+        progress = {}
+
+    progress_key = f"{dataset.__class__.__name__}_{dataset.split}"
+    if not progress_key in progress:
+        progress[progress_key] = {"marked": [], "cur_ix": 0}
+
+    speedup_factor = float(input("Enter speedup factor as float: "))
+
+    marked = progress[progress_key]["marked"]
+    for i, sample in enumerate(dataset):
+        if i < progress[progress_key]["cur_ix"]:
+            continue
+
+        print("Sample", i, sample)
+        audio = audio_array_pitchshift(
+            audio_resample(
+                sample[1], TARGET_SAMPLE_RATE, int(TARGET_SAMPLE_RATE / speedup_factor)
+            ),
+            1 / speedup_factor,
+        )
+        inp = "r"
+        while "r" in inp:
+            audio_array_play(audio)
+            inp = (
+                input("Enter for good, n + enter for bad, r + enter for replay: ")
+                .lower()
+                .strip()
+            )
+            if "n" in inp:
+                marked.append(i)
+
+        progress[progress_key]["cur_ix"] = i + 1
+        with open(progress_file, "w") as f:
+            json.dump(progress, f)
+
+    print("Marked", marked)
+    return marked

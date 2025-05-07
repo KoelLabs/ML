@@ -7,7 +7,7 @@ import requests
 from contextlib import contextmanager
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
+from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_file_to_array
 from core.codes import arpabet2ipa, IPA2ARPABET
 
@@ -87,6 +87,7 @@ class PSSTDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    dataset = PSSTDataset(include_speaker_info=True, force_offline=True)
-    print(len(dataset))
-    print(dataset[0])
+    # train = PSSTDataset(include_speaker_info=True, force_offline=True)
+    # interactive_flag_samples(train)
+    test = PSSTDataset(split="test", include_speaker_info=True, force_offline=True)
+    interactive_flag_samples(test)
