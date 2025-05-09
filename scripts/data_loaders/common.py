@@ -62,6 +62,7 @@ def split_utterance_into_multiple(
     audio,
     split_convos_at_silence_seconds: float = 2,
     min_speech_seconds: float = 1,
+    min_ipa_length: int = 5,
 ):
     """
     Uses the timestamped phonemes to determine the silence and speech sections.
@@ -86,7 +87,7 @@ def split_utterance_into_multiple(
                 speech = (speech_end - speech_start) / TARGET_SAMPLE_RATE
                 # print('speech', speech)
                 # print('silence', silence)
-                if min_speech_seconds < speech:
+                if min_speech_seconds < speech and len(speech_phones) >= min_ipa_length:
                     significant_silence = True
                     sections.append(
                         (
