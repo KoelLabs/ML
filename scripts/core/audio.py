@@ -308,6 +308,20 @@ def audio_file_from_text(text, output_path):
         f.write(response.content)
 
 
+def audio_array_float64_to_int16(audio_data_float64):
+    """Converts a float64 numpy array to int16."""
+
+    # Normalize to the range -1.0 to 1.0 (if needed)
+    max_value = np.max(np.abs(audio_data_float64))
+    if max_value > 1.0:
+        audio_data_float64 = audio_data_float64 / max_value
+
+    # Scale to int16 range
+    audio_data_int16 = (audio_data_float64 * 32767).astype(np.int16)
+
+    return audio_data_int16
+
+
 def main(args):
     if args[0] == "record":
         audio_record_to_file(args[1])

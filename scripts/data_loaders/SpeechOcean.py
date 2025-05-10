@@ -6,8 +6,8 @@ import sys
 from datasets import load_dataset, Dataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
-from core.audio import TARGET_SAMPLE_RATE
+from data_loaders.common import BaseDataset, interactive_flag_samples
+from core.audio import TARGET_SAMPLE_RATE, audio_array_float64_to_int16
 from core.codes import arpabet2ipa, IPA2ARPABET
 
 
@@ -67,7 +67,7 @@ class SpeechOceanDataset(BaseDataset):
     def _get_ix(self, ix):
         sample = self.dataset[ix]
 
-        audio = sample["audio"]["array"]
+        audio = audio_array_float64_to_int16(sample["audio"]["array"])
         assert (
             sample["audio"]["sampling_rate"] == TARGET_SAMPLE_RATE
         ), "Please call the resample util to match target sample rate"
@@ -101,6 +101,13 @@ class SpeechOceanDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    dataset = SpeechOceanDataset(include_speaker_info=True, include_text=True)
-    print(len(dataset))
-    print(dataset[0])
+    train = SpeechOceanDataset(
+        split="train", include_speaker_info=True, include_text=True
+    )
+    print(len(train))
+    interactive_flag_samples(train)
+    test = SpeechOceanDataset(
+        split="test", include_speaker_info=True, include_text=True
+    )
+    print(len(test))
+    interactive_flag_samples(test)
