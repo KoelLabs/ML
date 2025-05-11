@@ -7,7 +7,7 @@ import zipfile
 import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
+from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
 from core.codes import xsampa2ipa
 
@@ -196,4 +196,5 @@ if __name__ == "__main__":
         include_speaker_info=True,
         include_text=True,
     )
+    interactive_flag_samples(dataset)
     print(dataset[10])

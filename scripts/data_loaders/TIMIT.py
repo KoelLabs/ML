@@ -7,7 +7,7 @@ import zipfile
 
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
+from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array
 from core.codes import parse_timit, IPA2TIMIT
 from core.text import english2ipa, remove_punctuation
@@ -131,4 +131,5 @@ with zipfile.ZipFile(TIMIT_ZIP, "r") as zip:
 
 if __name__ == "__main__":
     dataset = TIMITDataset()
+    interactive_flag_samples(dataset)
     print(dataset[0])

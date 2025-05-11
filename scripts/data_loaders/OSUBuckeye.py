@@ -6,7 +6,7 @@ import zipfile
 from torch.utils.data import ConcatDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
+from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
 from core.codes import BUCKEYE2IPA
 
@@ -323,5 +323,6 @@ SPEAKERS = {
 
 if __name__ == "__main__":
     dataset = BuckeyeDataset(include_timestamps=True)
+    interactive_flag_samples(dataset)
     print(len(dataset))
     print(dataset[0])

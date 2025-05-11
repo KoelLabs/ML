@@ -8,8 +8,8 @@ import textgrids
 from torch.utils.data import ConcatDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
-from core.audio import audio_bytes_to_array
+from data_loaders.common import BaseDataset, interactive_flag_samples
+from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
 from core.codes import arpabet2ipa, IPA2ARPABET
 
 SOURCE_SAMPLE_RATE = 44100
@@ -137,7 +137,7 @@ class L2ArcticDataset(BaseDataset):
 
             arpa = tg.interval_tier_to_array("phones")
             timestamped_phonemes = [
-                (L2Symbol2Phoneme(c["label"]), c["begin"], c["end"])
+                (L2Symbol2Phoneme(c["label"]), int(c["begin"]*TARGET_SAMPLE_RATE), int(c["end"]*TARGET_SAMPLE_RATE))
                 for c in arpa
                 if c["label"]
             ]
@@ -262,4 +262,8 @@ if __name__ == "__main__":
         include_text=False,
         include_timestamps=True,
     )
+    # load all_arctic_speaker_splits
+    other = all_arctic_speaker_splits()
+   
+    interactive_flag_samples(other)
     print(suitcase[0])
