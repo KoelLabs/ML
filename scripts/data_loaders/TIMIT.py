@@ -131,5 +131,5 @@ with zipfile.ZipFile(TIMIT_ZIP, "r") as zip:
 
 if __name__ == "__main__":
     dataset = TIMITDataset()
+    print(len(dataset))
     interactive_flag_samples(dataset)
-    print(dataset[0])

@@ -196,5 +196,5 @@ if __name__ == "__main__":
         include_speaker_info=True,
         include_text=True,
     )
+    print(len(dataset))
     interactive_flag_samples(dataset)
-    print(dataset[10])
