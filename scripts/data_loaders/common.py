@@ -112,11 +112,22 @@ def split_utterance_into_multiple(
     return sections
 
 
+def split_iterator(dataset, split_config: "tuple[int, int, int]"):
+    i = 0
+    for sample in dataset:
+        for subsample in split_utterance_into_multiple(
+            sample[2], sample[1], split_config[0], split_config[1], split_config[2]
+        ):
+            yield i, subsample
+            i += 1
+
+
 def interactive_flag_samples(
     dataset,
     progress_file=os.path.join(
         os.path.dirname(__file__), "..", "..", ".data", "interactive_progress.txt"
     ),
+    split_config: "None | tuple[int, int, int]" = None,
 ):
     import json
     from core.audio import (
@@ -133,13 +144,20 @@ def interactive_flag_samples(
         progress = {}
 
     progress_key = f"{dataset.__class__.__name__}_{dataset.split}"
+    if split_config is not None:
+        progress_key += f"_{split_config}"
     if not progress_key in progress:
         progress[progress_key] = {"marked": [], "cur_ix": 0}
 
     speedup_factor = float(input("Enter speedup factor as float: "))
 
     marked = progress[progress_key]["marked"]
-    for i, sample in enumerate(dataset):
+    data_iter = (
+        enumerate(dataset)
+        if split_config is None
+        else split_iterator(dataset, split_config)
+    )
+    for i, sample in data_iter:
         if i < progress[progress_key]["cur_ix"]:
             continue
 
