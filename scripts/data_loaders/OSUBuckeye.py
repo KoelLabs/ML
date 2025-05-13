@@ -7,11 +7,12 @@ from torch.utils.data import ConcatDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
+from core.audio import audio_bytes_to_array, audio_array_clip, TARGET_SAMPLE_RATE
 from core.codes import BUCKEYE2IPA
 
 SOURCE_SAMPLE_RATE = 16000
 DATA_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "buckeye.zip")
+REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS = 1
 
 
 def all_buckeye_speaker_splits(
@@ -19,7 +20,7 @@ def all_buckeye_speaker_splits(
     include_speaker_info=False,
     include_text=False,
 ):
-    return ConcatDataset(
+    dataset = ConcatDataset(
         BuckeyeDataset(
             split=s,
             include_timestamps=include_timestamps,
@@ -28,6 +29,8 @@ def all_buckeye_speaker_splits(
         )
         for s in SPEAKERS.keys()
     )
+    setattr(dataset, "split", "BuckeyeAll")
+    return dataset
 
 
 class BuckeyeDataset(BaseDataset):
@@ -86,18 +89,31 @@ class BuckeyeDataset(BaseDataset):
         with conversation_zip.open(f"{utterance}.phones") as phn_file:
             start = 0
             timestamped_phonemes = []
+            accumulated_removal = 0
             for line in phn_file.read().decode("utf-8").split("\n")[9:]:
                 if line == "":
                     continue
                 line = line.split(";")[0].strip()
                 fields = line.split()
-                stop = float(fields[0])
-                if (
-                    fields[2].strip().upper() == "IVER"
-                ):  # zero out audio for interviewer
+                stop = float(fields[0]) - accumulated_removal
+                if fields[2].strip().upper() == "IVER":
+                    # zero out audio for interviewer
                     audio[
                         int(start * TARGET_SAMPLE_RATE) : int(stop * TARGET_SAMPLE_RATE)
                     ] = 0
+                    # reduce zeroed out silence duration to REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
+                    interviewer_duration = (stop - start) * TARGET_SAMPLE_RATE
+                    if (
+                        interviewer_duration
+                        > REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
+                    ):
+                        extraneous_duration = (
+                            stop - start
+                        ) - REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
+                        stop = start + extraneous_duration
+                        audio = audio_array_clip(audio, start, stop)
+                        accumulated_removal += extraneous_duration
+
                 phone = BUCKEYE2IPA.get(fields[2], "") if len(fields) >= 3 else ""
                 timestamped_phonemes.append(
                     (
@@ -323,6 +339,5 @@ SPEAKERS = {
 
 if __name__ == "__main__":
     dataset = BuckeyeDataset(include_timestamps=True)
-    interactive_flag_samples(dataset)
     print(len(dataset))
-    print(dataset[0])
+    interactive_flag_samples(dataset, split_config=(2, 1, 5))

@@ -322,6 +322,21 @@ def audio_array_float64_to_int16(audio_data_float64):
     return audio_data_int16
 
 
+def audio_array_clip(
+    array: np.ndarray,
+    remove_start_seconds: float,
+    remove_end_seconds: float,
+    sample_rate=TARGET_SAMPLE_RATE,
+):
+    return np.delete(
+        array,
+        slice(
+            int(remove_start_seconds * sample_rate),
+            int(remove_end_seconds * sample_rate),
+        ),
+    )
+
+
 def main(args):
     if args[0] == "record":
         audio_record_to_file(args[1])
