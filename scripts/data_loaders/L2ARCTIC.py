@@ -23,7 +23,7 @@ def all_arctic_speaker_splits(
     include_speaker_info=False,
     include_text=False,
 ):
-    return ConcatDataset(
+    dataset = ConcatDataset(
         L2ArcticDataset(
             split=s,
             include_timestamps=include_timestamps,
@@ -32,6 +32,8 @@ def all_arctic_speaker_splits(
         )
         for s in SPEAKERS.keys()
     )
+    setattr(dataset, "split", "L2ArcticScripted")
+    return dataset
 
 
 def L2Symbol2Phoneme(c):
@@ -137,7 +139,11 @@ class L2ArcticDataset(BaseDataset):
 
             arpa = tg.interval_tier_to_array("phones")
             timestamped_phonemes = [
-                (L2Symbol2Phoneme(c["label"]), int(c["begin"]*TARGET_SAMPLE_RATE), int(c["end"]*TARGET_SAMPLE_RATE))
+                (
+                    L2Symbol2Phoneme(c["label"]),
+                    int(c["begin"] * TARGET_SAMPLE_RATE),
+                    int(c["end"] * TARGET_SAMPLE_RATE),
+                )
                 for c in arpa
                 if c["label"]
             ]
@@ -262,8 +268,9 @@ if __name__ == "__main__":
         include_text=False,
         include_timestamps=True,
     )
-    # load all_arctic_speaker_splits
-    other = all_arctic_speaker_splits()
-   
-    interactive_flag_samples(other)
-    print(suitcase[0])
+    scripted = all_arctic_speaker_splits(
+        include_speaker_info=True,
+        include_timestamps=True,
+    )
+    interactive_flag_samples(scripted)
+    interactive_flag_samples(suitcase)
