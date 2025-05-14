@@ -36,7 +36,7 @@ def all_buckeye_speaker_splits(
 class BuckeyeDataset(BaseDataset):
     def __init__(
         self,
-        split="s40",
+        split="s01",
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
@@ -90,19 +90,28 @@ class BuckeyeDataset(BaseDataset):
             start = 0
             timestamped_phonemes = []
             accumulated_removal = 0
+            # silence out everything prior to {B_TRANS} which is the start of the first phone
+
             for line in phn_file.read().decode("utf-8").split("\n")[9:]:
                 if line == "":
                     continue
                 line = line.split(";")[0].strip()
                 fields = line.split()
                 stop = float(fields[0]) - accumulated_removal
-                if fields[2].strip().upper() == "IVER":
+                # remove speech until B_TRANS which marks start of transcription
+                if "B_TRANS" in fields[2].strip().upper():
+                    audio[: int(stop * TARGET_SAMPLE_RATE)] = 0
+
+                if (
+                    fields[2].strip().upper() == "IVER"
+                    or fields[2].strip().upper() == "VOCNOISE"
+                ):
                     # zero out audio for interviewer
                     audio[
                         int(start * TARGET_SAMPLE_RATE) : int(stop * TARGET_SAMPLE_RATE)
                     ] = 0
                     # reduce zeroed out silence duration to REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
-                    interviewer_duration = (stop - start) * TARGET_SAMPLE_RATE
+                    interviewer_duration = stop - start
                     if (
                         interviewer_duration
                         > REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
