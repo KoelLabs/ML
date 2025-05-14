@@ -7,7 +7,12 @@ from torch.utils.data import ConcatDataset
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_bytes_to_array, audio_array_clip, TARGET_SAMPLE_RATE
+from core.audio import (
+    audio_bytes_to_array,
+    audio_array_clip,
+    TARGET_SAMPLE_RATE,
+    audio_array_play,
+)
 from core.codes import BUCKEYE2IPA
 
 SOURCE_SAMPLE_RATE = 16000
@@ -100,9 +105,11 @@ class BuckeyeDataset(BaseDataset):
                 if "B_TRANS" in fields[2].strip().upper():
                     # remove speech until B_TRANS which marks start of transcription
                     assert len(timestamped_phonemes) == 0, "B_TRANS"
+                    beginning_duration = stop - start
                     audio = audio[int(stop * TARGET_SAMPLE_RATE) :]
                     accumulated_removal = stop
-                elif fields[2].strip().upper() in ["IVER", "VOCNOISE", "SIL"]:
+                    stop -= beginning_duration
+                elif fields[2].strip().upper() in ["IVER", "VOCNOISE", "SIL", "LAUGH"]:
                     # zero out audio for interviewer
                     audio[
                         int(start * TARGET_SAMPLE_RATE) : int(stop * TARGET_SAMPLE_RATE)
@@ -345,5 +352,7 @@ SPEAKERS = {
 
 if __name__ == "__main__":
     dataset = BuckeyeDataset(include_timestamps=True)
+    audio = dataset[2][1]
+    audio_array_play(audio)
     print(len(dataset))
     interactive_flag_samples(dataset, split_config=(2, 1, 5))
