@@ -105,10 +105,9 @@ class BuckeyeDataset(BaseDataset):
                 if "B_TRANS" in fields[2].strip().upper():
                     # remove speech until B_TRANS which marks start of transcription
                     assert len(timestamped_phonemes) == 0, "B_TRANS"
-                    beginning_duration = stop - start
                     audio = audio[int(stop * TARGET_SAMPLE_RATE) :]
                     accumulated_removal = stop
-                    stop -= beginning_duration
+                    stop = 0
                 elif fields[2].strip().upper() in ["IVER", "VOCNOISE", "SIL", "LAUGH"]:
                     # zero out audio for interviewer
                     audio[
