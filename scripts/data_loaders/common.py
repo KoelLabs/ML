@@ -49,12 +49,18 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         pass
 
     def __getitem__(self, index):
-        if isinstance(index, Iterable):
-            return [self._get_ix(ix) for ix in index]
-        elif isinstance(index, slice):
-            return [self._get_ix(ix) for ix in range(*index.indices(len(self)))]
-        else:
-            return self._get_ix(index)
+        if index > len(self) or index < 0:
+            raise IndexError(f"Index {index} out of bounds for dataset")
+        try:
+            if isinstance(index, Iterable):
+                return [self._get_ix(ix) for ix in index]
+            elif isinstance(index, slice):
+                return [self._get_ix(ix) for ix in range(*index.indices(len(self)))]
+            else:
+                return self._get_ix(index)
+        except IndexError as e:
+            # Re-throw index errors for valid indices as a different type to avoid silently failing
+            raise AssertionError(e)
 
 
 def split_utterance_into_multiple(
@@ -112,7 +118,7 @@ def split_utterance_into_multiple(
     return sections
 
 
-def split_iterator(dataset, split_config: "tuple[int, int, int]"):
+def split_iterator(dataset, split_config: "tuple[float, float, int]"):
     i = 0
     for sample in dataset:
         for subsample in split_utterance_into_multiple(
@@ -127,7 +133,7 @@ def interactive_flag_samples(
     progress_file=os.path.join(
         os.path.dirname(__file__), "..", "..", ".data", "interactive_progress.txt"
     ),
-    split_config: "None | tuple[int, int, int]" = None,
+    split_config: "None | tuple[float, float, int]" = None,
 ):
     import json
     from core.audio import (
