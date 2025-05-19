@@ -107,7 +107,10 @@ class DoReCoDataset(BaseDataset):
         ], f"There are no phonemic transcriptions for {split}, only words"
 
         self.utterances = [
-            x for x in self.phoneme_df["ref"].unique() if not is_special_symbol(x)
+            x
+            for x in self.phoneme_df["ref"].unique()
+            if not is_special_symbol(x)
+            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 3
         ]
 
     def __del__(self):
@@ -191,10 +194,12 @@ class DoReCoDataset(BaseDataset):
 
 if __name__ == "__main__":
     dataset = DoReCoDataset(
-        split="EN03",
+        split="all",
         include_timestamps=True,
         include_speaker_info=True,
         include_text=True,
     )
+    for s in dataset:
+        pass
     print(len(dataset))
-    interactive_flag_samples(dataset)
+    # interactive_flag_samples(dataset)
