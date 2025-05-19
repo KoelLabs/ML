@@ -49,7 +49,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         pass
 
     def __getitem__(self, index):
-        if index > len(self) or index < 0:
+        if index >= len(self) or index < 0:
             raise IndexError(f"Index {index} out of bounds for dataset")
         try:
             if isinstance(index, Iterable):
