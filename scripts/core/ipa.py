@@ -44,6 +44,13 @@ def remove_tones_and_stress(ipa_string: str):
     return ipa_string
 
 
+def remove_stress_marker(ipa_string: str):
+    """Remove stress marker from the IPA string"""
+    print("we are removing stress marker")
+    ipa_string = ipa_string.replace("ˈ", "").replace("ˌ", "")
+    return ipa_string
+
+
 def remove_tie_marker(ipa_string: str):
     """Remove tie marker from the IPA string"""
     return "".join({"͡": ""}.get(c, c) for c in ipa_string)
