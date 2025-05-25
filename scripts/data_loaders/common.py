@@ -45,22 +45,25 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         return 0
 
     @abstractmethod
-    def _get_ix(self, filename):
+    def _get_ix(self, ix):
         pass
 
-    def __getitem__(self, index):
-        if index >= len(self) or index < 0:
-            raise IndexError(f"Index {index} out of bounds for dataset")
+    def _get_ix_safe(self, ix):
+        if ix >= len(self) or ix < 0:
+            raise IndexError(f"Index {ix} out of bounds for dataset")
         try:
-            if isinstance(index, Iterable):
-                return [self._get_ix(ix) for ix in index]
-            elif isinstance(index, slice):
-                return [self._get_ix(ix) for ix in range(*index.indices(len(self)))]
-            else:
-                return self._get_ix(index)
+            return self._get_ix(ix)
         except IndexError as e:
             # Re-throw index errors for valid indices as a different type to avoid silently failing
-            raise AssertionError(e)
+            raise AssertionError(f"Sample {ix} has an internal index error", e)
+
+    def __getitem__(self, index):
+        if isinstance(index, Iterable):
+            return [self._get_ix_safe(ix) for ix in index]
+        elif isinstance(index, slice):
+            return [self._get_ix_safe(ix) for ix in range(*index.indices(len(self)))]
+        else:
+            return self._get_ix_safe(index)
 
 
 def split_utterance_into_multiple(
