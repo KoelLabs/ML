@@ -176,3 +176,8 @@ curl -L "https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&f
 
 # Download EpaDB
 curl -L https://github.com/JazminVidal/EpaDB/archive/refs/heads/master.zip > ./.data/EpaDB-master.zip
+
+# Download Buckeye
+# request permissions from https://buckeyecorpus.osu.edu/, then get the patch and apply it
+# curl -L https://raw.githubusercontent.com/MontrealCorpusTools/mfa-models/refs/heads/main/scripts/alignment_benchmarks/data_prep/buckeye.patch > ./.data/buckeye.patch
+# python scripts/data_loaders/OSUBuckeye.py patch

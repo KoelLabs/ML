@@ -12,6 +12,9 @@ from core.codes import BUCKEYE2IPA
 
 SOURCE_SAMPLE_RATE = 16000
 DATA_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "buckeye.zip")
+PATCH_FILE = os.path.join(
+    os.path.dirname(__file__), "..", "..", ".data", "buckeye.patch"
+)
 REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS = 1
 
 
@@ -348,7 +351,91 @@ SPEAKERS = {
     },
 }
 
+
+def apply_patch():
+    import hashlib
+    from core.writeable_zip import writeable_zip
+    from unidiff import PatchSet
+
+    with open(PATCH_FILE, "r") as f:
+        patch_set = PatchSet(f)
+
+    with writeable_zip(DATA_ZIP) as datazip:
+        speakers = [
+            x
+            for x in datazip.namelist()
+            if not x.startswith("__") and x.endswith(".zip")
+        ]
+        for speaker in speakers:
+            with writeable_zip(os.path.join(datazip.temp_dir, speaker)) as speaker_zip:
+                conversations = speaker_zip.namelist()
+
+                for patched_file in patch_set:
+                    conversation = os.path.splitext(
+                        os.path.basename(patched_file.path)
+                    )[0]
+                    try:
+                        conversation_path = next(
+                            filter(lambda x: conversation in x, conversations)
+                        )
+                    except StopIteration:
+                        continue
+                    with writeable_zip(
+                        os.path.join(speaker_zip.temp_dir, conversation_path)
+                    ) as utterance_zip:
+                        with utterance_zip.open(patched_file.path, "rb") as file:
+                            content = file.read()
+                        header = f"blob {len(content)}\0".encode("utf-8")
+                        store = header + content
+                        sha1 = hashlib.sha1(store).hexdigest()
+                        abbreviated_sha1 = (
+                            str(patched_file.patch_info)
+                            .split("\n")[1]
+                            .split("..")[0]
+                            .replace("index ", "")
+                        )
+                        if not sha1.startswith(abbreviated_sha1):
+                            print(
+                                "Skipping patch to",
+                                patched_file.path,
+                                "it has hash",
+                                sha1,
+                                "but patch was calculated from",
+                                abbreviated_sha1,
+                            )
+                            continue
+                        else:
+                            print("Patching", patched_file.path)
+                        with utterance_zip.open(patched_file.path, "r") as file:
+                            lines = file.readlines()
+                            to_remove = []
+                            to_add = []
+                            for hunk in patched_file:
+                                for line in hunk:
+                                    if line.is_added:
+                                        to_add.append((line.target_line_no, line.value))
+                                    elif line.is_removed:
+                                        to_remove.append(line.source_line_no)
+                            for line_no in sorted(to_remove, reverse=True):
+                                try:
+                                    lines.pop(line_no - 1)
+                                except Exception as e:
+                                    print(line_no)
+                                    print(patched_file)
+                                    raise e
+                            for line in to_add:
+                                lines.insert(line[0] - 1, line[1])
+                        with utterance_zip.open(patched_file.path, "w") as file:
+                            file.writelines(lines)
+
+    # delete patch file so patch won't accidentally be applied twice
+    os.remove(PATCH_FILE)
+
+
 if __name__ == "__main__":
-    dataset = BuckeyeDataset(include_timestamps=True)
-    print(len(dataset))
-    interactive_flag_samples(dataset, split_config=(2, 1, 5))
+    if len(sys.argv) == 2 and sys.argv[1] == "patch":
+        apply_patch()
+    else:
+        dataset = BuckeyeDataset(include_timestamps=True)
+        print(len(dataset))
+        interactive_flag_samples(dataset, split_config=(2, 1, 5))
