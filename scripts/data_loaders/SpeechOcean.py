@@ -22,8 +22,8 @@ class SpeechOceanDataset(BaseDataset):
         include_speaker_info=False,
         include_text=False,
         # filters
-        discard_heavy_accents=False,  # if True, discard samples marked as "heavy accent"
-        discard_approximate_labels=False,  # if True, discard samples with uncertain sound labels
+        discard_heavy_accents=True,  # if True, discard samples marked as "heavy accent"
+        discard_approximate_labels=True,  # if True, discard samples with uncertain sound labels
         discard_unknown_labels=True,  # if True, discard samples where not all sounds are discernible
     ):
         """
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         split="train", include_speaker_info=True, include_text=True
     )
     print(len(train))
-    interactive_flag_samples(train)
+    # interactive_flag_samples(train)
     test = SpeechOceanDataset(
         split="test", include_speaker_info=True, include_text=True
     )
