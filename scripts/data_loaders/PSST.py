@@ -80,7 +80,7 @@ class PSSTDataset(BaseDataset):
                 audio = audio[start:]
                 ipa = "oʊoʊoʊpʌnʌɑpɝeɪtɪŋʌm"
             if ix == 50:
-                # preserve first 1.2 seconds
+                # preserve first 1.8 seconds
                 end = int(1.8 * TARGET_SAMPLE_RATE)
                 audio = audio[:end]
 
@@ -104,6 +104,8 @@ class PSSTDataset(BaseDataset):
 
 if __name__ == "__main__":
     train = PSSTDataset(include_speaker_info=True, force_offline=True)
+    # grab samples after 200th samples
+    print(train[0])
     interactive_flag_samples(train)
     test = PSSTDataset(split="test", include_speaker_info=True, force_offline=True)
     interactive_flag_samples(test)
