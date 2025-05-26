@@ -1,4 +1,4 @@
-# Tested with Python 3.8.10 on MacOS 14.4.1
+# Tested with Python 3.9.13 on MacOS 14.4.1
 
 # dependencies
 if [ "$(uname)" == "Darwin" ]; then
@@ -16,7 +16,7 @@ else
 fi
 
 pip install -r requirements.txt 
-
+pip install espnet==202412 espnet_model_zoo==0.1.7
 
 # create gitignored directories
 mkdir -p ./.data
@@ -176,6 +176,9 @@ curl -L "https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&f
 
 # Download EpaDB
 curl -L https://github.com/JazminVidal/EpaDB/archive/refs/heads/master.zip > ./.data/EpaDB-master.zip
+
+# Download Non-native children speech mini corpus https://www.kaggle.com/datasets/kodaliradha20phd7093/nonnative-children-speech-mini-corpus
+curl -L https://www.kaggle.com/api/v1/datasets/download/kodaliradha20phd7093/nonnative-children-speech-mini-corpus > ./.data/nonnative-children-speech-mini-corpus.zip
 
 # Download Buckeye
 # request permissions from https://buckeyecorpus.osu.edu/, then get the patch and apply it

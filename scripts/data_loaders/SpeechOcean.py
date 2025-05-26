@@ -105,7 +105,7 @@ if __name__ == "__main__":
         split="train", include_speaker_info=True, include_text=True
     )
     print(len(train))
-    # interactive_flag_samples(train)
+    interactive_flag_samples(train)
     test = SpeechOceanDataset(
         split="test", include_speaker_info=True, include_text=True
     )
