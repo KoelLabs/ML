@@ -12,6 +12,8 @@ from forced_alignment.common import IPA_SYMBOLS, group_phonemes
 def preprocess_ipa(ipa_string, simplify=False):
     if simplify:
         return simplify_ipa(ipa_string)
+    # replace combined r-colored vowels with separate symbols as supported by panphon
+    ipa_string = ipa_string.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞")
     # remove white space and phonemes not in panphon (IPA_SYMBOLS)
     phonemes = group_phonemes(ipa_string.replace(" ", ""))
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)

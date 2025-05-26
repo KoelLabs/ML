@@ -74,7 +74,7 @@ def simplify_ipa(ipa_string: str):
     ipa = remove_tie_marker(ipa)
     ipa = remove_length_diacritics(ipa)
     ipa = remove_tones_and_stress(ipa)
-    # ipa = ipa.replace("ɚ", "əɹ").replace("ɝ", "əɹ")
+    ipa = ipa.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞")
 
     return ipa
 
