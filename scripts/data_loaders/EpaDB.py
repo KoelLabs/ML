@@ -100,7 +100,10 @@ class EpaDBDataset(BaseDataset):
                 {"speaker_id": annotation_path.split(os.path.sep)[-1].split("_")[0]}
             )
         if self.include_text:
-            words = tg.interval_tier_to_array("words")
+            try:
+                words = tg.interval_tier_to_array("words")
+            except Exception as e:
+                words = tg.interval_tier_to_array("transcription")
             text = " ".join(w["label"] for w in words)
             outputs.append(text)
         return tuple(outputs)
