@@ -23,6 +23,21 @@ def show_sample(sample):
     display(Audio(audio, rate=TARGET_SAMPLE_RATE))
 
 
+def show_hf_sample(sample):
+    import matplotlib.pyplot as plt
+    from IPython.display import Audio, display
+
+    sample = sample.copy()
+    ipa = sample.pop("ipa")
+    audio = sample.pop("audio")
+
+    print("IPA:", ipa)
+    print("Metadata:", sample)
+    plt.plot(audio["array"])
+    plt.show()
+    display(Audio(audio["array"], rate=audio["sampling_rate"]))
+
+
 class BaseDataset(Dataset, metaclass=ABCMeta):
     def __init__(
         self,
