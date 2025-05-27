@@ -56,6 +56,7 @@ class TIMITDataset(BaseDataset):
         filename = self.files[ix]
         speaker_id = filename.split("/")[-2][-4:]
         speaker = SPEAKERS[speaker_id]
+        speaker["id"] = speaker_id
 
         with self.zip.open(filename + ".WAV.wav") as wav_file:
             audio = audio_bytes_to_array(wav_file.read(), SOURCE_SAMPLE_RATE)
