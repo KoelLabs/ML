@@ -110,7 +110,7 @@ class DoReCoDataset(BaseDataset):
             x
             for x in self.phoneme_df["ref"].unique()
             if not is_special_symbol(x)
-            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 3
+            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 10
         ]
 
     def __del__(self):
@@ -167,7 +167,7 @@ class DoReCoDataset(BaseDataset):
 
         # parse audio
         start = timestamped_phonemes[0][1]
-        end = timestamped_phonemes[-1][2]
+        end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
         if is_core:
             filename = "doreco_sout3282_audiofiles_v2.0/" + name + ".wav"
             with self.audio_core_zip.open(filename) as f:
@@ -199,7 +199,5 @@ if __name__ == "__main__":
         include_speaker_info=True,
         include_text=True,
     )
-    for s in dataset:
-        pass
     print(len(dataset))
-    # interactive_flag_samples(dataset)
+    interactive_flag_samples(dataset)
