@@ -144,7 +144,9 @@ class BuckeyeDataset(BaseDataset):
         if self.include_timestamps:
             result.append(timestamped_phonemes)
         if self.include_speaker_info:
-            result.append(SPEAKERS[self.split])
+            speaker = SPEAKERS[self.split]
+            speaker["id"] = self.split
+            result.append(speaker)
         return tuple(result)
 
 
