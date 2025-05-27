@@ -285,6 +285,17 @@ def usage():
     print("Supported codes:", CODES)
 
 
+ALL_ANNOTATED_IPA_SYMBOLS = set()
+for code in CODES:
+    if code == "ipa":
+        continue
+    ALL_ANNOTATED_IPA_SYMBOLS |= set(globals()[f"{code.upper()}2IPA"].values())
+ALL_ANNOTATED_IPA_SYMBOLS.discard("")
+ALL_ANNOTATED_IPA_SYMBOLS.discard(" ")
+ALL_ANNOTATED_IPA_SYMBOLS.discard("ʰ")
+ALL_ANNOTATED_IPA_SYMBOLS |= set(f"{s}ʰ" for s in ALL_ANNOTATED_IPA_SYMBOLS)
+
+
 def main(args):
     if len(args) != 3:
         usage()
