@@ -137,19 +137,19 @@ def callhome2ipa(callhome_string, lang="eng"):
 #########################################################################
 # Buckeye
 BUCKEYE2IPA = {'aa':'ɑ', 'ae':'æ', 'ay':'aɪ', 'aw':'aʊ', 'ao':'ɔ', 'oy':'ɔɪ', 'ow':'oʊ', 'eh':'ɛ', 'ey':'eɪ', 'er':'ɝ', 'ah':'ʌ', 'uw':'u', 'uh':'ʊ', 'ih':'ɪ', 'iy':'i', 'm':'m', 'n':'n', 'en':'n̩', 'ng':'ŋ', 'l':'l', 'el':'l̩', 't':'t', 'd':'d', 'ch':'tʃ', 'jh':'dʒ', 'th':'θ', 'dh':'ð', 'sh':'ʃ', 'zh':'ʒ', 's':'s', 'z':'z', 'k':'k', 'g':'ɡ', 'p':'p', 'b':'b', 'f':'f', 'v':'v', 'w':'w', 'hh':'h', 'y':'j', 'r':'ɹ', 'dx':'ɾ', 'nx':'ɾ̃', 'tq':'ʔ', 'er':'ɚ', 'em':'m̩', 'ihn': 'ĩ', 'ehn': 'ɛ̃', 'own': 'oʊ̃', 'ayn': 'aɪ̃', 'aen': 'æ̃', 'aan': 'ɑ̃', 'ahn': 'ə̃', 'eng': 'ŋ̍', 'iyn': 'ĩ', 'uhn': 'ʊ̃'}  # fmt: skip
-IPA2BUCKETE = {v: k for k, v in BUCKEYE2IPA.items()}
+IPA2BUCKEYE = {v: k for k, v in BUCKEYE2IPA.items()}
 # 'Vn':'◌̃'
 
 
 def ipa2buckeye(ipa_string, lang="eng"):
-    update_dict_with_tones(BUCKEYE2IPA, IPA2BUCKETE, lang)
-    ipa_symbols = string2symbols(ipa_string, IPA2BUCKETE.keys())[0]
-    buckeye_symbols = [IPA2BUCKETE[x] for x in ipa_symbols]
+    update_dict_with_tones(BUCKEYE2IPA, IPA2BUCKEYE, lang)
+    ipa_symbols = string2symbols(ipa_string, IPA2BUCKEYE.keys())[0]
+    buckeye_symbols = [IPA2BUCKEYE[x] for x in ipa_symbols]
     return " ".join(buckeye_symbols)
 
 
 def buckeye2ipa(buckeye_string, lang="eng"):
-    update_dict_with_tones(BUCKEYE2IPA, IPA2BUCKETE, lang)
+    update_dict_with_tones(BUCKEYE2IPA, IPA2BUCKEYE, lang)
     if " " in buckeye_string:
         buckeye_symbols = buckeye_string.split()
     else:
