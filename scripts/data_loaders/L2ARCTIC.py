@@ -156,6 +156,7 @@ class L2ArcticDataset(BaseDataset):
         if self.include_speaker_info:
             speaker_id = self.split if self.split != "suitcase_corpus" else filename
             speaker = SPEAKERS[speaker_id.upper()]
+            speaker["id"] = speaker_id
             result.append(speaker)
         if self.include_text:
             result.append(text)
