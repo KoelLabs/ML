@@ -11,6 +11,8 @@ results
 # secrets
 .env
 
+
+notebooks/LANG_ID
 # python
 venv*
 __pycache__
