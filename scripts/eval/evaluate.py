@@ -9,25 +9,42 @@ from eval.metrics import fer, per
 from forced_alignment.common import IPA_SYMBOLS, group_phonemes
 
 
-def preprocess_ipa(ipa_string, simplify=False):
-    if simplify:
-        return simplify_ipa(ipa_string)
-    # replace combined r-colored vowels with separate symbols as supported by panphon
-    ipa_string = ipa_string.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞")
-    # remove white space and phonemes not in panphon (IPA_SYMBOLS)
-    phonemes = group_phonemes(ipa_string.replace(" ", ""))
+def preprocess_ipa(ipa_string):
+    """Make ipa_string processable by panphon and standardize representation for fair comparison."""
+    # remove <unk> tokens
+    ipa_string = ipa_string.replace("<unk>", "")
+
+    # remove white space
+    ipa_string = ipa_string.replace(" ", "")
+
+    # some combined symbols are only supported by ipapy and panphon when separated:
+    # - replace combined syllabic ŋ with separate syllabic marker and ŋ
+    # - exteme care is needed with ĩ and ĩ: they look identical in most fonts but are different: ĩ=ɪ̰ and ĩ=nasal i, both libraries support the latter as combined but needs the former separated
+    ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰")
+
+    # standardize representations and identify phonemes not in panphon (IPA_SYMBOLS)
+    phonemes = group_phonemes(ipa_string)
+
+    # now apply some substitutions to combined symbols because panphon separates them:
+    # - replace combined r-colored vowels with separate symbols as supported by panphon
+    # - remove lonesome ties that are not part of any symbols that panphon supports with ties
+    phonemes = [p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞") for p in phonemes if p != "͡"]
+
+    # print warning about phonemes not in panphon if any
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)
     if len(unsupported_phonemes) > 0:
         print(
             f"Warning: unsupported phonemes found in input: {unsupported_phonemes}.",
             file=sys.stderr,
         )
+
+    # remove phonemes not in panphon
     return "".join(p for p in phonemes if p in IPA_SYMBOLS)
 
 
 def evaluate(label, predicted, simplify=False):
-    label_sequence = preprocess_ipa(label, simplify=simplify)
-    pred_sequence = preprocess_ipa(predicted, simplify=simplify)
+    label_sequence = simplify_ipa(label) if simplify else preprocess_ipa(label)
+    pred_sequence = simplify_ipa(predicted) if simplify else preprocess_ipa(predicted)
 
     fer_score = fer(pred_sequence, label_sequence)
     per_score = per(predicted, label)
