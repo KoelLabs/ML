@@ -6,18 +6,3 @@ hɪfjʉdʉuoʊtuɨt
 
 - Debatable whether "go" should result in a "g" phoneme
 - uses ʉ which is a close central rounded vowel
-
-PKLumpp Result:
-ɪfjʊduː(...)gəʊtəɪt(...)
-
-- uses ʊ instead which is near-close near-back rounded vowel
-
-Facebook 60 XLSR Result:
-f j uː d uː ɡ oʊ t uː ɪ t
-
-American g2p: ɪf ju du ɡoʊ tu ɪt
-British g2p: ɪf juː duː ɡəʊ tuː ɪt
-
-- misses the first "ɪ" vowel
-- identify lots of vowels as prolonged "uː" sounds, we can probably adjust "ː" detection using timestamps 
-- uses tense "u", clearly some ambiguity in IPA spelling

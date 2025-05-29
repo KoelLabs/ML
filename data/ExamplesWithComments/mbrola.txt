@@ -1,3 +1,0 @@
-This is not an example of ipa transcription directly but 
-of both ipa transcription (with Facebook 60) and timestamp 
-informed ipa to speech synthesis (with MBROLA).
