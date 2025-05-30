@@ -20,15 +20,16 @@ def preprocess_ipa(ipa_string):
     # some combined symbols are only supported by ipapy and panphon when separated:
     # - replace combined syllabic ŋ with separate syllabic marker and ŋ
     # - exteme care is needed with ĩ and ĩ: they look identical in most fonts but are different: ĩ=ɪ̰ and ĩ=nasal i, both libraries support the latter as combined but needs the former separated
-    ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰")
+    # - "ä" and "ä" mean the same and look the same but are different unicode symbols
+    ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰").replace("ä", "ä")
 
     # standardize representations and identify phonemes not in panphon (IPA_SYMBOLS)
     phonemes = group_phonemes(ipa_string)
 
     # now apply some substitutions to combined symbols because panphon separates them:
     # - replace combined r-colored vowels with separate symbols as supported by panphon
-    # - remove lonesome ties that are not part of any symbols that panphon supports with ties
-    phonemes = [p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞") for p in phonemes if p != "͡"]
+    # - remove lonesome ties/syllabic markers that are not part of any symbols
+    phonemes = [p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç") for p in phonemes if p not in ["͡", '̩', '̃', 'ʲ', '̥']]
 
     # print warning about phonemes not in panphon if any
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)
