@@ -29,7 +29,11 @@ def preprocess_ipa(ipa_string):
     # now apply some substitutions to combined symbols because panphon separates them:
     # - replace combined r-colored vowels with separate symbols as supported by panphon
     # - remove lonesome ties/syllabic markers that are not part of any symbols
-    phonemes = [p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç") for p in phonemes if p not in ["͡", '̩', '̃', 'ʲ', '̥']]
+    phonemes = [
+        p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç")
+        for p in phonemes
+        if p not in ["͡", "̩", "̃", "ʲ", "̥"]
+    ]
 
     # print warning about phonemes not in panphon if any
     unsupported_phonemes = set(phonemes) - set(IPA_SYMBOLS)
