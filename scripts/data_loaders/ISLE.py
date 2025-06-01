@@ -109,25 +109,17 @@ class ISLE(BaseDataset):
             extra_marks = extra[0] if extra else None
             if self.include_text and word != "." and word != "#" and word != "##":
                 text += word + " "
-            if "-" in uk_phone:
-                for p in uk_phone.split("-"):
-                    p_ipa = isle2ipa(p)
+            if uk_phone == "." or "_" in uk_phone or "BCKGRD" in uk_phone:
+                continue
+            phones = uk_phone.split("-") if "-" in uk_phone else [uk_phone]
+            for phone in phones:
+                phone_ipa = isle2ipa(phone)
+                is_ambiguous = "=" in non_uk_phone
 
-                    if "=" in non_uk_phone:
-                        ambiguous_flags.append((p_ipa, "T", non_uk_phone))
-                    else:
-                        ambiguous_flags.append((p_ipa, "F", non_uk_phone))
-                    timestamped_phonemes.append((p_ipa, int(start), int(end)))
-            elif (
-                "." not in uk_phone and "_" not in uk_phone and "BCKGRD" not in uk_phone
-            ):
-                phone_ipa = isle2ipa(uk_phone)
-                # compare non_uk_phone annotations to uk_phone annotations
-                if "=" in non_uk_phone:
-                    ambiguous_flags.append((phone_ipa, "T", non_uk_phone))
-                else:
-                    ambiguous_flags.append((phone_ipa, "F", non_uk_phone))
-
+                if self.include_ambiguous_flags:
+                    ambiguous_flags.append(
+                        (phone_ipa, "T" if is_ambiguous else "F", non_uk_phone)
+                    )
                 timestamped_phonemes.append((phone_ipa, int(start), int(end)))
 
         ipa = "".join([x[0] for x in timestamped_phonemes])
