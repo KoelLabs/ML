@@ -14,6 +14,7 @@ from core.codes import isle2ipa, IPA2ISLE
 
 DATA_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "S0083.zip")
 
+
 def _parse(fmt, string):
     """
     !!!!WARNING: currently assumes format specifiers are separated by exactly one space!!!!
@@ -23,7 +24,7 @@ def _parse(fmt, string):
     """
 
     # Regex to extract format specifiers
-    pattern = re.compile(r'%(-?0?\d*)([sd])')
+    pattern = re.compile(r"%(-?0?\d*)([sd])")
     matches = pattern.findall(fmt)
 
     if not matches:
@@ -33,7 +34,9 @@ def _parse(fmt, string):
     types = []
 
     for size, type_char in matches:
-        width = int(size.lstrip('0') or '1')  # Handle %s or %d without width (default to 1)
+        width = int(
+            size.lstrip("0") or "1"
+        )  # Handle %s or %d without width (default to 1)
         widths.append(abs(width))
         types.append(type_char)
 
@@ -47,16 +50,18 @@ def _parse(fmt, string):
             return None  # Not enough characters in line to extract all fields
 
         width = widths[i]
-        while len(string) > index + width and string[index + width] != ' ': # treat format specifier width as minimum like perl, assumes delimiter is space
+        while (
+            len(string) > index + width and string[index + width] != " "
+        ):  # treat format specifier width as minimum like perl, assumes delimiter is space
             width += 1
-        field = string[index:index + width]
+        field = string[index : index + width]
         if len(field) < width:
             return None  # Not enough characters for this field
 
         field = field.strip()
         type_char = types[i]
 
-        if type_char == 'd':
+        if type_char == "d":
             try:
                 value = int(field)
             except ValueError:
@@ -68,10 +73,11 @@ def _parse(fmt, string):
         index += width
 
         # Skip space between fields (if any), assuming single space delimiter between format specifiers
-        if index < len(string) and string[index] == ' ':
+        if index < len(string) and string[index] == " ":
             index += 1
 
     return values
+
 
 class ISLEDataset(BaseDataset):
     """
@@ -131,7 +137,9 @@ class ISLEDataset(BaseDataset):
         sub_dir, session, base = self.files[ix]
         lab_path = f"{sub_dir}/{session}/MIL/{base}.txt"
         wav_path = f"{sub_dir}/{session}/WAVS/{base}.WAV"
-        native_language = next(filter(lambda x: session in x[1], SPEAKERS.items()))[0].capitalize()
+        native_language = next(filter(lambda x: session in x[1], SPEAKERS.items()))[
+            0
+        ].capitalize()
 
         # --- Load MIL file ---
         with self.isle.open(lab_path) as f:
@@ -146,12 +154,18 @@ class ISLEDataset(BaseDataset):
         text = ""
         for line in lines:
             # ignore BCKGRD lines
-            if 'BCKGRD' in line:
-                assert line.endswith(" _GARBAGE_                      BCKGRD BCKGRD . . BCKGRD ")
+            if "BCKGRD" in line:
+                assert line.endswith(
+                    " _GARBAGE_                      BCKGRD BCKGRD . . BCKGRD "
+                )
 
             # must parse the pattern with the extra comment column last
-            parts = _parse("%1s %09d %09d %-30s %-3s %-6s %1s %1s %-6s %s", line) or _parse("%1s %09d %09d %-30s %-3s %-6s %1s %1s %-6s", line)
-            assert parts is not None, f"Malformed line ({lab_path}, {wav_path}): '{line}'"
+            parts = _parse(
+                "%1s %09d %09d %-30s %-3s %-6s %1s %1s %-6s %s", line
+            ) or _parse("%1s %09d %09d %-30s %-3s %-6s %1s %1s %-6s", line)
+            assert (
+                parts is not None
+            ), f"Malformed line ({lab_path}, {wav_path}): '{line}'"
             (
                 lang,
                 start,
@@ -173,19 +187,19 @@ class ISLEDataset(BaseDataset):
                 continue
 
             phones = uk_phone.split("-") if "-" in uk_phone else [uk_phone]
-            non_phones = non_uk_phone.split("-") if "-" in non_uk_phone else [non_uk_phone]
-            assert stress.upper() in ['P', '.', 'U'], stress
-            if stress.upper() == 'P':
-                phones[0] += '1'
-                non_phones[0] += '1'
+            non_phones = (
+                non_uk_phone.split("-") if "-" in non_uk_phone else [non_uk_phone]
+            )
+            assert stress.upper() in ["P", ".", "U"], stress
+            if stress.upper() == "P":
+                phones[0] += "1"
+                non_phones[0] += "1"
             for phone, non_phone in zip(phones, non_phones):
                 phone_ipa = isle2ipa(phone)
                 is_ambiguous = "=" in non_phone
 
                 if self.include_ambiguous_flags:
-                    ambiguous_flags.append(
-                        (phone_ipa, is_ambiguous, non_phone)
-                    )
+                    ambiguous_flags.append((phone_ipa, is_ambiguous, non_phone))
                 timestamped_phonemes.append((phone_ipa, start, end))
 
         ipa = "".join([x[0] for x in timestamped_phonemes])
@@ -205,7 +219,7 @@ class ISLEDataset(BaseDataset):
                     "session": session,
                     "sub_dir": sub_dir,
                     "native_language": native_language,
-                    'comments': extra_marks,
+                    "comments": extra_marks,
                 }
             )
         if self.include_text:
@@ -215,10 +229,12 @@ class ISLEDataset(BaseDataset):
         return tuple(result)
 
 
+# fmt: off
 SPEAKERS = {
-    "GERMAN": ["SESS0006","SESS0011","SESS0012","SESS0015","SESS0020","SESS0021","SESS0161","SESS0162","SESS0163","SESS0164","SESS0181","SESS0182","SESS0183","SESS0184","SESS0185","SESS0186","SESS0187","SESS0188","SESS0189","SESS0190","SESS0191","SESS0192","SESS0193"], # fmt: skip
-    "ITALIAN": ["SESS0003","SESS0040","SESS0041","SESS0121","SESS0122","SESS0123","SESS0124","SESS0125","SESS0126","SESS0127","SESS0128","SESS0129","SESS0130","SESS0131","SESS0132","SESS0133","SESS0134","SESS0135","SESS0136","SESS0137","SESS0138","SESS0139","SESS0140"], # fmt: skip
+    "GERMAN": ["SESS0006","SESS0011","SESS0012","SESS0015","SESS0020","SESS0021","SESS0161","SESS0162","SESS0163","SESS0164","SESS0181","SESS0182","SESS0183","SESS0184","SESS0185","SESS0186","SESS0187","SESS0188","SESS0189","SESS0190","SESS0191","SESS0192","SESS0193"],
+    "ITALIAN": ["SESS0003","SESS0040","SESS0041","SESS0121","SESS0122","SESS0123","SESS0124","SESS0125","SESS0126","SESS0127","SESS0128","SESS0129","SESS0130","SESS0131","SESS0132","SESS0133","SESS0134","SESS0135","SESS0136","SESS0137","SESS0138","SESS0139","SESS0140"],
 }
+# fmt: on
 
 
 if __name__ == "__main__":
