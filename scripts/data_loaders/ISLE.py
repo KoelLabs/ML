@@ -186,20 +186,37 @@ class ISLEDataset(BaseDataset):
             if uk_phone == "." or "_" in uk_phone or "BCKGRD" in uk_phone:
                 continue
 
-            phones = uk_phone.split("-") if "-" in uk_phone else [uk_phone]
-            non_phones = (
-                non_uk_phone.split("-") if "-" in non_uk_phone else [non_uk_phone]
-            )
+            # insertions don't need a special symbol
+            uk_phone = uk_phone.replace("-", "")
+
+            # we use ARPABet conventions where primary stress is 1
             assert stress.upper() in ["P", ".", "U"], stress
             if stress.upper() == "P":
-                phones[0] += "1"
-                non_phones[0] += "1"
-            for phone, non_phone in zip(phones, non_phones):
-                phone_ipa = isle2ipa(phone)
-                is_ambiguous = "=" in non_phone
+                uk_phone += "1"
 
-                if self.include_ambiguous_flags:
-                    ambiguous_flags.append((phone_ipa, is_ambiguous, non_phone))
+            phone_ipa = isle2ipa(uk_phone)
+            is_ambiguous = "=" in non_uk_phone
+
+            if self.include_ambiguous_flags:
+                ambiguous_flags.append((phone_ipa, is_ambiguous, non_uk_phone))
+
+            if (
+                len(timestamped_phonemes) > 0
+                and any(
+                    map(lambda x: timestamped_phonemes[-1][0].endswith(x), ["ə", "ɜ"])
+                )
+                and phone_ipa.startswith("ɹ")
+            ):
+                # need to merge timestamp into previous to combine special r-colored vowels
+                timestamped_phonemes[-1] = (
+                    timestamped_phonemes[-1][0][:-1]
+                    + ("ɚ" if timestamped_phonemes[-1][0].endswith("ə") else "ɝ"),
+                    timestamped_phonemes[-1][1],
+                    end,
+                )
+                phone_ipa = phone_ipa[1:]
+
+            if len(phone_ipa) > 0:
                 timestamped_phonemes.append((phone_ipa, start, end))
 
         ipa = "".join([x[0] for x in timestamped_phonemes])

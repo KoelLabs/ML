@@ -279,8 +279,65 @@ def timit2ipa(timit_string, lang="eng"):
 
 
 #########################################################################
-# Isle (Entropic GrapHvite UK Phone Set ~ ARBABet but distinquishes ɑ vs ɒ by adding OH for ɒ and restricting AA to ɑ)
-ISLE2IPA = {'AA':'ɑ','AE':'æ','AH':'ʌ','AO':'ɔ','IX':'ɨ','AW':'aʊ','AX':'ə','AXR':'ɚ','AY':'aɪ','EH':'ɛ','ER':'ɝ','EY':'eɪ','IH':'ɪ','IY':'i','OW':'oʊ','OY':'ɔɪ','OH':'ɒ','UH':'ʊ','UW':'u','UX':'ʉ','B':'b','CH':'tʃ','D':'d','DH':'ð','EL':'l̩','EM':'m̩','EN':'n̩','F':'f','G':'ɡ','HH':'h','H':'h','JH':'dʒ','K':'k','L':'l','M':'m','N':'n','NG':'ŋ','NX':'ɾ̃','P':'p','Q':'ʔ','R':'ɹ','S':'s','SH':'ʃ','T':'t','TH':'θ','V':'v','W':'w','WH':'ʍ','Y':'j','Z':'z','ZH':'ʒ','DX':'ɾ'}  # fmt: skip
+# Isle (adaptation of deprecated Entropic GrapHvite UK Phone Set), see http://www.lrec-conf.org/proceedings/lrec2000/pdf/313.pdf
+#
+# Closely matches ARBABet but:
+#   - Some simplifications:
+#       - Only use HH to denote h, not also H
+#       - Drop IX (ɨ), UX (ʉ), EL (l̩), EM (m̩), EN (n̩), NX (ɾ̃), Q (ʔ), WH (ʍ), DX (ɾ)
+#   - Some adaptations to UK dialect:
+#       - Distinquish ɑ vs ɒ by adding OH for ɒ and restricting AA to ɑ
+#       - Map OW to əʊ instead of oʊ
+#       - ER maps to ɜ instead of ɝ because British English is non-rhotic (the r sound is dropped at the end of syllables)
+#   - Some adaptations to Italian/German dialects:
+#       - ER (ɜ) explicitly followed by R (ɹ) maps to ɝ because most Italian/German dialects are rhotic
+#       - We also keep AXR from ARPABet even though it is not in the UK Phone set, so we now map AX (ə) explicitly followed by R (ɹ) to AXR (ɚ) for the same reason
+#
+# symbol : example - UK G2P / US G2P | UK / US / ARPABet | comments
+# Aa     : balm    - bɑːm   / bɑm    | ɑ  / ɑ  / ɑ       |
+# Aa     : barn    - bɑːn   / bɑrn   | ɑ  / ɑ  / ɑ       |
+# Ae     : bat     - bæt    / bæt    | æ  / æ  / æ       |
+# Ah     : bat     - bæt    / bæt    | æ  / æ  / ʌ       |
+# Ao     : bought  - bɔːt   / bɑt    | ɔ  / ɑ  / ɔ       |
+# Aw     : bout    - baʊt   / baʊt   | aʊ / aʊ / aʊ      |
+# Ax     : about   - əˈbaʊt / əˈbaʊt | ə  / ə  / ə       |
+# Ay     : bite    - baɪt   / baɪt   | aɪ / aɪ / aɪ      |
+# Eh     : bet     - bɛt    / bɛt    | ɛ  / ɛ  / ɛ       |
+# Er     : bird    - bɜːd   / bɜrd   | ɜ  / ɝ  / ɝ       | different, ER represents non-r-colored ɜ in UK English because it is non-rhotic unlike American English which is what ARPABet is based on
+# Ey     : bait    - beɪt   / beɪt   | eɪ / eɪ / eɪ      |
+# Ih     : bit     - bɪt    / bɪt    | ɪ  / ɪ  / ɪ       |
+# Iy     : beet    - biːt   / bit    | i  / i  / i       |
+# Ow     : boat    - bəʊt   / boʊt   | əʊ / oʊ / oʊ      | different, map OW to əʊ
+# Oy     : boy     - bɔɪ    / bɔɪ    | ɔɪ / ɔɪ / ɔɪ      |
+# Oh     : box     - bɒks   / bɑks   | ɒ  / ɑ  / -       | added OH to disambiguate ɒ
+# Uh     : book    - bʊk    / bʊk    | ʊ  / ʊ  / ʊ       |
+# Uw     : boot    - buːt   / but    | u  / u  / u       |
+# B      : bet     - bɛt    / bɛt    | b  / b  / b       |
+# Ch     : cheap   - ʧiːp   / ʧip    | ʧ  / ʧ  / tʃ      |
+# D      : debt    - dɛt    / dɛt    | d  / d  / d       |
+# Dh     : that    - ðæt    / ðæt    | ð  / ð  / ð       |
+# F      : fan     - fæn    / fæn    | f  / f  / f       |
+# G      : get     - ɡɛt    / ɡɛt    | ɡ  / ɡ  / ɡ       |
+# Hh     : hat     - hæt    / hæt    | h  / h  / h       | match, but drop alternative H
+# Jh     : jeep    - ʤiːp   / ʤip    | ʤ  / ʤ  / dʒ      |
+# K      : cat     - kæt    / kæt    | k  / k  / k       |
+# L      : led     - lɛd    / lɛd    | l  / l  / l       |
+# M      : met     - mɛt    / mɛt    | m  / m  / m       |
+# N      : net     - nɛt    / nɛt    | n  / n  / n       |
+# Ng     : thing   - θɪŋ    / θɪŋ    | ŋ  / ŋ  / ŋ       |
+# P      : pet     - pɛt    / pɛt    | p  / p  / p       |
+# R      : red     - rɛd    / ˈɹɛd   | r  / ɹ  / ɹ       | different, but due to broad vs narrow and other annotation conventions; the sounds are actually different too but not sure how to model this
+# S      : sue     - sjuː   / su     | s  / s  / s       |
+# Sh     : shoe    - ʃuː    / ʃu     | ʃ  / ʃ  / ʃ       |
+# T      : tat     - tæt    / tæt    | t  / t  / t       |
+# Th     : thin    - θɪn    / θɪn    | θ  / θ  / θ       |
+# V      : van     - væn    / væn    | v  / v  / v       |
+# W      : wed     - wɛd    / wɛd    | w  / w  / w       |
+# Y      : yet     - jɛt    / jɛt    | j  / j  / j       |
+# Z      : zoo     - zuː    / zu     | z  / z  / z       |
+# Zh     : measure - ˈmɛʒə  / ˈmɛʒər | ʒ  / ʒ  / ʒ       |
+
+ISLE2IPA = {'AA':'ɑ','AE':'æ','AH':'ʌ','AO':'ɔ','AW':'aʊ','AX':'ə','AXR':'ɚ','AY':'aɪ','EH':'ɛ','ER':'ɜ','ERR':'ɝ','EY':'eɪ','IH':'ɪ','IY':'i','OW':'əʊ','OY':'ɔɪ','OH':'ɒ','UH':'ʊ','UW':'u','B':'b','CH':'tʃ','D':'d','DH':'ð','F':'f','G':'ɡ','HH':'h','JH':'dʒ','K':'k','L':'l','M':'m','N':'n','NG':'ŋ','P':'p','R':'ɹ','S':'s','SH':'ʃ','T':'t','TH':'θ','V':'v','W':'w','Y':'j','Z':'z','ZH':'ʒ'}  # fmt: skip
 IPA2ISLE = {v: k for k, v in ISLE2IPA.items()}
 
 
