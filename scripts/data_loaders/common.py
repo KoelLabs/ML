@@ -45,6 +45,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        include_ambiguous_flags=False,  # true if a phone has different interpretations
         include_g2p=False,
         g2p_filter_type="letters_rmv_tie",
     ):
@@ -52,6 +53,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.include_timestamps = include_timestamps
         self.include_speaker_info = include_speaker_info
         self.include_text = include_text
+        self.include_ambiguous_flags = include_ambiguous_flags  # Not used in this base class, but can be overridden
         self.include_g2p = include_g2p
         self.g2p_filter_type = g2p_filter_type
         self.vocab: "set | None" = None
