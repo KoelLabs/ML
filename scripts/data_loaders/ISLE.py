@@ -5,12 +5,6 @@ import os
 import sys
 
 import zipfile
-import textgrids
-from torch.utils.data import ConcatDataset
-
-
-import requests
-from contextlib import contextmanager
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
@@ -21,7 +15,7 @@ from core.codes import isle2ipa, IPA2ARPABET
 SOURCE_SAMPLE_RATE = 16_000
 DATA_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "S0083.zip")
 
-MISSING = []
+MISSING = set()
 
 
 class ISLE(BaseDataset):
@@ -30,6 +24,7 @@ class ISLE(BaseDataset):
     The ISLE non-native speech data consists of 11484 utterances recorded
     by (mostly) intermediate-level German and Italian learners of
     English. ISLEDAT1/ISLEDAT2 contain 23 German sessions, ISLEDAT3/ISLEDAT4 contain 23 Italian sessions.
+    there are ambigious phones like "=EH" that are marked with a flag in the ISLE dataset.
     """
 
     def __init__(
@@ -38,8 +33,15 @@ class ISLE(BaseDataset):
         include_timestamps=False,
         include_text=False,
         include_speaker_info=False,
+        include_ambiguous_flags=False,
     ):
-        super().__init__(split, include_timestamps, include_speaker_info)
+        super().__init__(
+            split,
+            include_timestamps,
+            include_speaker_info,
+            include_text,
+            include_ambiguous_flags,
+        )
         self.isle = zipfile.ZipFile(DATA_ZIP)
         sub_directories = ["ISLEDAT1", "ISLEDAT2", "ISLEDAT3", "ISLEDAT4"]
         self.files = []
@@ -56,8 +58,8 @@ class ISLE(BaseDataset):
         for sub_dir in sub_directories:
             for name in self.isle.namelist():
                 for session in splits:
-                    if f"{sub_dir}/{session}/CLABS" in name and name.endswith(".LAB"):
-                        base = os.path.basename(name).replace(".LAB", "")
+                    if f"{sub_dir}/{session}/MIL" in name and name.endswith(".txt"):
+                        base = os.path.basename(name).replace(".txt", "")
                         full_sub_dir = name.split("/")[0] + "/" + sub_dir
                         self.files.append((full_sub_dir, session, base))
 
@@ -72,36 +74,55 @@ class ISLE(BaseDataset):
 
     def _get_ix(self, ix):
         sub_dir, session, base = self.files[ix]
-        lab_path = f"{sub_dir}/{session}/CLABS/{base}.LAB"
+        lab_path = f"{sub_dir}/{session}/MIL/{base}.txt"
         wav_path = f"{sub_dir}/{session}/WAVS/{base}.WAV"
 
-        # --- Load LAB file ---
+        # --- Load MIL file ---
         with self.isle.open(lab_path) as f:
             lines = f.read().decode("utf-8").splitlines()
 
-        # --- Extract tier-1 and build timestamped phonemes ---
+        # lang, start, end, word_label, expected_phone, uk_phone, expected_stress, corrected_stress, annotated_phone, *tags
+        # Phones: expected (col 5) vs UK-mapped (col 6) vs annotated with native phones using = prefix (col 9)
+        # Word labels only on first phone, then "." continuation or "#" for silence
+
         timestamped_phonemes = []
+        ambiguous_flags = []
+        text = ""
         for line in lines:
-            if line.strip() == "///":
-                break
+
             parts = line.strip().split()
-            if len(parts) != 3:
-                print(f"Skipping line with unexpected format: {line}", file=sys.stderr)
+            if len(parts) < 9:
+                print(f"Skipping line with insufficient parts: {line}", file=sys.stderr)
                 continue
-            start_us, end_us, label = parts
-            if label in ("sp", "sil"):
+            (
+                lang,
+                start,
+                end,
+                word,
+                exp_phone,
+                uk_phone,
+                exp_stress,
+                stress,
+                non_uk_phone,
+                *extra,
+            ) = parts
+            extra_marks = extra[0] if extra else None
+            if self.include_text and word != "." and word != "#" and word != "##":
+                text += word + " "
+            if uk_phone == "." or "_" in uk_phone or "BCKGRD" in uk_phone:
                 continue
-            # phoneme = arpabet2ipa(label)  # or arpabet2ipa(label)
-            try:
-                phoneme = isle2ipa(label)
-            except KeyError:
-                MISSING.append((label, lab_path))
-                print(f"Skipping unknown phoneme: {label}", file=sys.stderr)
-                continue  # or phoneme = "�"
-            timestamped_phonemes.append((phoneme, int(start_us), int(end_us)))
+            phones = uk_phone.split("-") if "-" in uk_phone else [uk_phone]
+            for phone in phones:
+                phone_ipa = isle2ipa(phone)
+                is_ambiguous = "=" in non_uk_phone
+
+                if self.include_ambiguous_flags:
+                    ambiguous_flags.append(
+                        (phone_ipa, "T" if is_ambiguous else "F", non_uk_phone)
+                    )
+                timestamped_phonemes.append((phone_ipa, int(start), int(end)))
 
         ipa = "".join([x[0] for x in timestamped_phonemes])
-        print(f"Processing {base} with IPA: {ipa}")
 
         # --- Load audio ---
         with self.isle.open(wav_path) as wav_file:
@@ -111,6 +132,18 @@ class ISLE(BaseDataset):
         result = [ipa, audio]
         if self.include_timestamps:
             result.append(timestamped_phonemes)
+        if self.include_speaker_info:
+            result.append(
+                {
+                    "speaker_id": base,
+                    "session": session,
+                    "sub_dir": sub_dir,
+                }
+            )
+        if self.include_text:
+            result.append(text)
+        if self.include_ambiguous_flags:
+            result.append(ambiguous_flags)
         return tuple(result)
 
 
@@ -169,5 +202,10 @@ SPEAKERS = {
 
 
 if __name__ == "__main__":
-    isle = ISLE(split="german", include_timestamps=True, include_speaker_info=True)
-    print(f"Missing phonemes: {set(MISSING)}")
+    isle = ISLE(
+        split="all",
+        include_text=True,
+        include_speaker_info=True,
+        include_ambiguous_flags=True,
+    )
+    interactive_flag_samples(isle)
