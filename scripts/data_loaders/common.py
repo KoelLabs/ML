@@ -53,7 +53,7 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
         self.include_timestamps = include_timestamps
         self.include_speaker_info = include_speaker_info
         self.include_text = include_text
-        self.include_ambiguous_flags = include_ambiguous_flags  # Not used in this base class, but can be overridden
+        self.include_ambiguous_flags = include_ambiguous_flags
         self.include_g2p = include_g2p
         self.g2p_filter_type = g2p_filter_type
         self.vocab: "set | None" = None
@@ -160,6 +160,7 @@ def interactive_flag_samples(
         audio_resample,
         audio_array_pitchshift,
         audio_array_play,
+        audio_array_to_wav_file,
         TARGET_SAMPLE_RATE,
     )
 
@@ -198,11 +199,18 @@ def interactive_flag_samples(
         while "r" in inp:
             audio_array_play(audio)
             inp = (
-                input("Enter for good, n + enter for bad, r + enter for replay: ")
+                input(
+                    "Enter for good, n + enter for bad, r + enter for replay, s + path + enter to save audio file: "
+                )
                 .lower()
                 .strip()
             )
-            if "n" in inp:
+            if inp.startswith("s"):
+                path = inp.removeprefix("s").strip() or "test.wav"
+                assert len(path) > 4
+                audio_array_to_wav_file(audio, path)
+                inp = "r"
+            elif "n" in inp:
                 marked.append(i)
 
         progress[progress_key]["cur_ix"] = i + 1
