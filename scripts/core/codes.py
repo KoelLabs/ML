@@ -5,8 +5,8 @@
 
 import sys
 
-# CODES = set(("ipa", "timit", "arpabet", "xsampa", "buckeye", "disc", "callhome"))
-CODES = set(("ipa", "timit", "arpabet", "xsampa", "buckeye"))
+# CODES = set(("ipa", "timit", "arpabet", "xsampa", "buckeye", "epadb", "isle", "disc", "callhome"))
+CODES = set(("ipa", "timit", "arpabet", "xsampa", "buckeye", "epadb", "isle"))
 
 
 def convert(phoneme_string, from_code, to_code):
@@ -86,7 +86,7 @@ XSAMPA2IPA = {"_": "͡", "a": "a", "b": "b", "b_<": "ɓ", "c": "c", "d": "d", "d
 # _<
 # -
 # *
-# rhotization for constants
+# rhotization for consonants
 IPA2XSAMPA = {v: k for k, v in XSAMPA2IPA.items()}
 
 
@@ -181,7 +181,7 @@ def arpabet2ipa(arpabet_string, lang="eng"):
 
 #########################################################################
 # EpaDB
-# temp placememnt to simple a from 'ä'
+# We simplify 'A' to 'a' instead of 'ä'
 EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɡɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'a', 'E': 'e', 'O': 'o', 'U': ARPABET2IPA['UW'], 'I': ARPABET2IPA['IY'], 'LL': 'ʟ'})  # fmt: skip
 IPA2EPADB = {v: k for k, v in EPADB2IPA.items()}
 
@@ -215,29 +215,6 @@ CLOSURE_INTERVALS = {
 TIMIT2IPA = {'AA': 'ɑ', 'AE': 'æ', 'AH': 'ʌ', 'AO': 'ɔ', 'AW': 'aʊ', 'AX': 'ə', 'AXR': 'ɚ', 'AX-H': 'ə̥', 'AY': 'aɪ', 'EH': 'ɛ', 'ER': 'ɝ', 'EY': 'eɪ', 'IH': 'ɪ', 'IY': 'i', 'OW': 'oʊ', 'OY': 'ɔɪ', 'UH': 'ʊ', 'UW': 'u', 'B': 'b', 'CH': 'tʃ', 'D': 'd', 'DH': 'ð', 'EL': 'l̩', 'EM': 'm̩', 'EN': 'n̩', 'F': 'f', 'G': 'ɡ', 'HH': 'h', 'JH': 'dʒ', 'K': 'k', 'L': 'l', 'M': 'm', 'N': 'n', 'NG': 'ŋ', 'P': 'p', 'Q': 'ʔ', 'R': 'ɹ', 'S': 's', 'SH': 'ʃ', 'T': 't', 'TH': 'θ', 'V': 'v', 'W': 'w', 'WH': 'ʍ', 'Y': 'j', 'Z': 'z', 'ZH': 'ʒ', 'DX': 'ɾ', 'ENG': 'ŋ̍', 'EPI': '', 'HV': 'ɦ', 'H#': '', 'IX': 'ɨ', 'NX': 'ɾ̃', 'PAU': '', 'UX': 'ʉ'}  # fmt: skip
 IPA2TIMIT = {v: k for k, v in TIMIT2IPA.items()}
 INVERSE_CLOSURE_INTERVALS = {v: k for k, val in CLOSURE_INTERVALS.items() for v in val}
-
-
-#########################################################################
-# Isle (buckeye + 'oh' mapping)
-ISLE2IPA = {'aa':'ɑ', 'ae':'æ', 'ay':'aɪ', 'aw':'aʊ', 'ao':'ɔ', 'oh':'ɒ', 'oy':'ɔɪ', 'ow':'oʊ', 'eh':'ɛ', 'ey':'eɪ', 'er':'ɝ', 'ah':'ʌ', 'uw':'u', 'uh':'ʊ', 'ih':'ɪ', 'iy':'i', 'm':'m', 'n':'n', 'en':'n̩', 'ng':'ŋ', 'l':'l', 'el':'l̩', 't':'t', 'd':'d', 'ch':'tʃ', 'jh':'dʒ', 'th':'θ', 'dh':'ð', 'sh':'ʃ', 'zh':'ʒ', 's':'s', 'z':'z', 'k':'k', 'g':'ɡ', 'p':'p', 'b':'b', 'f':'f', 'v':'v', 'w':'w', 'hh':'h', 'y':'j', 'r':'ɹ', 'dx':'ɾ', 'nx':'ɾ̃', 'tq':'ʔ', 'er':'ɚ', 'em':'m̩', 'ihn': 'ĩ', 'ehn': 'ɛ̃', 'own': 'oʊ̃', 'ayn': 'aɪ̃', 'aen': 'æ̃', 'aan': 'ɑ̃', 'ahn': 'ə̃', 'eng': 'ŋ̍', 'iyn': 'ĩ', 'uhn': 'ʊ̃'}  # fmt: skip
-IPA2ISLE = {v: k for k, v in ISLE2IPA.items()}
-# 'Vn':'◌̃'
-
-
-def ipa2isle(ipa_string, lang="eng"):
-    update_dict_with_tones(ISLE2IPA, IPA2ISLE, lang)
-    ipa_symbols = string2symbols(ipa_string, IPA2ISLE.keys())[0]
-    isle_symbols = [IPA2ISLE[x] for x in ipa_symbols]
-    return " ".join(isle_symbols)
-
-
-def isle2ipa(isle_string, lang="eng"):
-    update_dict_with_tones(ISLE2IPA, IPA2ISLE, lang)
-    if " " in isle_string:
-        isle_symbols = isle_string.split()
-    else:
-        isle_symbols = string2symbols(isle_string, ISLE2IPA.keys())[0]
-    return "".join([ISLE2IPA[x] for x in isle_symbols])
 
 
 def parse_timit(lines):
@@ -299,6 +276,28 @@ def timit2ipa(timit_string, lang="eng"):
         )[0]
     timestamped_phonemes = parse_timit((f"0 0 {x}" for x in timit_symbols))
     return "".join([x[0] for x in timestamped_phonemes])
+
+
+#########################################################################
+# Isle (buckeye + 'oh' mapping)
+ISLE2IPA = {'AA':'ɑ','AE':'æ','AH':'ʌ','AO':'ɔ','IX':'ɨ','AW':'aʊ','AX': 'ə', 'AXR': 'ɚ','AY':'aɪ','EH':'ɛ','ER':'ɝ','EY':'eɪ','IH':'ɪ','IY':'i','OW':'oʊ','OY':'ɔɪ', 'OH':'ɒ', 'UH':'ʊ','UW':'u','UX':'ʉ','B':'b','CH':'tʃ','D':'d','DH':'ð','EL':'l̩','EM':'m̩','EN':'n̩','F':'f','G':'ɡ','HH':'h','H':'h','JH':'dʒ','K':'k','L':'l','M':'m','N':'n','NG':'ŋ','NX':'ɾ̃','P':'p','Q':'ʔ','R':'ɹ','S':'s','SH':'ʃ','T':'t','TH':'θ','V':'v','W':'w','WH':'ʍ','Y':'j','Z':'z','ZH':'ʒ','DX': 'ɾ',}  # fmt: skip
+IPA2ISLE = {v: k for k, v in ISLE2IPA.items()}
+
+
+def ipa2isle(ipa_string, lang="eng"):
+    update_dict_with_tones(ISLE2IPA, IPA2ISLE, lang)
+    ipa_symbols = string2symbols(ipa_string, IPA2ISLE.keys())[0]
+    isle_symbols = [IPA2ISLE[x] for x in ipa_symbols]
+    return " ".join(isle_symbols)
+
+
+def isle2ipa(isle_string, lang="eng"):
+    update_dict_with_tones(ISLE2IPA, IPA2ISLE, lang)
+    if " " in isle_string:
+        isle_symbols = isle_string.split()
+    else:
+        isle_symbols = string2symbols(isle_string, ISLE2IPA.keys())[0]
+    return "".join([ISLE2IPA[x] for x in isle_symbols])
 
 
 #########################################################################
