@@ -105,5 +105,7 @@ class PSSTDataset(BaseDataset):
 if __name__ == "__main__":
     train = PSSTDataset(include_speaker_info=True, force_offline=True)
     interactive_flag_samples(train)
+    valid = PSSTDataset(split="valid", include_speaker_info=True, force_offline=True)
+    interactive_flag_samples(valid)
     test = PSSTDataset(split="test", include_speaker_info=True, force_offline=True)
     interactive_flag_samples(test)

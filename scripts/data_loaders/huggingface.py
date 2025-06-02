@@ -279,6 +279,9 @@ if __name__ == "__main__":
                 "train": Dataset.from_generator(gen_psst("train")).cast_column(  # type: ignore
                     "audio", Audio()
                 ),
+                "valid": Dataset.from_generator(gen_psst("valid")).cast_column(  # type: ignore
+                    "audio", Audio()
+                ),
                 "test": Dataset.from_generator(gen_psst("test")).cast_column(  # type: ignore
                     "audio", Audio()
                 ),
