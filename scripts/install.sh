@@ -17,6 +17,7 @@ fi
 
 pip install -r requirements.txt 
 pip install espnet==202412 espnet_model_zoo==0.1.7
+# pip install -U flash-attn --no-build-isolation # if supported on your platform
 
 # create gitignored directories
 mkdir -p ./.data
