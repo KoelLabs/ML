@@ -23,16 +23,12 @@ class TIMITDataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
-        include_g2p=False,
-        g2p_filter_type="letters_rmv_tie",
     ):
         super().__init__(
             split,
             include_timestamps,
             include_speaker_info,
             include_text,
-            include_g2p,
-            g2p_filter_type,
         )
         self.zip = zipfile.ZipFile(TIMIT_ZIP, "r")
         files = self.zip.namelist()
@@ -71,10 +67,6 @@ class TIMITDataset(BaseDataset):
             with self.zip.open(filename + ".TXT") as txt_file:
                 text = " ".join(txt_file.read().decode("utf-8").strip().split(" ")[2:])
                 text = remove_punctuation(text)
-        if self.include_g2p:
-            g2p_ipa = english2ipa(
-                text, filter_type=self.g2p_filter_type
-            )  # removes punctuation and converts to ipa
 
         start_signal = timestamped_phonemes.pop(0)
         audio = audio[start_signal[2] :]
@@ -92,8 +84,6 @@ class TIMITDataset(BaseDataset):
             result.append(speaker)
         if self.include_text:
             result.append(text)
-        if self.include_g2p:
-            result.append(g2p_ipa)
 
         return tuple(result)
 
