@@ -1,5 +1,5 @@
 # Script to upload datasets to huggingface
-# Usage: python ./scripts/data_loaders/huggingface.py DoReCo EpaDB L2Arctic L2ArcticSpontaneousSplit Buckeye PSST SpeechOcean SpeechOceanNoTH TIMIT
+# Usage: python ./scripts/data_loaders/huggingface.py DoReCo EpaDB L2Arctic L2ArcticSpontaneousSplit Buckeye PSST SpeechOcean SpeechOceanNoTH TIMIT ISLE
 
 import os
 import sys
@@ -18,6 +18,7 @@ from data_loaders.OSUBuckeye import all_buckeye_speaker_splits
 from data_loaders.PSST import PSSTDataset
 from data_loaders.SpeechOcean import SpeechOceanDataset
 from data_loaders.TIMIT import TIMITDataset
+from data_loaders.ISLE import ISLEDataset
 
 
 # ==================================================
@@ -230,6 +231,27 @@ def gen_timit(split):
     return generator
 
 
+def gen_isle():
+    dataset = ISLEDataset(
+        split="all",
+        include_speaker_info=True,
+        include_text=True,
+    )
+    for sample in dataset:
+        assert sample[1].dtype == np.int16  # type: ignore
+        metadata = sample[2]  # type: ignore
+        yield {
+            "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
+            "ipa": sample[0],  # type: ignore
+            "text": sample[3],  # type: ignore
+            "speaker_code": metadata["speaker_id"],  # type: ignore
+            "speaker_native_language": metadata["native_language"],  # type: ignore
+            "recording_session": metadata["session"],  # type: ignore
+            "recording_sub_dir": metadata["sub_dir"],  # type: ignore
+            "comments": metadata["comments"],  # type: ignore
+        }
+
+
 # =================== Generators ===================
 # ==================================================
 # =================== Push to Hub ==================
@@ -327,3 +349,7 @@ if __name__ == "__main__":
             }
         )
         timit_dict.push_to_hub("KoelLabs/TIMIT", private=True)
+    if "ISLE" in sys.argv:
+        print("Pushing ISLE to the hub...")
+        isle_ds: Dataset = Dataset.from_generator(gen_isle).cast_column("audio", Audio())  # type: ignore
+        isle_ds.push_to_hub("KoelLabs/ISLE", private=True)
