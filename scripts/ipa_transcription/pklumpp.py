@@ -4,8 +4,8 @@ import sys
 import os
 from tempfile import NamedTemporaryFile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.audio import audio_record_to_file, audio_file_to_array
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
+from scripts.core.audio import audio_record_to_file, audio_file_to_array
 
 from repos.phd_model.phonetics.ipa import symbol_to_descriptor, to_symbol
 from repos.phd_model.model.wav2vec2 import Wav2Vec2
@@ -15,16 +15,15 @@ MODEL_IDS = ["pklumpp/Wav2Vec2_CommonPhone"]
 
 models = {}
 
-from typing import Tuple
 import numpy as np
-from fast_ctc_decode import viterbi_search
+from fast_ctc_decode import viterbi_search  # type: ignore
 
 
 def decode_lattice(
     lattice: np.ndarray,
-    enc_feats: np.ndarray = None,
-    cnn_feats: np.ndarray = None,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    enc_feats: "np.ndarray | None" = None,
+    cnn_feats: "np.ndarray | None" = None,
+) -> "tuple[np.ndarray, np.ndarray | None, np.ndarray | None, np.ndarray]":
     """
     Blank index must be 0
     Input lattice is expected in the form of (T, S), without batch dimension
