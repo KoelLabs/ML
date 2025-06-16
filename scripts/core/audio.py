@@ -25,13 +25,22 @@ def audio_convert(input_path, output_path, output_sample_rate=TARGET_SAMPLE_RATE
     ffmpeg.input(input_path).output(output_path, ar=output_sample_rate).run()
 
 
-def audio_bytes_to_wav_array(bytes, format, output_sample_rate=TARGET_SAMPLE_RATE):
+def audio_bytes_to_wav_array(
+    bytes,
+    format,
+    output_sample_rate=TARGET_SAMPLE_RATE,
+    output_orig_sample_rate=False,
+):
     wav_bytes = (
         ffmpeg.input("pipe:0", format=format)
-        .output("pipe:1", format="wav", ar=output_sample_rate)
+        .output("pipe:1", format="wav", loglevel="quiet")
         .run(input=bytes, capture_stdout=True)
     )
-    return audio_bytes_to_array(wav_bytes[0], output_sample_rate)
+    return audio_bytes_to_array(
+        wav_bytes[0],
+        target_sample_rate=output_sample_rate,
+        output_orig_sample_rate=output_orig_sample_rate,
+    )
 
 
 def audio_array_to_bytes(array, sample_rate=TARGET_SAMPLE_RATE):
@@ -206,7 +215,10 @@ def audio_resample(array, src_sample_rate, target_sample_rate=TARGET_SAMPLE_RATE
 
 
 def audio_bytes_to_array(
-    data, src_sample_rate=None, target_sample_rate=TARGET_SAMPLE_RATE
+    data,
+    src_sample_rate=None,
+    target_sample_rate=TARGET_SAMPLE_RATE,
+    output_orig_sample_rate=False,
 ):
     # TODO: rename to make clear this requires WAV format
     assert data[:4] == b"RIFF", "Not a WAV file, first 4 bytes are not RIFF: " + data[
@@ -224,9 +236,13 @@ def audio_bytes_to_array(
     audio = np.frombuffer(data, dtype=dtype).astype(np.int16)
     # average in chunks of num_channels
     if num_channels > 1:
+        if len(audio) % num_channels != 0:
+            audio = audio[: -(len(audio) % num_channels)]
         audio = audio.reshape(-1, num_channels)
         audio = np.mean(audio, axis=1).astype(np.int16)
     audio = audio_resample(audio, src_sample_rate, target_sample_rate)
+    if output_orig_sample_rate:
+        return audio, src_sample_rate
     return audio
 
 

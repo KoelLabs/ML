@@ -10,7 +10,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array
 from core.codes import parse_timit, IPA2TIMIT
-from core.text import english2ipa, remove_punctuation
+from core.text import remove_punctuation
 
 TIMIT_ZIP = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "TIMIT.zip")
 SOURCE_SAMPLE_RATE = 16000
