@@ -182,6 +182,8 @@ class ISLEDataset(BaseDataset):
 
             extra_marks = extra[0] if extra else None
             if self.include_text and word != "." and word != "#" and word != "##":
+                if "_" in word:
+                    word, pos = word.split("_", 1)  # NOTE: pos is thrown out
                 text += word + " "
             if uk_phone == "." or "_" in uk_phone or "BCKGRD" in uk_phone:
                 continue
