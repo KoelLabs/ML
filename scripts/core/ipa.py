@@ -127,7 +127,7 @@ def _describe_symbol(symbol):
 def describe(ipa_string):
     """Describe the IPA string"""
     return [
-        (symbol, _describe_symbol(symbol))
+        (str(symbol), _describe_symbol(symbol))
         for symbol in IPAString(unicode_string=ipa_string)
     ]
 
