@@ -1,0 +1,72 @@
+Listen to IPA Symbols: https://www.ipachart.com/
+
+Note on ɑ vs a: 
+    Narrow transcriptions will differentiate, but broad ones usually just use ɑ (or a when people are being lazy since that's on the keyboard). 
+    This leads to very inconsistent usage of these symbols in transcriptions. Our only dataset that uses a is EPADB. All others group both into ɑ.
+
+Alex Differentiating "æ" and "a" accuracy: 60/60
+
+WTF Factor: 100%
+
+------------------------ Full ------------------------
+Text: Apple Ah Ah Apple
+
+Koel Labs XLSR-English-01: ɑpɔl ɑ a ɑpɔ
+Aruna/Ruslan: apɔl a a apɔl
+Alex: æpɔl a a apɔl
+
+General American: [ˈæpɫ̩ ɑ ɑ ˈæpɫ̩]
+
+------------------------ Apple 1 ------------------------
+Text: Apple
+
+Koel Labs XLSR-English-01: apɔl
+Aruna/Ruslan: apɔl
+Alex: æpɔl
+
+General American: [ˈæpɫ̩]
+
+------------------------ Apple 2 ------------------------
+Text: Apple
+
+Koel Labs XLSR-English-01: ɑpɔ
+Aruna/Ruslan: apɔl
+Alex: apɔl
+
+General American: [ˈæpɫ̩]
+
+------------------------ Ah 1 ------------------------
+Text: Ah
+
+Koel Labs XLSR-English-01: ɑ
+Aruna/Ruslan: a
+Alex: a
+
+General American: /ɑː/
+
+------------------------ Ah 2 ------------------------
+Text: Ah
+
+Koel Labs XLSR-English-01: ɑ
+Aruna/Ruslan: a
+Alex: a
+
+General American: /ɑː/
+
+------------------------ "A"pple 1 ------------------------
+Text: Ah
+
+Koel Labs XLSR-English-01: ʌ
+Aruna/Ruslan: a
+Alex: æ
+
+General American: [ˈæ]
+
+------------------------ "A"pple 2 ------------------------
+Text: Ah
+
+Koel Labs XLSR-English-01: ʌ
+Aruna/Ruslan: a
+Alex: a
+
+General American: [ˈæ]

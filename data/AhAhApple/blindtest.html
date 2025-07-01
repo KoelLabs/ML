@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Classification</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 2em; }
+    button { padding: 1em 2em; margin: 1em; font-size: 1.2em; }
+    #score { margin-top: 2em; font-size: 1.2em; }
+  </style>
+</head>
+<body>
+
+  <h1>Apples and Alexes</h1>
+  <audio id="audio"></audio><br>
+  <button onclick="playAudio()">Play</button><br>
+  <button onclick="classify('æ')">Category A</button>
+  <button onclick="classify('a')">Category B</button>
+  <div id="score">Correct: 0 | Total: 0</div>
+
+  <script>
+    const audioFiles = [
+      { file: 'A_pple1.wav', category: 'æ' },
+      { file: 'A_pple2.wav', category: 'a' },
+      { file: 'Ah1.wav', category: 'a' },
+      { file: 'Ah1.wav', category: 'a' }
+    ];
+
+    let currentAudio = null;
+    let correct = 0;
+    let total = 0;
+
+    function playRandomAudio() {
+      const index = Math.floor(Math.random() * audioFiles.length);
+      currentAudio = audioFiles[index];
+      const audio = document.getElementById('audio');
+      audio.src = currentAudio.file;
+      audio.play();
+    }
+
+    function playAudio() {
+        const audio = document.getElementById('audio');
+        audio.play();
+    }
+
+    function classify(choice) {
+      total++;
+      if (choice === currentAudio.category) correct++;
+      document.getElementById('score').textContent = `Correct: ${correct} | Total: ${total}`;
+      playRandomAudio();
+    }
+
+    window.onload = playRandomAudio;
+  </script>
+
+</body>
+</html>
