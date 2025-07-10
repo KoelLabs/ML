@@ -61,20 +61,22 @@ def simplify_ipa(ipa_string: str):
     # remove spaces and numbers
     ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
 
-    if "̄" in ipa_string:
-        raise ValueError("Warning: we use this IPA as a temporary marker for ŋ̍")
-    if "ŋ̍" in ipa_string:
-        ipa_string = ipa_string.replace("ŋ̍", "̄")
+    # some combined symbols are only supported by ipapy and panphon when separated:
+    # - replace combined syllabic ŋ with separate syllabic marker and ŋ
+    # - exteme care is needed with ĩ and ĩ: they look identical in most fonts but are different: ĩ=ɪ̰ and ĩ=nasal i, both libraries support the latter as combined but needs the former separated
+    # - "ä" and "ä" mean the same and look the same but are different unicode symbols
+    ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰").replace("ä", "ä")
 
     ipa = str(
         IPAString(unicode_string=ipa_string, ignore=True).canonical_representation
     )
 
-    ipa = ipa.replace("̄", "ŋ̍")
     ipa = remove_tie_marker(ipa)
     ipa = remove_length_diacritics(ipa)
     ipa = remove_tones_and_stress(ipa)
-    ipa = ipa.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞")
+
+    # panphon uses alternative symbols for some phonemes than the more standard version
+    ipa = ipa.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç")
 
     return ipa
 
