@@ -18,17 +18,18 @@ def preprocess_ipa(ipa_string):
     ipa_string = ipa_string.replace(" ", "")
 
     # some combined symbols are only supported by ipapy and panphon when separated:
-    # - replace combined syllabic ŋ with separate syllabic marker and ŋ
-    # - exteme care is needed with ĩ and ĩ: they look identical in most fonts but are different: ĩ=ɪ̰ and ĩ=nasal i, both libraries support the latter as combined but needs the former separated
-    # - "ä" and "ä" mean the same and look the same but are different unicode symbols
+    # - replace syllabic ŋ (syllabic marker above) with syllabic ŋ (syllabic marker below): U+014B U+030D => U+014B U+0329
+    # - exteme care is needed with ĩ (U+0129) and ĩ (U+0069 U+0303): they look identical in most fonts but are different: ĩ should map to ɪ̰, while ĩ is just the nasal i as the already separate symbols indicate
+    # - ä (U+00E4) and ä (U+0061 U+0308) mean the same and look the same, but ipapy and panphon need them as separate symbols
     ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰").replace("ä", "ä")
 
     # standardize representations and identify phonemes not in panphon (IPA_SYMBOLS)
     phonemes = group_phonemes(ipa_string)
 
-    # now apply some substitutions to combined symbols because panphon separates them:
-    # - replace combined r-colored vowels with separate symbols as supported by panphon
-    # - remove lonesome ties/syllabic markers that are not part of any symbols
+    # panphon has some extra symbols that must be separated:
+    # - r-colored schwas: ɚ (U+025A) => ə (U+0259) ˞ (U+02DE); ɝ (U+025D) => ɜ (U+025C) ˞ (U+02DE)
+    # - ç (U+00E7) => ç (U+0063 U+0327) which are tricky since they look the same
+    # - we also remove lonesome ties/syllabic markers that are not part of any symbols
     phonemes = [
         p.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç")
         for p in phonemes

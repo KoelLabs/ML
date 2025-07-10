@@ -62,9 +62,9 @@ def simplify_ipa(ipa_string: str):
     ipa_string = "".join(c for c in ipa_string if not c.isspace() and not c.isdigit())
 
     # some combined symbols are only supported by ipapy and panphon when separated:
-    # - replace combined syllabic ŋ with separate syllabic marker and ŋ
-    # - exteme care is needed with ĩ and ĩ: they look identical in most fonts but are different: ĩ=ɪ̰ and ĩ=nasal i, both libraries support the latter as combined but needs the former separated
-    # - "ä" and "ä" mean the same and look the same but are different unicode symbols
+    # - replace syllabic ŋ (syllabic marker above) with syllabic ŋ (syllabic marker below): U+014B U+030D => U+014B U+0329
+    # - exteme care is needed with ĩ (U+0129) and ĩ (U+0069 U+0303): they look identical in most fonts but are different: ĩ should map to ɪ̰, while ĩ is just the nasal i as the already separate symbols indicate
+    # - ä (U+00E4) and ä (U+0061 U+0308) mean the same and look the same, but ipapy and panphon need them as separate symbols
     ipa_string = ipa_string.replace("ŋ̍", "ŋ̩").replace("ĩ", "ɪ̰").replace("ä", "ä")
 
     ipa = str(
@@ -75,7 +75,9 @@ def simplify_ipa(ipa_string: str):
     ipa = remove_length_diacritics(ipa)
     ipa = remove_tones_and_stress(ipa)
 
-    # panphon uses alternative symbols for some phonemes than the more standard version
+    # panphon has some extra symbols that must be separated:
+    # - r-colored schwas: ɚ (U+025A) => ə (U+0259) ˞ (U+02DE); ɝ (U+025D) => ɜ (U+025C) ˞ (U+02DE)
+    # - ç (U+00E7) => ç (U+0063 U+0327) which are tricky since they look the same
     ipa = ipa.replace("ɚ", "ə˞").replace("ɝ", "ɜ˞").replace("ç", "ç")
 
     return ipa
