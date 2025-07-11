@@ -1,5 +1,4 @@
 # Speech Accent Archive: https://accent.gmu.edu/
-# For now uses outdated subset on https://www.kaggle.com/rtatman/speech-accent-archive which
 
 import os
 import sys
