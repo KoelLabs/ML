@@ -1,5 +1,5 @@
 # Script to upload datasets to huggingface
-# Usage: python ./scripts/data_loaders/huggingface.py DoReCo EpaDB L2Arctic L2ArcticSpontaneousSplit Buckeye PSST SpeechOcean SpeechOceanNoTH TIMIT ISLE
+# Usage: python ./scripts/data_loaders/huggingface.py DoReCo EpaDB L2Arctic L2ArcticSpontaneousSplit Buckeye PSST SpeechOcean SpeechOceanNoTH TIMIT ISLE SpeechAccentArchive
 
 import os
 import sys
@@ -19,6 +19,7 @@ from data_loaders.PSST import PSSTDataset
 from data_loaders.SpeechOcean import SpeechOceanDataset
 from data_loaders.TIMIT import TIMITDataset
 from data_loaders.ISLE import ISLEDataset
+from data_loaders.SpeechAccent import SpeechAccentDataset
 
 
 # ==================================================
@@ -252,6 +253,31 @@ def gen_isle():
         }
 
 
+def gen_speech_accent_archive():
+    dataset = SpeechAccentDataset(include_speaker_info=True, include_text=True)
+    for sample in dataset:
+        assert sample[1].dtype == np.int16  # type: ignore
+        metadata = sample[2]  # type: ignore
+        yield {
+            "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
+            "ipa": sample[0],  # type: ignore
+            "text": sample[3],  # type: ignore
+            "speaker_code": metadata["speakerid"],  # type: ignore
+            "speaker_native_language": metadata["native_language"],  # type: ignore
+            "speaker_native_language_alternative": metadata["native_language_alternative"],  # type: ignore
+            "speaker_gender": metadata["gender"],  # type: ignore
+            "speaker_age": metadata["age"],  # type: ignore
+            "speaker_spoken_english_since_age": metadata["spoken_english_since_age"],  # type: ignore
+            "speaker_country": metadata["country"],  # type: ignore
+            "speaker_birthplace": metadata["birthplace"],  # type: ignore
+            "speaker_english_residence": metadata["english_residence"],  # type: ignore
+            "speaker_english_residence_length_years": metadata["english_residence_length_years"],  # type: ignore
+            "speaker_learning_style": metadata["learning_style"],  # type: ignore
+            "speaker_ethnologue_language_code": metadata["ethnologue_language_code"],  # type: ignore
+            "comments": metadata["notes"],  # type: ignore
+        }
+
+
 # =================== Generators ===================
 # ==================================================
 # =================== Push to Hub ==================
@@ -353,3 +379,7 @@ if __name__ == "__main__":
         print("Pushing ISLE to the hub...")
         isle_ds: Dataset = Dataset.from_generator(gen_isle).cast_column("audio", Audio())  # type: ignore
         isle_ds.push_to_hub("KoelLabs/ISLE", private=True)
+    if "SpeechAccentArchive" in sys.argv:
+        print("Pushing Speech Accent Archive to the hub...")
+        saa_ds: Dataset = Dataset.from_generator(gen_speech_accent_archive).cast_column("audio", Audio())  # type: ignore
+        saa_ds.push_to_hub("KoelLabs/SpeechAccentArchive", private=True)
