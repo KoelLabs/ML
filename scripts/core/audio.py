@@ -252,10 +252,14 @@ def audio_dual_channel_to_mono(input_array):
     return input_array
 
 
-def audio_file_to_array(input_path, desired_sample_rate=TARGET_SAMPLE_RATE):
+def audio_file_to_array(
+    input_path, desired_sample_rate=TARGET_SAMPLE_RATE, output_orig_sample_rate=False
+):
     rate, data = wavfile.read(input_path)
     data = audio_dual_channel_to_mono(data)
     data = audio_resample(data, rate, desired_sample_rate)
+    if output_orig_sample_rate:
+        return data, rate
     return data
 
 
