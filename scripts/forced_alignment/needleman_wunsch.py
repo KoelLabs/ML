@@ -17,7 +17,7 @@ def needleman_wunsch(
     seq1,
     seq2,
     substitution_func=lambda x, y: 0 if x == y else -1,
-    deletetion_func=lambda _: -1,
+    deletion_func=lambda _: -1,
     insertion_func=lambda _: -1,
 ):
     n, m = len(seq1), len(seq2)
@@ -25,7 +25,7 @@ def needleman_wunsch(
 
     # Initialize DP table
     for i in range(n + 1):
-        dp[i][0] = i * deletetion_func(seq1[i - 1]) if i > 0 else 0
+        dp[i][0] = i * deletion_func(seq1[i - 1]) if i > 0 else 0
     for j in range(m + 1):
         dp[0][j] = j * insertion_func(seq2[j - 1]) if j > 0 else 0
 
@@ -33,7 +33,7 @@ def needleman_wunsch(
     for i in range(1, n + 1):
         for j in range(1, m + 1):
             match = dp[i - 1][j - 1] + substitution_func(seq1[i - 1], seq2[j - 1])
-            delete = dp[i - 1][j] + deletetion_func(seq1[i - 1])
+            delete = dp[i - 1][j] + deletion_func(seq1[i - 1])
             insert = dp[i][j - 1] + insertion_func(seq2[j - 1])
             dp[i][j] = max(match, delete, insert)
 
