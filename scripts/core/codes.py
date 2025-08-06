@@ -182,7 +182,7 @@ def arpabet2ipa(arpabet_string, lang="eng"):
 #########################################################################
 # EpaDB
 # We simplify 'A' to 'a' instead of 'ä'
-EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɡɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'a', 'E': 'e', 'O': 'o', 'U': ARPABET2IPA['UW'], 'I': ARPABET2IPA['IY'], 'LL': 'ʟ'})  # fmt: skip
+EPADB2IPA = dict(ARPABET2IPA, **{"PH": "pʰ", "TH": "θʰ", "SH": "sʰ", "KH": "kʰ", "DH": "ð", 'BH': 'β', 'GH': 'ɣ', 'RR': 'r', 'DX': 'ɾ', 'X': 'x', 'A': 'a', 'E': 'e', 'O': 'o', 'U': ARPABET2IPA['UW'], 'I': ARPABET2IPA['IY'], 'LL': 'ʟ'})  # fmt: skip
 IPA2EPADB = {v: k for k, v in EPADB2IPA.items()}
 
 
