@@ -199,8 +199,13 @@ def main(args):
     assert args[1].startswith("stream_")
     start = time.perf_counter()
     method = globals()[args[1]]
-    for update in method(ws, processor, model, duration_per_id_sec=duration_per_id_sec):
-        print("\r" + update, end="", flush=True)
+    try:
+        for update in method(
+            ws, processor, model, duration_per_id_sec=duration_per_id_sec
+        ):
+            print("\r" + update, end="", flush=True)
+    except KeyboardInterrupt:
+        pass
     print()
     print("---")
     print(f"Overall Time: {time.perf_counter() - start:.6f} seconds")

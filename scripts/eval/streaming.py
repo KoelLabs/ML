@@ -82,6 +82,8 @@ class Source:
         average_first_guess_latency = 0
         prev_transcript_time_sec = 0
         for event_time_sec, transcript in self.send_log:
+            if len(transcript) == 0:
+                continue
             stream_time_sec = event_time_sec - stream_start
             transcript_time_sec = transcript[-1][2]
             new_transcript_time_sec = transcript_time_sec - prev_transcript_time_sec
