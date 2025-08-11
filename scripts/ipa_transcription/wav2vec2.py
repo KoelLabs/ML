@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import os
 import sys
 
@@ -162,7 +164,7 @@ def transcribe_batch_timestamped(batch, model, processor):
 
 
 def transcribe_from_file(input_path, model, processor, include_timestamps):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
 
     if include_timestamps:
         transcription_batch, phonemes_with_time_batch = transcribe_batch_timestamped(

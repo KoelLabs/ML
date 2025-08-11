@@ -3,14 +3,16 @@
 # Audio processing utilities
 # Convert between audio formats, play audio, record audio, etc.
 
-import ffmpeg
+import os
 import sys
+import time
+import requests
+from io import BytesIO
+
+import ffmpeg
+import numpy as np
 import sounddevice as sd
 import scipy.io.wavfile as wavfile
-import numpy as np
-import requests
-import os
-from io import BytesIO
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.load_secrets import load_secrets
@@ -357,6 +359,38 @@ def audio_array_clip(
     )
 
 
+def audio_stream_microphone(
+    on_block,
+    block_size=512,
+    sample_rate=TARGET_SAMPLE_RATE,
+    timeout=lambda: time.sleep(60),
+):
+    def callback(indata: np.ndarray, frames: int, time, status):
+        """This function is called for each audio block."""
+        if status:
+            print(status)  # Print any warnings or errors
+        assert frames == block_size
+
+        on_block(indata.T[0])
+
+    print("Starting audio stream... Press Ctrl+C to stop.")
+
+    try:
+        with sd.InputStream(
+            samplerate=sample_rate,
+            channels=1,
+            dtype="int16",
+            blocksize=block_size,
+            callback=callback,
+        ):
+            # Keep the stream open for a timeout or until interrupted
+            timeout()
+    except KeyboardInterrupt:
+        print("\nAudio stream stopped.")
+    except Exception as e:
+        print(f"\nAn error occurred: {e}")
+
+
 def main(args):
     if args[0] == "record":
         audio_record_to_file(args[1])
@@ -377,7 +411,7 @@ def main(args):
         audio_file_from_text(args[1], args[2])
     elif args[0] == "speed":
         speed_factor = float(args[2])
-        audio = audio_file_to_array(args[1])
+        audio: np.ndarray = audio_file_to_array(args[1])  # type: ignore
         audio_shifted = audio_array_pitchshift(audio, 1 / speed_factor, mode="stretch")
         if args[3] == "mic":
             audio_array_play(audio_shifted)
