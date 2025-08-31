@@ -71,6 +71,7 @@ def transcribe(
     wav_array: np.ndarray,
     processor: Wav2Vec2Processor,
     model: Wav2Vec2ForCTC,
+    receptive=400,
     duration_per_id_sec=0.020,
     time_offset=0,
 ):
@@ -78,9 +79,11 @@ def transcribe(
         wav_array,
         sampling_rate=processor.feature_extractor.sampling_rate,  # type: ignore
         return_tensors="pt",
-        padding=True,
+        padding="max_length",
+        max_length=receptive,
+
     )
-    processed["input_values"] = processed["input_values"].to(model.device)
+    processed["input_values"] = processed["input_values"].type(torch.float32).to(model.device)
     processed["attention_mask"] = processed["attention_mask"].to(model.device)
     with torch.no_grad():
         logits = model(**processed).logits
@@ -95,6 +98,7 @@ def stream_naive(
     processor: Wav2Vec2Processor,
     model: Wav2Vec2ForCTC,
     receptive=400,
+    stride=320,
     duration_per_id_sec=0.020,
 ):
     buffer = np.array([], dtype=np.float32)
@@ -106,7 +110,7 @@ def stream_naive(
             buffer = np.concatenate([buffer, data])
 
         transcript = transcribe(
-            buffer, processor, model, duration_per_id_sec=duration_per_id_sec
+            buffer, processor, model, receptive, duration_per_id_sec=duration_per_id_sec
         )
         ws.send(transcript)
         yield "".join(p for p, _, _ in transcript)
@@ -120,6 +124,7 @@ def stream_naive_chunked(
     processor: Wav2Vec2Processor,
     model: Wav2Vec2ForCTC,
     receptive=400,
+    stride=320,
     chunk_size=4_000,
     duration_per_id_sec=0.020,
 ):
@@ -139,6 +144,7 @@ def stream_naive_chunked(
                 buffer,
                 processor,
                 model,
+                receptive,
                 duration_per_id_sec=duration_per_id_sec,
                 time_offset=total_time,
             )
