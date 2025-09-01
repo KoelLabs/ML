@@ -36,6 +36,7 @@ def calculate_cnn_window(model: Wav2Vec2ForCTC):
         stride *= conv.stride[0]
     return receptive_field, stride
 
+
 # ============================ Transcription Utils ============================
 def decode_timestamps(
     predicted_ids,
@@ -81,9 +82,10 @@ def transcribe(
         return_tensors="pt",
         padding="max_length",
         max_length=receptive,
-
     )
-    processed["input_values"] = processed["input_values"].type(torch.float32).to(model.device)
+    processed["input_values"] = (
+        processed["input_values"].type(torch.float32).to(model.device)
+    )
     processed["attention_mask"] = processed["attention_mask"].to(model.device)
     with torch.no_grad():
         logits = model(**processed).logits
@@ -158,18 +160,19 @@ def stream_naive_chunked(
         if is_stop:
             break
 
+
 def stream_cnn_chunked_transformer(
     ws: Source,
     processor: Wav2Vec2Processor,
     model: Wav2Vec2ForCTC,
     receptive=400,
     stride=320,
-    transformer_interval = 25,
+    transformer_interval=25,
     duration_per_id_sec=0.020,
 ):
-    chunk_size = receptive * np.dtype(np.float32).itemsize # 1600 bytes 
-    stride_interval = stride * np.dtype(np.float32).itemsize # 1280 bytes
-    buffer = b''
+    chunk_size = receptive * np.dtype(np.float32).itemsize  # 1600 bytes
+    stride_interval = stride * np.dtype(np.float32).itemsize  # 1280 bytes
+    buffer = b""
     feature_list = []
     attention_list = []
     total_samples_processed = 0
@@ -183,20 +186,26 @@ def stream_cnn_chunked_transformer(
             buffer += data
 
         while len(buffer) >= chunk_size:
-            chunk_bytes = buffer[:chunk_size] # store 400 (1600 bytes)
+            chunk_bytes = buffer[:chunk_size]  # store 400 (1600 bytes)
             buffer = buffer[
-                stride_interval :
+                stride_interval:
             ]  # move by 320 (1280 bytes) to create 80 (320 bytes) overlap
 
             audio = np.frombuffer(chunk_bytes, dtype=np.float32)
-            features, attention_mask = extract_features_only(processor, model, receptive, audio)
+            features, attention_mask = extract_features_only(
+                processor, model, receptive, audio
+            )
             feature_list.append(features)
             attention_list.append(attention_mask)
             total_samples_processed += stride
 
             # accumulate features for 500ms (25 sets of 20ms) before applying transformer
             if len(feature_list) % transformer_interval == 0:
-                predicted_ids = run_transformer_on_features(model, torch.cat(feature_list, dim=1), torch.cat(attention_list, dim=1))
+                predicted_ids = run_transformer_on_features(
+                    model,
+                    torch.cat(feature_list, dim=1),
+                    torch.cat(attention_list, dim=1),
+                )
                 full_transcription = decode_timestamps(
                     predicted_ids, processor, duration_per_id_sec, time_offset
                 )
@@ -205,15 +214,18 @@ def stream_cnn_chunked_transformer(
                 yield "".join(p for p, _, _ in full_transcription)
 
         if is_stop:
-            if feature_list: # Final update with any remaining features
-                predicted_ids = run_transformer_on_features(model, torch.cat(feature_list, dim=1), torch.cat(attention_list, dim=1))
+            if feature_list:  # Final update with any remaining features
+                predicted_ids = run_transformer_on_features(
+                    model,
+                    torch.cat(feature_list, dim=1),
+                    torch.cat(attention_list, dim=1),
+                )
                 full_transcription = decode_timestamps(
                     predicted_ids, processor, duration_per_id_sec, time_offset
                 )
                 ws.send(full_transcription)
                 yield "".join(p for p, _, _ in full_transcription)
             break
-
 
 
 def extract_features_only(processor, model, receptive, audio: np.ndarray):
@@ -232,7 +244,7 @@ def extract_features_only(processor, model, receptive, audio: np.ndarray):
         extract_features = model.wav2vec2.feature_extractor(input_values)  # (B, C, T')
         extract_features = extract_features.transpose(1, 2)  # (B, T', C)
         attention_mask = model.wav2vec2._get_feature_vector_attention_mask(
-                extract_features.shape[1], attention_mask, add_adapter=False
+            extract_features.shape[1], attention_mask, add_adapter=False
         )
         hidden_states, _ = model.wav2vec2.feature_projection(extract_features)
         hidden_states = model.wav2vec2._mask_hidden_states(
@@ -241,12 +253,15 @@ def extract_features_only(processor, model, receptive, audio: np.ndarray):
     return hidden_states, attention_mask
 
 
-def run_transformer_on_features(model, features: torch.Tensor, attention_mask: torch.LongTensor):
+def run_transformer_on_features(
+    model, features: torch.Tensor, attention_mask: torch.LongTensor
+):
     """Run transformer from features and get predicted ids"""
     encoder_outputs = model.wav2vec2.encoder(features, attention_mask=attention_mask)
     hidden_states = model.lm_head(encoder_outputs[0])
     predicted_ids = torch.argmax(hidden_states, dim=-1)[0].tolist()
     return predicted_ids
+
 
 # ==================================== CLI ====================================
 def main(args):
@@ -260,7 +275,9 @@ def main(args):
         print(
             "Example: python ./scripts/ipa_transcription/wav2vec2_streaming.py timit stream_naive"
         )
-        print ("Example: python ./scripts/ipa_transcription/wav2vec2_streaming.py timit stream_cnn_chunked_transformer")
+        print(
+            "Example: python ./scripts/ipa_transcription/wav2vec2_streaming.py timit stream_cnn_chunked_transformer"
+        )
         print(
             "Example: python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_0.wav stream_naive_chunked --slow-down-to-realtime"
         )
@@ -301,7 +318,12 @@ def main(args):
     method = globals()[args[1]]
     try:
         for update in method(
-            ws, processor, model, receptive=receptive, stride=stride, duration_per_id_sec=duration_per_id_sec
+            ws,
+            processor,
+            model,
+            receptive=receptive,
+            stride=stride,
+            duration_per_id_sec=duration_per_id_sec,
         ):
             print("\r" + update, end="", flush=True)
     except KeyboardInterrupt:
