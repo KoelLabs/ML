@@ -104,18 +104,30 @@ def stream_naive(
     duration_per_id_sec=0.020,
 ):
     buffer = np.array([], dtype=np.float32)
+    last_length = 0
+    accumulation_size = receptive
 
     while True:
         data = ws.receive(format="float32")
         is_stop = isinstance(data, str) and data == "stop"
         if not is_stop:
             buffer = np.concatenate([buffer, data])
+            if len(buffer) - last_length < accumulation_size:
+                continue
+            last_length = len(buffer)
+
+        start = time.perf_counter()  # adaptive accumulation size
 
         transcript = transcribe(
             buffer, processor, model, receptive, duration_per_id_sec=duration_per_id_sec
         )
         ws.send(transcript)
         yield "".join(p for p, _, _ in transcript)
+
+        # adaptive accumulation size
+        seconds = time.perf_counter() - start
+        transcription_to_audio_time_ratio = seconds / accumulation_size * processor.feature_extractor.sampling_rate  # type: ignore
+        accumulation_size *= transcription_to_audio_time_ratio
 
         if is_stop:
             break
