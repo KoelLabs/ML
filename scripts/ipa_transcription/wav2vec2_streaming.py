@@ -184,12 +184,15 @@ def stream_cnn_chunked_transformer(
 ):
     chunk_size = receptive * np.dtype(np.float32).itemsize  # 1600 bytes
     stride_interval = stride * np.dtype(np.float32).itemsize  # 1280 bytes
+    overlap_interval = chunk_size - stride_interval  # 320 bytes (80 samples)
     buffer = b""
     feature_list = []
     attention_list = []
-    total_samples_processed = 0
     time_offset = 0.0  # NOTE: this value should be getting updated if you don't run the full audio to transformer
     full_transcription = []
+    accumulation_size = receptive
+    last_length = 0
+    start = 0
 
     while True:
         data = ws.receive()
@@ -197,33 +200,36 @@ def stream_cnn_chunked_transformer(
         if not is_stop:
             buffer += data
 
-        while len(buffer) >= chunk_size:
-            chunk_bytes = buffer[:chunk_size]  # store 400 (1600 bytes)
-            buffer = buffer[
-                stride_interval:
-            ]  # move by 320 (1280 bytes) to create 80 (320 bytes) overlap
+        audio = np.frombuffer(buffer, dtype=np.float32)
 
-            audio = np.frombuffer(chunk_bytes, dtype=np.float32)
-            features, attention_mask = extract_features_only(
-                processor, model, receptive, audio
+        features, attention_mask = extract_features_only(
+            processor, model, receptive, audio
+        )
+        feature_list.append(features)
+        attention_list.append(attention_mask)
+        # accumulate features based on dynamic accumalation size
+        if len(buffer) - last_length > accumulation_size:
+            start = time.perf_counter()
+            predicted_ids = run_transformer_on_features(
+                model,
+                torch.cat(feature_list, dim=1),
+                torch.cat(attention_list, dim=1),
             )
-            feature_list.append(features)
-            attention_list.append(attention_mask)
-            total_samples_processed += stride
+            full_transcription = decode_timestamps(
+                predicted_ids, processor, duration_per_id_sec, time_offset
+            )
+            last_length = len(buffer)
+            ws.send(full_transcription)
+            yield "".join(p for p, _, _ in full_transcription)
 
-            # accumulate features for 500ms (25 sets of 20ms) before applying transformer
-            if len(feature_list) % transformer_interval == 0:
-                predicted_ids = run_transformer_on_features(
-                    model,
-                    torch.cat(feature_list, dim=1),
-                    torch.cat(attention_list, dim=1),
-                )
-                full_transcription = decode_timestamps(
-                    predicted_ids, processor, duration_per_id_sec, time_offset
-                )
+        # calculate new accumulation size
+        seconds = time.perf_counter() - start
+        transcription_to_audio_time_ratio = seconds / accumulation_size * processor.feature_extractor.sampling_rate  # type: ignore
+        accumulation_size *= transcription_to_audio_time_ratio
 
-                ws.send(full_transcription)
-                yield "".join(p for p, _, _ in full_transcription)
+        # clear buffer but reserve last 80 samples
+        overlap_to_preserve = len(buffer) - overlap_interval
+        buffer = buffer[overlap_to_preserve:]
 
         if is_stop:
             if feature_list:  # Final update with any remaining features
