@@ -59,7 +59,8 @@ def clear_cache():
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
-    torch.mps.empty_cache()
+    if torch.backends.mps.is_available():
+        torch.mps.empty_cache()
 
 
 def load_model(model_id, device=DEVICE):
