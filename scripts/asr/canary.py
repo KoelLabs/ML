@@ -48,18 +48,18 @@ def canary_transcribe_from_array(wav_array):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_array_to_wav_file(wav_array, f.name)
 
-    ids = salm.generate(
-        prompts=[
-            [
-                {
-                    "role": "user",
-                    "content": f"Transcribe the speech in English: {salm.audio_locator_tag}",
-                    "audio": [f.name],
-                }
-            ]
-        ],
-        max_new_tokens=128,
-    )
+        ids = salm.generate(
+            prompts=[
+                [
+                    {
+                        "role": "user",
+                        "content": f"Transcribe the speech in English: {salm.audio_locator_tag}",
+                        "audio": [f.name],
+                    }
+                ]
+            ],
+            max_new_tokens=128,
+        )
     response = salm.tokenizer.ids_to_text(ids[0]).to(DEVICE)
 
     return response
