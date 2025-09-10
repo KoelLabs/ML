@@ -21,10 +21,9 @@ import torch
 import librosa
 import soundfile as sf
 import numpy as np
-from datasets import load_dataset
 from espnet2.bin.s2t_inference import Speech2Text
 from espnet2.bin.s2t_inference_language import Speech2Language
-
+from langcodes import standardize_tag
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # no mps support yet
 TARGET_SAMPLE_RATE = 16_000  # 16 kHz
@@ -38,7 +37,7 @@ MODEL_ID = "espnet/owsm_v3.1_ebf"
 # pyf98/owsm_ctc_v3.1_1B - 1.01B params, 180K audio hours
 # espnet/owsm_v3.2 - 367M params, 180K audio hours
 
-
+#######################################################################
 ####################### Language Identification #######################
 s2l = Speech2Language.from_pretrained(
     model_tag=MODEL_ID,
@@ -50,17 +49,17 @@ s2l = Speech2Language.from_pretrained(
 def owsm_detect_language_from_array(
     wav_array: np.ndarray,
 ):
-    assert (
-        wav_array.dtype == np.float64 and np.abs(wav_array).max() <= 1.0
-    ), "owsm expects float64 normalized pcm array"
+    assert wav_array.dtype == np.float64, "owsm expects float64 pcm array"
+    if np.abs(wav_array).max() > 1:
+        wav_array /= np.abs(wav_array).max()
 
     result = s2l(wav_array)
-    return result[0][0]
+    return standardize_tag(result[0][0].replace("<", "").replace(">", ""))
 
 
 #######################################################################
-
 ################################ ASR ##################################
+
 s2t = Speech2Text.from_pretrained(
     model_tag=MODEL_ID,
     device=DEVICE,
@@ -91,9 +90,9 @@ def owsm_transcribe_from_array(
     timestamps=False,
     translate: "tuple[str, str]" = ("eng", "eng"),
 ):
-    assert (
-        wav_array.dtype == np.float64 and np.abs(wav_array).max() <= 1.0
-    ), "owsm expects float64 normalized pcm array"
+    assert wav_array.dtype == np.float64, "owsm expects float64 pcm array"
+    if np.abs(wav_array).max() > 1:
+        wav_array /= np.abs(wav_array).max()
 
     # enable long-form decoding for audio longer than 30s
     long = len(wav_array) > 30 * TARGET_SAMPLE_RATE
@@ -122,7 +121,6 @@ def owsm_transcribe_from_array(
 
 
 #######################################################################
-
 ########################## Data Processing ############################
 
 
@@ -142,19 +140,22 @@ def file_to_array(filename):
 
 
 #######################################################################
+############################ Example usage ############################
 
-# Example usage
-print("Analyzing first sample from Common Accent")
-ds = load_dataset("DTU54DL/common-accent")
-testset = ds["test"]  # type: ignore
+if __name__ == "__main__":
+    from datasets import load_dataset
 
-sample = testset[0]
-array = hugging_face_sample_to_array(sample)
-print("Language", owsm_detect_language_from_array(array))
-print("Transcription", owsm_transcribe_from_array(array))
+    print("Analyzing first sample from Common Accent")
+    ds = load_dataset("DTU54DL/common-accent")
+    testset = ds["test"]  # type: ignore
 
-print("Analyzing a file from TIMIT")
-filename = "/Users/alex/Desktop/CS/Startups/Koel/ML/data/ExamplesWithComments/TIMIT_sample_0.wav"
-array = file_to_array(filename)
-print("Language", owsm_detect_language_from_array(array))
-print("Transcription", owsm_transcribe_from_array(array))
+    sample = testset[0]
+    array = hugging_face_sample_to_array(sample)
+    print("Language", owsm_detect_language_from_array(array))
+    print("Transcription", owsm_transcribe_from_array(array))
+
+    print("Analyzing a file from TIMIT")
+    filename = "/Users/alex/Desktop/CS/Startups/Koel/ML/data/ExamplesWithComments/TIMIT_sample_0.wav"
+    array = file_to_array(filename)
+    print("Language", owsm_detect_language_from_array(array))
+    print("Transcription", owsm_transcribe_from_array(array))

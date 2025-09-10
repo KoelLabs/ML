@@ -17,10 +17,9 @@ import os; os.environ["SB_LOG_LEVEL"] = "10000"  # fmt: skip
 ###############################################################
 
 import torch
-import librosa
 import numpy as np
-from datasets import load_dataset
 from speechbrain.inference.classifiers import EncoderClassifier
+from langcodes import standardize_tag
 
 MODEL_ID = "speechbrain/lang-id-voxlingua107-ecapa"  # hugging face id or local folder
 
@@ -28,30 +27,27 @@ model = EncoderClassifier.from_hparams(source=MODEL_ID)
 assert model, "Failed to load the model. Check the path and try again."
 
 
-def identify_language(sample):
-    audio = sample["audio"]
-    wav_array = audio["array"]
-    sample_rate = audio["sampling_rate"]
-
+def identify_language(wav_array):
     # speechbrain expects float32 normalized pcm array
-    if wav_array.dtype != np.float32 or np.abs(wav_array).max() > 1:
-        wav_array = wav_array.astype(np.float32) / 32768
-
-    # resample to 16 kHz
-    TARGET_SAMPLING_RATE = 16_000
-    if sample_rate != TARGET_SAMPLING_RATE:
-        wav_array = librosa.resample(
-            wav_array, orig_sr=sample_rate, target_sr=TARGET_SAMPLING_RATE
-        )
+    if wav_array.dtype != np.float32:
+        wav_array = wav_array.astype(np.float32)
+    if np.abs(wav_array).max() > 1:
+        wav_array /= np.abs(wav_array).max()
 
     # add batch dimension
     signal = torch.from_numpy(wav_array).unsqueeze(0)
     prediction = model.classify_batch(signal)  # type: ignore
-    return prediction[3][0]
+    return standardize_tag(prediction[3][0].split(": ")[0])
 
 
-ds = load_dataset("DTU54DL/common-accent")
-testset = ds["test"]  # type: ignore
+#######################################################################
+############################ Example usage ############################
 
-sample = testset[0]
-print(identify_language(sample))
+if __name__ == "__main__":
+    from datasets import load_dataset
+
+    ds = load_dataset("DTU54DL/common-accent")
+    testset = ds["test"]  # type: ignore
+
+    sample = testset[0]
+    print(identify_language(sample))
