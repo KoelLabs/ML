@@ -32,11 +32,13 @@ class TIMITDataset(BaseDataset):
         )
         self.zip = zipfile.ZipFile(TIMIT_ZIP, "r")
         files = self.zip.namelist()
-        self.files = list(
-            set(
-                map(
-                    lambda x: x.split(".")[0],
-                    filter(lambda x: x.startswith("data/" + split.upper()), files),
+        self.files = sorted(
+            list(
+                set(
+                    map(
+                        lambda x: x.split(".")[0],
+                        filter(lambda x: x.startswith("data/" + split.upper()), files),
+                    )
                 )
             )
         )
