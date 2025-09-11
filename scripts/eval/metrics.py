@@ -36,6 +36,10 @@ def fer(prediction, ground_truth):
     )
 
 
+def cer(prediction, ground_truth):
+    return per(prediction, ground_truth)
+
+
 def wer(prediction, ground_truth):
     return jiwer_wer(ground_truth, prediction)
 
