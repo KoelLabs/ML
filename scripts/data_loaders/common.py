@@ -9,7 +9,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
 
 
-def show_sample(sample):
+def show_sample(sample, skip_plot=False, format_metadata=lambda x: x):
     import matplotlib.pyplot as plt
     from IPython.display import Audio, display
 
@@ -17,9 +17,10 @@ def show_sample(sample):
 
     print("IPA:", ipa)
     if metadata:
-        print("Metadata:", *metadata)
-    plt.plot(audio)
-    plt.show()
+        print("Metadata:", *format_metadata(metadata))
+    if not skip_plot:
+        plt.plot(audio)
+        plt.show()
     display(Audio(audio, rate=TARGET_SAMPLE_RATE))
 
 
