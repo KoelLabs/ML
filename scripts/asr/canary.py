@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#  Canary-Qwen2.5b: https://huggingface.co/nvidia/canary-canary-2.5b
+#  Canary-Qwen2.5b: https://huggingface.co/nvidia/canary-qwen-2.5b
 
 #  Nemo requirements:
 # "git+https://github.com/NVIDIA/NeMo.git@6294bc7708ce67522b92f5e9b6917ea0b2e23429#egg=nemo_toolkit[asr]"
@@ -21,7 +21,7 @@ from core.audio import audio_record_to_array, audio_file_to_array, TARGET_SAMPLE
 
 import torch
 import numpy as np
-from nemo.collections.speechlm2.models import SALM
+from nemo.collections.speechlm2.models import SALM  # type: ignore
 from core.audio import audio_array_to_wav_file
 
 from tempfile import NamedTemporaryFile
@@ -66,7 +66,7 @@ def canary_transcribe_from_array(wav_array):
 
 
 def canary_transcribe_from_file(input_path: str):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return canary_transcribe_from_array(wav_array)
 
 
