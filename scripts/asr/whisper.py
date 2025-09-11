@@ -31,38 +31,48 @@ def get_model(model_size):
     return _model
 
 
-def whisper_transcribe(input_path, model_size="small"):
-    return get_model(model_size).transcribe(input_path, language="en")
+def whisper_transcribe(input_path, model="small", language="en"):
+    return get_model(model).transcribe(input_path, language=language)
 
 
-def whisper_transcribe_timestamped(input_path, model_size="small"):
-    return get_model(model_size).transcribe(
-        input_path, language="en", word_timestamps=True
+def whisper_transcribe_timestamped(input_path, model="small", language="en"):
+    return get_model(model).transcribe(
+        input_path, language=language, word_timestamps=True
     )
 
 
-def whisper_transcribe_from_array(wav_array, model_size="small"):
+def whisper_transcribe_from_array(wav_array, model="small", language="en"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_array_to_wav_file(wav_array, f.name)
-        return whisper_transcribe(f.name, model_size=model_size)
+        return whisper_transcribe(f.name, model=model, language=language)
 
 
-def whisper_transcribe_timestamped_from_array(wav_array, model_size="small"):
+def whisper_transcribe_timestamped_from_array(wav_array, model="small", language="en"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_array_to_wav_file(wav_array, f.name)
-        return whisper_transcribe_timestamped(f.name, model_size=model_size)
+        return whisper_transcribe_timestamped(f.name, model=model, language=language)
 
 
-def whisper_transcribe_from_mic(model_size="small"):
+def whisper_transcribe_from_mic(model="small", language="en"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_record_to_file(f.name)
-        return whisper_transcribe(f.name, model_size=model_size)
+        return whisper_transcribe(f.name, model=model, language=language)
 
 
-def whisper_transcribe_timestamped_from_mic(model_size="small"):
+def whisper_transcribe_timestamped_from_mic(model="small", language="en"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_record_to_file(f.name)
-        return whisper_transcribe_timestamped(f.name, model_size=model_size)
+        return whisper_transcribe_timestamped(f.name, model=model, language=language)
+
+
+def whisper_output_to_text(output, timestamped=False):
+    if hasattr(output, "text"):
+        return output["text"]
+    segments, _ = output
+    if timestamped:
+        return " ".join(word.word for segment in segments for word in segment.words)
+    else:
+        return " ".join(segment.text for segment in segments)
 
 
 def display_whisper_result(segments, info, timestamped):

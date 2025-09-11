@@ -73,6 +73,7 @@ class L2ArcticDataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        max_phonemes=None,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
@@ -90,6 +91,7 @@ class L2ArcticDataset(BaseDataset):
                 ),
             )
         )
+        self.max_phonemes = max_phonemes
         self.vocab = set(IPA2ARPABET.keys())
 
     def __del__(self):
@@ -149,6 +151,20 @@ class L2ArcticDataset(BaseDataset):
             ]
             # print(timestamped_phonemes)
             ipa = "".join([x[0] for x in timestamped_phonemes])
+
+        if self.max_phonemes is not None:
+            timestamped_phonemes = timestamped_phonemes[: self.max_phonemes]
+            ipa = "".join([x[0] for x in timestamped_phonemes])
+            audio = audio[: timestamped_phonemes[-1][2]]
+
+            if self.include_text:
+                words = tg.interval_tier_to_array("words")
+                text = " ".join(
+                    c["label"]
+                    for c in words
+                    if c["label"]
+                    if c["end"] <= timestamped_phonemes[-1][2] / TARGET_SAMPLE_RATE
+                )
 
         result = [ipa, audio]
         if self.include_timestamps:

@@ -70,8 +70,10 @@ class SpeechAccentDataset(BaseDataset):
         include_speaker_info=False,
         include_text=False,
         include_samples_without_phonemes=False,
+        max_phonemes=None,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
+        self.max_phonemes = max_phonemes
 
         assert split in VALID_SPLITS, (
             split + " is not a valid split in " + str(VALID_SPLITS)
@@ -155,10 +157,20 @@ class SpeechAccentDataset(BaseDataset):
                 for c in phonemes
                 if c["label"] and c["label"] not in ["sil", "<p:>", "(...)"]
             ]
+            if self.max_phonemes is not None:
+                timestamped_phonemes = timestamped_phonemes[: self.max_phonemes]
+                audio = audio[: timestamped_phonemes[-1][2]]
             ipa = "".join(t[0] for t in timestamped_phonemes)
 
             # TODO: clean up word annotations instead of this approximated processing
             words = tg.interval_tier_to_array(word_tier)
+            if self.max_phonemes is not None:
+                words = [
+                    w
+                    for w in words
+                    if int(w.get("xmin", w["begin"]) * TARGET_SAMPLE_RATE)
+                    <= timestamped_phonemes[-1][2]
+                ]
             to_remove = [
                 "chatter",
                 "chatter2",

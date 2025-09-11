@@ -1,0 +1,17 @@
+mms
+there is a man and a woman walking with green suitcases and then suddenly they bump into each other the man and woman appear very dizzy and when they stand up they grab their suitcases and walk away but then the man arrives at a hotel and sees that there is a red dress in his suitcase and he looks very confused and embarrassed and likewise the woman opens her suitcase and finds a striped yellow and black tie the woman also seems very surprised
+
+whisper
+There is a man and a woman walking with green suitcases and then suddenly they bump into each other. The man and woman appear very dizzy and when they stand up they grab their suitcases and walk away. But then the man arrives at a hotel and sees that there is a red dress in his suitcase and he looks very confused and embarrassed. And likewise the woman opens her suitcase and finds a striped yellow and black tie. The woman also seems very surprised.
+
+owsm
+there is a man and a woman walking with green suitcases and then suddenly they bump into each other the man and woman appear very dizzy and when they stand up they grab their suitcases and walk away but then the man arrives at a hotel and she sees that there is a red dress in his suitcase and he looks very confused and embarrassed and likewise the woman opens her suitcase and finds a striped yellow and black tie the woman also seems very surprised
+
+wavlm
+thereis a man and a woman waking with green ucases and en sudenly bey bumpin to ech other thmananwoman apurvry diy in when they stand up the gra ther sucases nd wak awaa then the man aris at a hut an ses that theres a red dress inhissuase and he looks very confsd n embarres and likewise the woman opens ersucase an fins  strip yellow and blak ti the woman olsosems very surpris
+
+wav2vec2
+THERE IS A MAN AND A WOMAN WALKING WITH GREEN SUIT CASES AND THEN SUDDENLY THEY BUMP INTO EACH OTHER THE MAN AND WOMAN APPEAR VERY DIZZY AND WHEN THEY STAND UP THEY GRAB THEIR SUIT CASES AND WALK AWAY BUT THEN THE MAN ARRIVES AT A HOTEL AND SEES THAT THERE IS A RED DRESS IN HIS SUIT CASE AND HE LOOKS VERY CONFUSED AND EMBARRASSED AND LIKEWIVES THE WOMAN OPENS HER SUIT CASE AND FINDS A STRIPED YELLOW AND BLACK TIE THE WOMAN ALSO SEEMS VERY SURPRISED
+
+qwen
+There is a man and a woman walking with green suitcases, and then suddenly they bump into each other. The man and woman appear very dizzy. And when they stand up, they grab their suitcases and walk away. But then the man arrives at a hotel and sees that there is a red dress in his suitcase, and he looks very confused and embarrassed. And likewise, the woman opens her suitcase and finds a striped yellow and black tie. The woman also seems very surprised.
