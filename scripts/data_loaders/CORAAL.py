@@ -10,7 +10,7 @@ import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
-from core.audio import audio_bytes_to_array
+from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
 
 SOURCE_SAMPLE_RATE = 44100
 DATA_BASE_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "CORAAL")
@@ -21,9 +21,14 @@ class CORAALDataset(BaseDataset):
     """Warning, ipa not implemented yet, provides text transcription instead"""
 
     def __init__(
-        self, split="ATL", include_timestamps=False, include_speaker_info=False
+        self,
+        split="ATL",
+        include_timestamps=False,
+        include_speaker_info=False,
+        include_text=False,
+        crop_to_first_sample=False,
     ):
-        super().__init__(split, include_timestamps, include_speaker_info)
+        super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
         if include_timestamps:
             raise NotImplementedError("Timestamps are available but not parsed yet.")
@@ -33,6 +38,7 @@ class CORAALDataset(BaseDataset):
         self.metadata = pd.read_csv(
             os.path.join(DATA_BASE_DIR, f"{split}-metadata.txt"), sep="\t"
         )
+        self.crop_to_first_sample = crop_to_first_sample
 
     def __len__(self):
         return len(self.metadata)
@@ -59,10 +65,28 @@ class CORAALDataset(BaseDataset):
                 with tar.extractfile(filename + ".wav") as wav_file:  # type: ignore
                     audio = audio_bytes_to_array(wav_file.read(), SOURCE_SAMPLE_RATE)
 
+        if self.crop_to_first_sample:
+            first_non_empty_ix = next(
+                i
+                for i, p in enumerate(list(transcript["Content"]))
+                if not p.startswith("(")
+            )
+            transcript = transcript.iloc[first_non_empty_ix : first_non_empty_ix + 1]
+            audio = audio[
+                int(transcript.iloc[0]["StTime"] * TARGET_SAMPLE_RATE) : int(
+                    transcript.iloc[0]["EnTime"] * TARGET_SAMPLE_RATE
+                )
+            ]
+
+        result = [transcript, audio]
         if self.include_speaker_info:
-            return transcript, audio, row.to_dict()
-        else:
-            return transcript, audio
+            result.append(row.to_dict())
+        if self.include_text:
+            result[0] = None
+            result.append(
+                " ".join([p for p in transcript["Content"] if not p.startswith("(")])
+            )
+        return tuple(result)
 
     def search_transcript(self, query, flags=re.IGNORECASE):
         for i, row in self.metadata.iterrows():
@@ -97,7 +121,7 @@ class CORAALDataset(BaseDataset):
 
 
 if __name__ == "__main__":
-    data = CORAALDataset(include_speaker_info=True)
+    data = CORAALDataset(include_text=True, crop_to_first_sample=True)
     print(len(data))
 
     example = next(data.search_transcript(" aks "))
