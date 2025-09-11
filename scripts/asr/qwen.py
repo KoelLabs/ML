@@ -15,7 +15,7 @@ from transformers import Qwen2AudioProcessor, Qwen2AudioForConditionalGeneration
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()
-    else "mps" if torch.backends.mps.is_available() else "cpu"
+    else "cpu" if torch.backends.mps.is_available() else "cpu"
 )
 
 model_id = "Qwen/Qwen2-Audio-7B"
@@ -50,7 +50,7 @@ def qwen_transcribe_from_array(wav_array):
 
 
 def qwen_transcribe_from_file(input_path: str):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return qwen_transcribe_from_array(wav_array)
 
 

@@ -91,7 +91,7 @@ def owsm_transcribe_from_file(
     timestamps=False,
     translate: "tuple[str, str]" = ("eng", "eng"),
 ):
-    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768  # type: ignore
     return owsm_transcribe_from_array(
         wav_array, text_prompt, naive_long, timestamps, translate
     )
