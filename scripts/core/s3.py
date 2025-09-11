@@ -118,7 +118,7 @@ if __name__ == "__main__":
     parser.add_argument("--prefix", default="")
     parser.add_argument("--key", default="")
     parser.add_argument("--file-path", default="")
-    parser.add_argument("--expiration", type=int, default=3600)
+    parser.add_argument("--expiration", type=int, default=3600)  # seconds
 
     args = parser.parse_args()
     main(args)
