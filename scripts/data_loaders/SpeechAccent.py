@@ -5,11 +5,16 @@ import sys
 
 import zipfile
 import textgrids
+import numpy as np
 import pandas as pd
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset
-from core.audio import audio_bytes_to_wav_array, audio_file_to_array, TARGET_SAMPLE_RATE
+from core.audio import (
+    audio_bytes_to_wav_array,
+    audio_file_to_array,
+    TARGET_SAMPLE_RATE,
+)
 from core.codes import xsampa2ipa, arpabet2ipa
 
 KAGGLE_ZIP = os.path.join(
@@ -24,6 +29,30 @@ FULL_DATASET_METADATA = os.path.join(
 # FULL_DATASET_WAVS = os.path.join(FULL_DATASET, "processed_wav_files")
 FULL_DATASET_TRANSCRIPTS = os.path.join(FULL_DATASET, "textgrids")
 VALID_SPLITS = ["full", "kaggle"]
+
+WORD_LIST = {'please', 'call', 'stella', 'stellaw', 'ask', 'her', 'to', 'bring', 'these', 'things', 'with', 'from', 'the', 'store', 'six', 'spoons', 'of', 'fresh', 'snowpeas', 'five', 'thick', 'slabs', 'blue', 'cheese', 'and', 'maybe', 'a', 'snack', 'for', 'brother', 'bob', 'we', 'also', 'need', 'small', 'plastic', 'snake', 'big', 'toy', 'frog', 'for', 'kids', 'she', 'can', 'scoop', 'things', 'into', 'three', 'red', 'bags', 'we', 'will', 'go', 'meet', 'her', 'wednesday', 'at', 'train', 'station', 'stationx', '-del', 'sp'} # fmt: skip
+
+
+def split_words_with_dictionary(text, word_list=WORD_LIST):
+    n = len(text)
+    dp = [False] * (n + 1)
+    dp[0] = True
+    result = [[]] * (n + 1)
+
+    for i in range(1, n + 1):
+        for j in range(i):
+            if dp[j]:
+                word = text[j:i]
+                if word.lower() in word_list:
+                    dp[i] = True
+                    if j == 0:
+                        result[i] = [word]
+                    else:
+                        result[i] = result[j] + [word]
+                    break
+
+    assert dp[n], text
+    return result[n] if dp[n] else text
 
 
 def _textgrid_contains_tier(textgrid_path, tier):
@@ -116,6 +145,7 @@ class SpeechAccentDataset(BaseDataset):
             if phonemes[0]["label"].startswith("(...)"):
                 phone2ipa = lambda x: x
 
+            # TODO: use rtf files to fix textgrid annotations for IPA
             timestamped_phonemes = [
                 (
                     phone2ipa(c["label"]).removeprefix("(...)"),
@@ -127,9 +157,71 @@ class SpeechAccentDataset(BaseDataset):
             ]
             ipa = "".join(t[0] for t in timestamped_phonemes)
 
-            # TODO: clean up word parsing
+            # TODO: clean up word annotations instead of this approximated processing
             words = tg.interval_tier_to_array(word_tier)
-            text = " ".join(c["label"] for c in words if c["label"])
+            to_remove = [
+                "chatter",
+                "chatter2",
+                "selfintroduction",
+                "self-talk",
+                "experimenter_comments_taketwo",
+            ]
+            offset = 0
+            for word in words:
+                if word["label"].strip() in to_remove:
+                    start, end = int(
+                        word.get("xmin", word["begin"]) * TARGET_SAMPLE_RATE
+                    ), int(word.get("xmax", word["end"]) * TARGET_SAMPLE_RATE)
+                    before = audio[: start - offset]
+                    after = audio[end - offset :]
+                    audio = np.append(before, after)
+                    offset += end - start
+            text = " ".join(
+                c["label"].strip()
+                for c in words
+                if c["label"] and c["label"] not in [*to_remove, "sil", "sp"]
+            )
+            text = text.replace("`", "")
+            text = (
+                text.replace("-noise", "")
+                .replace("-hes", "")
+                .replace("-insrt", "")
+                .replace("-laugh", "")
+                .replace("-sub", "")
+                .replace("-missing", "")
+                .replace("-birdsinging", "")
+                .replace("-cough", "")
+                .replace("-check-as", "")
+                .replace("-check", "")
+                .replace("-change", "")
+                .replace("-experimenterspeechinbackground", "")
+                .replace("-missound", "")
+                .replace("-rep-del", "")
+                .replace("-jes", "")
+                .replace("1", "")
+                .replace("_s", "")
+                .replace("-regroup", "")
+                .replace("-kof", "")
+            )
+            text = text.replace("2", "to")
+            parts = (
+                (
+                    (t.replace("-rep", ""), t.replace("-rep", ""))
+                    if t.endswith("-rep")
+                    else (t,)
+                )
+                for t in text.split(" ")
+            )
+            parts = (t.removesuffix("-").removesuffix("-rep") for p in parts for t in p)
+            parts = [
+                w for t in parts for w in split_words_with_dictionary(t) if w != "sp"
+            ]
+            while "-del" in parts:
+                ix = parts.index("-del")
+                parts = parts[: ix - 1] + parts[ix + 1 :]
+            parts = ("stella" if p == "stellaw" else p for p in parts)
+            parts = ("station" if p == "stationx" else p for p in parts)
+            text = " ".join(parts)
 
             sample_id = (
                 transcript_path.split(os.path.sep)[-1].removesuffix(".TextGrid")
