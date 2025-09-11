@@ -10,47 +10,59 @@ from tempfile import NamedTemporaryFile
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_record_to_file, audio_array_to_wav_file
 
-# model_size = "large-v3"
-model_size = "small"
-
-if torch.cuda.is_available():
-    # Run on GPU with FP16
-    model = WhisperModel(model_size, device="cuda", compute_type="float16")
-else:
-    # Run on CPU with INT8
-    model = WhisperModel(model_size, device="cpu", compute_type="int8")
+_model_size = "small"  # other options: large-v1, large-v2, large-v3
+_model = None
 
 
-def whisper_transcribe(input_path):
-    return model.transcribe(input_path, language="en")
+def get_model(model_size):
+    global _model, _model_size
+
+    if _model is not None and model_size == _model_size:
+        return _model
+
+    _model_size = model_size
+    if torch.cuda.is_available():
+        # Run on GPU with FP16
+        _model = WhisperModel(model_size, device="cuda", compute_type="float16")
+    else:
+        # Run on CPU with INT8
+        _model = WhisperModel(model_size, device="cpu", compute_type="int8")
+
+    return _model
 
 
-def whisper_transcribe_timestamped(input_path):
-    return model.transcribe(input_path, language="en", word_timestamps=True)
+def whisper_transcribe(input_path, model_size="small"):
+    return get_model(model_size).transcribe(input_path, language="en")
 
 
-def whisper_transcribe_from_array(wav_array):
+def whisper_transcribe_timestamped(input_path, model_size="small"):
+    return get_model(model_size).transcribe(
+        input_path, language="en", word_timestamps=True
+    )
+
+
+def whisper_transcribe_from_array(wav_array, model_size="small"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_array_to_wav_file(wav_array, f.name)
-        return whisper_transcribe(f.name)
+        return whisper_transcribe(f.name, model_size=model_size)
 
 
-def whisper_transcribe_timestamped_from_array(wav_array):
+def whisper_transcribe_timestamped_from_array(wav_array, model_size="small"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_array_to_wav_file(wav_array, f.name)
-        return whisper_transcribe_timestamped(f.name)
+        return whisper_transcribe_timestamped(f.name, model_size=model_size)
 
 
-def whisper_transcribe_from_mic():
+def whisper_transcribe_from_mic(model_size="small"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_record_to_file(f.name)
-        return whisper_transcribe(f.name)
+        return whisper_transcribe(f.name, model_size=model_size)
 
 
-def whisper_transcribe_timestamped_from_mic():
+def whisper_transcribe_timestamped_from_mic(model_size="small"):
     with NamedTemporaryFile(suffix=".wav") as f:
         audio_record_to_file(f.name)
-        return whisper_transcribe_timestamped(f.name)
+        return whisper_transcribe_timestamped(f.name, model_size=model_size)
 
 
 def display_whisper_result(segments, info, timestamped):
