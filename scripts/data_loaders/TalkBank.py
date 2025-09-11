@@ -105,7 +105,7 @@ class TalkBankDataset(BaseDataset):
 
         ipa = ""
         timestamped_phonemes = []
-        print(utterance.tiers[utterance.participant])
+        # print(utterance.tiers[utterance.participant])
         text = " ".join(
             " ".join(
                 re.sub(r"[^a-zA-Z]", "", w.split("@")[0])
