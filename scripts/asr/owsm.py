@@ -14,7 +14,11 @@ import numpy as np
 from espnet2.bin.s2t_inference import Speech2Text
 
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # no mps support yet
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
 
 # valid model ids:
 # espnet/owsm_v3 - 889M params, 180K audio hours
@@ -27,15 +31,23 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # no mps support yet
 
 s2t = Speech2Text.from_pretrained(
     model_tag="espnet/owsm_v3.1_ebf",
-    device=DEVICE,
+    device=DEVICE.replace("mps", "cpu"),
     beam_size=5,
     ctc_weight=0.0,
-    maxlenratio=0.0,
+    maxlenratio=0.0,  # if it seems to not terminate, set this to a small value like 0.05
     # below are default values which can be overwritten in __call__
     lang_sym="<eng>",
     task_sym="<asr>",
     predict_time=False,
 )
+if DEVICE == "mps":
+    s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
+    s2t.beam_search.to(device=DEVICE, dtype=torch.float32).eval()
+    for scorer in s2t.beam_search.scorers.values():
+        if isinstance(scorer, torch.nn.Module):
+            scorer.to(device=DEVICE, dtype=torch.float32).eval()
+    s2t.dtype = "float32"
+    s2t.device = DEVICE
 
 
 def _naive_decode_long(wav_array, config, chunk_size=30 * TARGET_SAMPLE_RATE):

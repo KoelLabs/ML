@@ -25,7 +25,11 @@ from espnet2.bin.s2t_inference import Speech2Text
 from espnet2.bin.s2t_inference_language import Speech2Language
 from langcodes import standardize_tag
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # no mps support yet
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
 TARGET_SAMPLE_RATE = 16_000  # 16 kHz
 MODEL_ID = "espnet/owsm_v3.1_ebf"
 # valid model ids:
@@ -41,9 +45,13 @@ MODEL_ID = "espnet/owsm_v3.1_ebf"
 ####################### Language Identification #######################
 s2l = Speech2Language.from_pretrained(
     model_tag=MODEL_ID,
-    device=DEVICE,
+    device=DEVICE.replace("mps", "cpu"),
     nbest=3,  # return nbest prediction and probability
 )
+if DEVICE == "mps":
+    s2l.s2t_model.to(device=DEVICE, dtype=torch.float32)
+    s2l.dtype = "float32"
+    s2l.device = DEVICE
 
 
 def owsm_detect_language_from_array(
@@ -62,7 +70,7 @@ def owsm_detect_language_from_array(
 
 s2t = Speech2Text.from_pretrained(
     model_tag=MODEL_ID,
-    device=DEVICE,
+    device=DEVICE.replace("mps", "cpu"),
     beam_size=5,
     ctc_weight=0.0,
     maxlenratio=0.0,
@@ -71,6 +79,14 @@ s2t = Speech2Text.from_pretrained(
     task_sym="<asr>",
     predict_time=False,
 )
+if DEVICE == "mps":
+    s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
+    s2t.beam_search.to(device=DEVICE, dtype=torch.float32).eval()
+    for scorer in s2t.beam_search.scorers.values():
+        if isinstance(scorer, torch.nn.Module):
+            scorer.to(device=DEVICE, dtype=torch.float32).eval()
+    s2t.dtype = "float32"
+    s2t.device = DEVICE
 
 
 def _naive_decode_long(wav_array, config, chunk_size=30 * TARGET_SAMPLE_RATE):

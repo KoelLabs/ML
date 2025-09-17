@@ -14,13 +14,21 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_file_to_array, audio_record_to_array
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"  # no mps support yet
+DEVICE = (
+    "cuda"
+    if torch.cuda.is_available()
+    else "mps" if torch.backends.mps.is_available() else "cpu"
+)
 
 s2l = Speech2Language.from_pretrained(
     model_tag="espnet/owsm_v3.1_ebf",
-    device=DEVICE,
+    device=DEVICE.replace("mps", "cpu"),
     nbest=3,  # return nbest prediction and probability
 )
+if DEVICE == "mps":
+    s2l.s2t_model.to(device=DEVICE, dtype=torch.float32)
+    s2l.dtype = "float32"
+    s2l.device = DEVICE
 
 
 def owsm_detect_language_from_array(
