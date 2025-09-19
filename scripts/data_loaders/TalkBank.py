@@ -79,6 +79,7 @@ class TalkBankDataset(BaseDataset):
             )
             for utterance in transcript  # type: ignore
             if len(re.sub(r"[^a-zA-Z]", "", utterance.tiers[utterance.participant])) > 0
+            and utterance.time_marks is not None
         ]
 
     def __del__(self):
