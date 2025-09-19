@@ -91,8 +91,9 @@ class L1ArcticDataset(BaseDataset):
                 )
                 continue
 
-            wav_files = glob.glob(os.path.join(wav_dir, "*.wav"))
-
+            wav_files = sorted(glob.glob(os.path.join(wav_dir, "*.wav")))[
+                :TOTAL_UTTERANCES_PER_SPEAKER
+            ]
             # Add each wav file and its corresponding text to the index
             for wav_path in wav_files:
                 filename = os.path.basename(wav_path)
@@ -134,6 +135,7 @@ class L1ArcticDataset(BaseDataset):
         if self.include_speaker_info:
             speaker_info = SPEAKERS[sample["speaker"]]
             result.append(speaker_info)
+            result.append(sample["speaker"])
 
         return tuple(result)
 
@@ -162,7 +164,7 @@ if __name__ == "__main__":
         speaker_list=["bdl"],
     )
 
-    print(f"\nLoaded {len(bdl_dataset)} samples for speaker 'bdl'")
+    # print(f"\nLoaded {len(bdl_dataset)} samples for speaker 'bdl'")
 
     if len(bdl_dataset) > 0:
         bdl_sample = bdl_dataset[0]

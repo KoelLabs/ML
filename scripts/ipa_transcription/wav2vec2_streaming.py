@@ -208,7 +208,7 @@ def stream_cnn_chunked_transformer(
         new_features.append(features.shape[1])
         feature_list.append(features)
         attention_list.append(attention_mask)
-    
+
         print(
             "number of features extracted so far", sum(f.shape[1] for f in feature_list)
         )
