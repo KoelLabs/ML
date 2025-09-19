@@ -87,6 +87,7 @@ def transcribe(
         processed["input_values"].type(torch.float32).to(model.device)
     )
     processed["attention_mask"] = processed["attention_mask"].to(model.device)
+    print("processed attention", processed["attention_mask"])
     with torch.no_grad():
         logits = model(**processed).logits
 
@@ -179,7 +180,6 @@ def stream_cnn_chunked_transformer(
     model: Wav2Vec2ForCTC,
     receptive=400,
     stride=320,
-    transformer_interval=25,
     duration_per_id_sec=0.020,
 ):
     chunk_size = receptive * np.dtype(np.float32).itemsize  # 1600 bytes
@@ -190,25 +190,32 @@ def stream_cnn_chunked_transformer(
     attention_list = []
     time_offset = 0.0  # NOTE: this value should be getting updated if you don't run the full audio to transformer
     full_transcription = []
-    accumulation_size = receptive
-    last_length = 0
+    accumulation_size = receptive * np.dtype(np.float32).itemsize
     start = 0
-
+    new_features = []
     while True:
         data = ws.receive()
+
         is_stop = isinstance(data, str) and data == "stop"
+
         if not is_stop:
             buffer += data
 
         audio = np.frombuffer(buffer, dtype=np.float32)
-
         features, attention_mask = extract_features_only(
             processor, model, receptive, audio
         )
+        new_features.append(features.shape[1])
         feature_list.append(features)
         attention_list.append(attention_mask)
+    
+        print(
+            "number of features extracted so far", sum(f.shape[1] for f in feature_list)
+        )
         # accumulate features based on dynamic accumalation size
-        if len(buffer) - last_length > accumulation_size:
+        if (
+            len(new_features) > accumulation_size
+        ):  # amount_new_features_transformer_has_not_seen
             start = time.perf_counter()
             predicted_ids = run_transformer_on_features(
                 model,
@@ -218,15 +225,14 @@ def stream_cnn_chunked_transformer(
             full_transcription = decode_timestamps(
                 predicted_ids, processor, duration_per_id_sec, time_offset
             )
-            last_length = len(buffer)
+
             ws.send(full_transcription)
             yield "".join(p for p, _, _ in full_transcription)
-
-        # calculate new accumulation size
-        seconds = time.perf_counter() - start
-        transcription_to_audio_time_ratio = seconds / accumulation_size * processor.feature_extractor.sampling_rate  # type: ignore
-        accumulation_size *= transcription_to_audio_time_ratio
-
+            # calculate new accumulation size
+            current = time.perf_counter()
+            seconds = current - start
+            accumulation_size = len(new_features) / seconds  # type: ignore
+            new_features = []
         # clear buffer but reserve last 80 samples
         overlap_to_preserve = len(buffer) - overlap_interval
         buffer = buffer[overlap_to_preserve:]
@@ -258,27 +264,34 @@ def extract_features_only(processor, model, receptive, audio: np.ndarray):
 
     input_values = inputs.input_values.type(torch.float32).to(model.device)
     attention_mask = inputs.attention_mask.to(model.device)
+
     with torch.no_grad():
         extract_features = model.wav2vec2.feature_extractor(input_values)  # (B, C, T')
         extract_features = extract_features.transpose(1, 2)  # (B, T', C)
-        attention_mask = model.wav2vec2._get_feature_vector_attention_mask(
+        attention_masks = model.wav2vec2._get_feature_vector_attention_mask(
             extract_features.shape[1], attention_mask, add_adapter=False
         )
+        print("feature extractor attention masks look like", attention_masks)
         hidden_states, _ = model.wav2vec2.feature_projection(extract_features)
         hidden_states = model.wav2vec2._mask_hidden_states(
-            hidden_states, attention_mask=attention_mask
+            hidden_states, attention_mask=attention_masks
         )
-    return hidden_states, attention_mask
+    return hidden_states, attention_masks
 
 
 def run_transformer_on_features(
     model, features: torch.Tensor, attention_mask: torch.LongTensor
 ):
     """Run transformer from features and get predicted ids"""
+    print("CALLED TRANSFORMER", time.perf_counter())
     encoder_outputs = model.wav2vec2.encoder(features, attention_mask=attention_mask)
     hidden_states = model.lm_head(encoder_outputs[0])
     predicted_ids = torch.argmax(hidden_states, dim=-1)[0].tolist()
     return predicted_ids
+
+
+# python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_1.wav stream_naive_chunked
+# python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_1.wav stream_cnn_chunked_transformer
 
 
 # ==================================== CLI ====================================
