@@ -1,17 +1,33 @@
 import os
-import glob
-import numpy as np
-from scipy.io import wavfile
-import re
-
 import sys
-
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from data_loaders.common import BaseDataset
+import glob
+import re
 
 # go back two directories
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from scripts.core.text import remove_punctuation
+from scripts.core.audio import audio_bytes_to_array
+from scripts.data_loaders.common import BaseDataset
+
+SPEAKERS = {
+    "aew": {"sex": "male", "lang": "US English", "accent": "US"},
+    "ahw": {"sex": "male", "lang": "US English", "accent": "German"},
+    "aup": {"sex": "male", "lang": "US English", "accent": "Indian"},
+    "awb": {"sex": "male", "lang": "US English", "accent": "Scottish"},
+    "axb": {"sex": "female", "lang": "US English", "accent": "Indian"},
+    "bdl": {"sex": "male", "lang": "US English", "accent": "US"},
+    "clb": {"sex": "female", "lang": "US English", "accent": "US"},
+    "eey": {"sex": "female", "lang": "US English", "accent": "US"},
+    "fem": {"sex": "male", "lang": "US English", "accent": "Irish"},
+    "gka": {"sex": "male", "lang": "US English", "accent": "Indian"},
+    "jmk": {"sex": "male", "lang": "US English", "accent": "Canadian"},
+    "ksp": {"sex": "male", "lang": "US English", "accent": "Indian"},
+    "ljm": {"sex": "female", "lang": "US English", "accent": "US"},
+    "lnh": {"sex": "female", "lang": "US English", "accent": "US"},
+    "rms": {"sex": "male", "lang": "US English", "accent": "US"},
+    "rxr": {"sex": "male", "lang": "US English", "accent": "Dutch"},
+    "slp": {"sex": "female", "lang": "US English", "accent": "Indian"},
+    "slt": {"sex": "female", "lang": "US English", "accent": "US"},
+}
 
 
 class L1ArcticDataset(BaseDataset):
@@ -30,30 +46,8 @@ class L1ArcticDataset(BaseDataset):
         self.include_speaker_info = include_speaker_info
         self.include_text = include_text
 
-        # Speaker information
-        self.SPEAKERS = {
-            "aew": {"sex": "male", "lang": "US English", "accent": "US"},
-            "ahw": {"sex": "male", "lang": "US English", "accent": "German"},
-            "aup": {"sex": "male", "lang": "US English", "accent": "Indian"},
-            "awb": {"sex": "male", "lang": "US English", "accent": "Scottish"},
-            "axb": {"sex": "female", "lang": "US English", "accent": "Indian"},
-            "bdl": {"sex": "male", "lang": "US English", "accent": "US"},
-            "clb": {"sex": "female", "lang": "US English", "accent": "US"},
-            "eey": {"sex": "female", "lang": "US English", "accent": "US"},
-            "fem": {"sex": "male", "lang": "US English", "accent": "Irish"},
-            "gka": {"sex": "male", "lang": "US English", "accent": "Indian"},
-            "jmk": {"sex": "male", "lang": "US English", "accent": "Canadian"},
-            "ksp": {"sex": "male", "lang": "US English", "accent": "Indian"},
-            "ljm": {"sex": "female", "lang": "US English", "accent": "US"},
-            "lnh": {"sex": "female", "lang": "US English", "accent": "US"},
-            "rms": {"sex": "male", "lang": "US English", "accent": "US"},
-            "rxr": {"sex": "male", "lang": "US English", "accent": "Dutch"},
-            "slp": {"sex": "female", "lang": "US English", "accent": "Indian"},
-            "slt": {"sex": "female", "lang": "US English", "accent": "US"},
-        }
-
         # Use specific speakers or all available ones
-        self.speaker_list = speaker_list if speaker_list else list(self.SPEAKERS.keys())
+        self.speaker_list = speaker_list if speaker_list else list(SPEAKERS.keys())
 
         # Build data index
         self._build_index()
@@ -131,22 +125,14 @@ class L1ArcticDataset(BaseDataset):
         """Get a sample from the dataset"""
         sample = self.data_samples[idx]
 
-        # Load audio data
-        sample_rate, audio_data = wavfile.read(sample["wav_path"])
+        with open(sample["wav_path"], "rb") as f:
+            audio = audio_bytes_to_array(f.read())
 
-        # Ensure the audio data is in 16-bit signed integer format
-        if audio_data.dtype != np.int16:
-            raise ValueError(
-                f"Expected 16-bit signed integer audio, but got {audio_data.dtype}"
-            )
-
-        result = [None, audio_data]
+        result = [None, audio]
         if self.include_text:
-            text = remove_punctuation(sample["text"].lower())
-            result.append(text)
-
+            result.append(sample["text"])
         if self.include_speaker_info:
-            speaker_info = self.SPEAKERS[sample["speaker"]]
+            speaker_info = SPEAKERS[sample["speaker"]]
             result.append(speaker_info)
 
         return tuple(result)
@@ -163,8 +149,8 @@ if __name__ == "__main__":
     sample = dataset[0]
 
     # Print information about the sample
-    audio, text, speaker_info = sample
-    print(f"Audio shape: {audio.shape}")
+    _, audio, text, speaker_info = sample  # type: ignore
+    print(f"Audio shape: {audio.shape}")  # type: ignore
     print(f"Speaker info: {speaker_info}")
     print(f"Text: {text}")
 
@@ -180,6 +166,6 @@ if __name__ == "__main__":
 
     if len(bdl_dataset) > 0:
         bdl_sample = bdl_dataset[0]
-        bdl_audio, bdl_text, bdl_speaker_info = bdl_sample
+        _, bdl_audio, bdl_text, bdl_speaker_info = bdl_sample  # type: ignore
         print(f"BDL speaker info: {bdl_speaker_info}")
         print(f"BDL text sample: {bdl_text}")
