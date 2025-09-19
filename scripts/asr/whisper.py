@@ -67,6 +67,8 @@ def whisper_transcribe_timestamped_from_mic(model="small", language="en"):
 
 def whisper_output_to_text(output, timestamped=False):
     if hasattr(output, "text"):
+        return getattr(output, "text")
+    if type(output) == dict and "text" in output:
         return output["text"]
     segments, _ = output
     if timestamped:
