@@ -179,7 +179,6 @@ def stream_cnn_chunked_transformer(
     model: Wav2Vec2ForCTC,
     receptive=400,
     stride=320,
-    transformer_interval=25,
     duration_per_id_sec=0.020,
 ):
     chunk_size = receptive * np.dtype(np.float32).itemsize  # 1600 bytes
@@ -188,61 +187,57 @@ def stream_cnn_chunked_transformer(
     buffer = b""
     feature_list = []
     attention_list = []
-    time_offset = 0.0  # NOTE: this value should be getting updated if you don't run the full audio to transformer
+    time_offset = 0  # NOTE: this value should be getting updated if you don't run the full audio to transformer
     full_transcription = []
-    accumulation_size = receptive
-    last_length = 0
+    accumulation_size = 1
     start = 0
-
+    num_new_features = 0
     while True:
-        data = ws.receive()
+        data: bytes = ws.receive()  # type: ignore
         is_stop = isinstance(data, str) and data == "stop"
         if not is_stop:
             buffer += data
 
-        audio = np.frombuffer(buffer, dtype=np.float32)
+        if len(buffer) > chunk_size:
+            num_chunks = (len(buffer) - chunk_size) // stride_interval + 1
+            num_full_chunk_bytes = num_chunks * stride_interval + overlap_interval
+            audio = np.frombuffer(buffer[:num_full_chunk_bytes], dtype=np.float32)
+            buffer = buffer[num_full_chunk_bytes - overlap_interval :]
 
-        features, attention_mask = extract_features_only(
-            processor, model, receptive, audio
-        )
-        feature_list.append(features)
-        attention_list.append(attention_mask)
+            features, attention_mask = extract_features_only(
+                processor, model, num_chunks * stride + receptive - stride, audio
+            )
+            assert num_chunks == features.shape[1]
+            num_new_features += features.shape[1]
+            feature_list.append(features)
+            attention_list.append(attention_mask)
+
         # accumulate features based on dynamic accumalation size
-        if len(buffer) - last_length > accumulation_size:
+        if num_new_features > (0 if is_stop else accumulation_size):
             start = time.perf_counter()
             predicted_ids = run_transformer_on_features(
                 model,
                 torch.cat(feature_list, dim=1),
-                torch.cat(attention_list, dim=1),
+                torch.cat(attention_list, dim=1),  # type: ignore
             )
             full_transcription = decode_timestamps(
                 predicted_ids, processor, duration_per_id_sec, time_offset
             )
-            last_length = len(buffer)
+
             ws.send(full_transcription)
             yield "".join(p for p, _, _ in full_transcription)
 
-        # calculate new accumulation size
-        seconds = time.perf_counter() - start
-        transcription_to_audio_time_ratio = seconds / accumulation_size * processor.feature_extractor.sampling_rate  # type: ignore
-        accumulation_size *= transcription_to_audio_time_ratio
-
-        # clear buffer but reserve last 80 samples
-        overlap_to_preserve = len(buffer) - overlap_interval
-        buffer = buffer[overlap_to_preserve:]
+            # calculate new accumulation size
+            seconds = time.perf_counter() - start
+            accumulation_size = max(4, seconds * processor.feature_extractor.sampling_rate / receptive)  # type: ignore
+            num_new_features = 0
 
         if is_stop:
-            if feature_list:  # Final update with any remaining features
-                predicted_ids = run_transformer_on_features(
-                    model,
-                    torch.cat(feature_list, dim=1),
-                    torch.cat(attention_list, dim=1),
-                )
-                full_transcription = decode_timestamps(
-                    predicted_ids, processor, duration_per_id_sec, time_offset
-                )
-                ws.send(full_transcription)
-                yield "".join(p for p, _, _ in full_transcription)
+            # TODO: remove print statement after observing `python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_1.wav stream_cnn_chunked_transformer` correctly prints torch.Size([1, 95])
+            print(
+                "\n",
+                torch.cat(attention_list, dim=1).shape,
+            )
             break
 
 
@@ -258,17 +253,18 @@ def extract_features_only(processor, model, receptive, audio: np.ndarray):
 
     input_values = inputs.input_values.type(torch.float32).to(model.device)
     attention_mask = inputs.attention_mask.to(model.device)
+
     with torch.no_grad():
         extract_features = model.wav2vec2.feature_extractor(input_values)  # (B, C, T')
         extract_features = extract_features.transpose(1, 2)  # (B, T', C)
-        attention_mask = model.wav2vec2._get_feature_vector_attention_mask(
+        attention_masks = model.wav2vec2._get_feature_vector_attention_mask(
             extract_features.shape[1], attention_mask, add_adapter=False
         )
         hidden_states, _ = model.wav2vec2.feature_projection(extract_features)
         hidden_states = model.wav2vec2._mask_hidden_states(
-            hidden_states, attention_mask=attention_mask
+            hidden_states, attention_mask=attention_masks
         )
-    return hidden_states, attention_mask
+    return hidden_states, attention_masks
 
 
 def run_transformer_on_features(
@@ -279,6 +275,10 @@ def run_transformer_on_features(
     hidden_states = model.lm_head(encoder_outputs[0])
     predicted_ids = torch.argmax(hidden_states, dim=-1)[0].tolist()
     return predicted_ids
+
+
+# python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_1.wav stream_naive_chunked
+# python ./scripts/ipa_transcription/wav2vec2_streaming.py data/ExamplesWithComments/TIMIT_sample_1.wav stream_cnn_chunked_transformer
 
 
 # ==================================== CLI ====================================
@@ -328,6 +328,16 @@ def main(args):
         audio_path = source_type
         ws = run_file_source(audio_path, slow_down_to_realtime=slow_down_to_realtime)
     print("Done!")
+
+    # Warmup model
+    transcribe(
+        torch.rand((receptive,)).numpy(),
+        processor,
+        model,
+        receptive=receptive,
+        duration_per_id_sec=duration_per_id_sec,
+        time_offset=0,
+    )
 
     # Run streaming
     print("---")
