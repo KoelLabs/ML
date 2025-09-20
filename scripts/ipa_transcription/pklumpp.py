@@ -4,19 +4,20 @@ import sys
 import os
 from tempfile import NamedTemporaryFile
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from scripts.core.audio import audio_record_to_file, audio_file_to_array
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_record_to_file, audio_file_to_array
 
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from repos.phd_model.phonetics.ipa import symbol_to_descriptor, to_symbol
 from repos.phd_model.model.wav2vec2 import Wav2Vec2
+
 import torch
+import numpy as np
+from fast_ctc_decode import viterbi_search  # type: ignore
 
 MODEL_IDS = ["pklumpp/Wav2Vec2_CommonPhone"]
 
 models = {}
-
-import numpy as np
-from fast_ctc_decode import viterbi_search  # type: ignore
 
 
 def decode_lattice(

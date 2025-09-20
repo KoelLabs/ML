@@ -3,8 +3,8 @@
 import os
 import sys
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.audio import audio_array_to_wav_file, audio_array_play
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_array_to_wav_file, audio_array_play
 
 # ===== workarounds =====
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
@@ -15,10 +15,10 @@ import importlib.resources
 importlib.resources.files = importlib_resources.files
 
 
-with open("venv/lib/python3.8/site-packages/f5_tts/model/dataset.py", "r") as f:
+with open("venv/lib/python3.9/site-packages/f5_tts/model/dataset.py", "r") as f:
     # replace all occurences of "nn.Module | None" with the quoted version
     content = f.read()
-with open("venv/lib/python3.8/site-packages/f5_tts/model/dataset.py", "w") as f:
+with open("venv/lib/python3.9/site-packages/f5_tts/model/dataset.py", "w") as f:
     f.write(
         content.replace("nn.Module | None", '"None | nn.Module"')
         .replace("Sampler[list[int]]", "Sampler[list]")

@@ -4,9 +4,9 @@ import glob
 import re
 
 # go back two directories
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from scripts.core.audio import audio_bytes_to_array
-from scripts.data_loaders.common import BaseDataset
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_bytes_to_array
+from data_loaders.common import BaseDataset
 
 SPEAKERS = {
     "aew": {"sex": "male", "lang": "US English", "accent": "US"},

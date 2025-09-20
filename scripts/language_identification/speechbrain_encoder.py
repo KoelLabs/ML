@@ -7,8 +7,8 @@ from speechbrain.dataio.encoder import logger
 warnings.filterwarnings("ignore", category=FutureWarning)
 logger.setLevel("ERROR")
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.core.audio import audio_record_to_array
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_record_to_array
 
 import torch
 import torchaudio

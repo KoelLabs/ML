@@ -1,8 +1,9 @@
 import sys
 import os
 
-sys.path.append(os.path.join(os.path.dirname(__file__), "../.."))
-from scripts.ipa import ipa2xsampa, filter_chars
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.ipa import filter_chars
+from core.codes import ipa2xsampa
 
 timestamped_phonemes = [
     ("h", 0.1607766990291262, 0.180873786407767),
