@@ -8,6 +8,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_file_to_array, audio_stream_microphone, TARGET_SAMPLE_RATE
+from forced_alignment.needleman_wunsch import needleman_wunsch
 
 import time
 from typing import Union, Literal
@@ -42,7 +43,7 @@ class Source:
     def send(self, transcript: TRANSCRIPT_T):
         self.send_log.append((time.perf_counter(), transcript.copy()))
 
-    def evaluate(self):
+    def evaluate(self, use_prefix_final_latency=False):
         # Account for cheated time, i.e., we allow consuming the stream (in the case of file/array sources) faster than the realtime playback of the audio
         # (this is to make evals faster), so we need to add back in the time that would be spent waiting for audio in a realtime streaming scenario (say from the mic)
         adjusted_receive_log = []
@@ -93,15 +94,39 @@ class Source:
         average_first_guess_latency /= audio_duration
 
         average_final_guess_latency = 0
-        for i, (p, _, audio_time_sec) in enumerate(self.send_log[-1][1]):
-            final_time_sec = None
-            for event_time_sec, transcript in self.send_log:
-                if len(transcript) - 1 < i or transcript[i][0] != p:
-                    final_time_sec = None
-                elif final_time_sec is None:
-                    final_time_sec = event_time_sec - stream_start
-            assert final_time_sec is not None
-            average_final_guess_latency += final_time_sec - audio_time_sec
+        if use_prefix_final_latency:
+            for i, (p, _, audio_time_sec) in enumerate(self.send_log[-1][1]):
+                final_time_sec = None
+                for event_time_sec, transcript in self.send_log:
+                    if len(transcript) - 1 < i or transcript[i][0] != p:
+                        final_time_sec = None
+                    elif final_time_sec is None:
+                        final_time_sec = event_time_sec - stream_start
+                assert final_time_sec is not None
+                average_final_guess_latency += final_time_sec - audio_time_sec
+        else:
+            final_transcript = self.send_log[-1][1]
+            latencies = [np.inf] * len(final_transcript)
+            latency_is_done = [False] * len(final_transcript)
+            for event_time_sec, transcript in reversed(self.send_log):
+                aligned1, aligned2 = needleman_wunsch(
+                    list(range(len(final_transcript))),
+                    [p for p, _, _ in transcript],
+                    substitution_func=lambda x, y: (
+                        0 if final_transcript[x][0] == y else -1
+                    ),
+                    deletion_func=lambda _: -1,
+                    insertion_func=lambda _: -1,
+                )
+                for ix, pred in zip(aligned1, aligned2):
+                    if ix == "-" or latency_is_done[ix]:
+                        continue
+                    truth, _, audio_time_sec = final_transcript[ix]
+                    if truth == pred:
+                        latencies[ix] = event_time_sec - stream_start - audio_time_sec
+                    else:
+                        latency_is_done[ix] = True
+            average_final_guess_latency = sum(latencies)
         average_final_guess_latency /= len(self.send_log[-1][1])
 
         return (
@@ -112,6 +137,11 @@ class Source:
             average_first_guess_latency,
             average_final_guess_latency,
         )
+
+    def get_final_transcript(self) -> TRANSCRIPT_T:
+        if len(self.send_log) == 0:
+            return []
+        return self.send_log[-1][1]
 
 
 def run_source_from_callback_provider(callback_provider, timeout=None):
