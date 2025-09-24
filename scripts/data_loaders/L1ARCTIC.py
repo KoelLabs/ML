@@ -4,9 +4,9 @@ import glob
 import re
 
 # go back two directories
-sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
-from scripts.core.audio import audio_bytes_to_array
-from scripts.data_loaders.common import BaseDataset
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import audio_bytes_to_array
+from data_loaders.common import BaseDataset
 
 SPEAKERS = {
     "aew": {"sex": "male", "lang": "US English", "accent": "US"},
@@ -91,9 +91,8 @@ class L1ArcticDataset(BaseDataset):
                 )
                 continue
 
-            wav_files = sorted(glob.glob(os.path.join(wav_dir, "*.wav")))[
-                :TOTAL_UTTERANCES_PER_SPEAKER
-            ]
+            wav_files = glob.glob(os.path.join(wav_dir, "*.wav"))
+
             # Add each wav file and its corresponding text to the index
             for wav_path in wav_files:
                 filename = os.path.basename(wav_path)
@@ -135,7 +134,6 @@ class L1ArcticDataset(BaseDataset):
         if self.include_speaker_info:
             speaker_info = SPEAKERS[sample["speaker"]]
             result.append(speaker_info)
-            result.append(sample["speaker"])
 
         return tuple(result)
 
@@ -164,7 +162,7 @@ if __name__ == "__main__":
         speaker_list=["bdl"],
     )
 
-    # print(f"\nLoaded {len(bdl_dataset)} samples for speaker 'bdl'")
+    print(f"\nLoaded {len(bdl_dataset)} samples for speaker 'bdl'")
 
     if len(bdl_dataset) > 0:
         bdl_sample = bdl_dataset[0]
