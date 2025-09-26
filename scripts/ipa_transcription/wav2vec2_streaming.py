@@ -237,6 +237,67 @@ def stream_naive_chunked(
             break
 
 
+def stream_multi_chunked(
+    ws: Source,
+    processor: Wav2Vec2Processor,
+    model: Wav2Vec2ForCTC,
+    receptive=400,
+    stride=320,
+    chunk_size=2_000,
+    duration_per_id_sec=0.020,
+    interval=2,  # increase to lower computation time and first guess latency, decrease to lower final guess latency
+):
+    """This is the multiple chunksize method that we used to have on the server, e.g., for the Mozilla Demo"""
+    buffer = np.array([], dtype=np.float32)
+    new_samples = 0
+
+    full_transcript = []
+    total_time = 0
+
+    counter = 0
+    while True:
+        data = ws.receive(format="float32")
+        is_stop = isinstance(data, str) and data == "stop"
+        if not is_stop:
+            buffer = np.concatenate([buffer, data])
+            new_samples += len(data)
+
+        if is_stop or (new_samples >= receptive and counter >= interval):
+            full_transcript = transcribe(
+                buffer,
+                processor,
+                model,
+                receptive,
+                duration_per_id_sec=duration_per_id_sec,
+                time_offset=0,
+            )
+            ws.send(full_transcript)
+            yield "".join(p for p, _, _ in full_transcript)
+            total_time += new_samples / processor.feature_extractor.sampling_rate  # type: ignore
+            new_samples = 0
+            counter = 0
+
+        if is_stop:
+            break
+
+        if new_samples >= chunk_size or (total_time == 0 and new_samples >= receptive):
+            chunk_transcript = transcribe(
+                buffer[-new_samples:],
+                processor,
+                model,
+                receptive,
+                duration_per_id_sec=duration_per_id_sec,
+                time_offset=total_time,
+            )
+
+            total_time += new_samples / processor.feature_extractor.sampling_rate  # type: ignore
+            full_transcript.extend(chunk_transcript)
+            ws.send(full_transcript)
+            yield "".join(p for p, _, _ in full_transcript)
+            new_samples = 0
+            counter += 1
+
+
 def stream_cnn_chunked_transformer(
     ws: Source,
     processor: Wav2Vec2Processor,
@@ -379,6 +440,7 @@ def main(args):
     start = time.perf_counter()
     method = globals()[args[1]]
     try:
+        prev_len = 0
         for update in method(
             ws,
             processor,
@@ -387,7 +449,8 @@ def main(args):
             stride=stride,
             duration_per_id_sec=duration_per_id_sec,
         ):
-            print("\r" + update, end="", flush=True)
+            print("\r" + update, end=" " * (prev_len - len(update)), flush=True)
+            prev_len = len(update)
     except KeyboardInterrupt:
         pass
     print()
