@@ -244,7 +244,6 @@ def stream_cnn_chunked_transformer(
     receptive=400,
     stride=320,
     duration_per_id_sec=0.020,
-    max_fps=100,  # use this to adjust the computation time vs latency trade off
 ):
     chunk_size = receptive * np.dtype(np.float32).itemsize  # 1600 bytes
     stride_interval = stride * np.dtype(np.float32).itemsize  # 1280 bytes
@@ -254,7 +253,9 @@ def stream_cnn_chunked_transformer(
     attention_list = []
     time_offset = 0  # NOTE: this value should be getting updated if you don't run the full audio to transformer
     full_transcription = []
-    accumulation_size = 1
+    current_length = 0
+    last_length = 0
+    accumulation_size = chunk_size
     num_new_features = 0
 
     # We'll manually handle normalization using Welford's since we are chunking up the audio
@@ -266,7 +267,9 @@ def stream_cnn_chunked_transformer(
         is_stop = isinstance(data, str) and data == "stop"
         if not is_stop:
             buffer += data
+            current_length += len(data)
 
+        start = time.perf_counter()
         if len(buffer) > chunk_size:
             num_chunks = (len(buffer) - chunk_size) // stride_interval + 1
             num_full_chunk_bytes = num_chunks * stride_interval + overlap_interval
@@ -283,9 +286,12 @@ def stream_cnn_chunked_transformer(
             feature_list.append(features)
             attention_list.append(attention_mask)
 
-        # accumulate features based on dynamic accumalation size
-        if num_new_features > (0 if is_stop else accumulation_size):
-            start = time.perf_counter()
+        if not is_stop and current_length - last_length < accumulation_size:
+            continue
+        last_length = current_length
+
+        # accumulate features based on dynamic accumulation size
+        if num_new_features >= 1:
             predicted_ids = run_transformer_on_features(
                 model,
                 torch.cat(feature_list, dim=1),
@@ -300,7 +306,7 @@ def stream_cnn_chunked_transformer(
 
             # calculate new accumulation size
             seconds = time.perf_counter() - start
-            accumulation_size = max(processor.feature_extractor.sampling_rate / stride / max_fps, (seconds * processor.feature_extractor.sampling_rate - receptive) / stride + 1)  # type: ignore
+            accumulation_size = seconds * processor.feature_extractor.sampling_rate * np.dtype(np.float32).itemsize  # type: ignore
             num_new_features = 0
 
         if is_stop:
