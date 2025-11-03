@@ -1,4 +1,6 @@
 # L1 American English speech with diverse genders an ages: https://buckeyecorpus.osu.edu/
+# Paper: https://buckeyecorpus.osu.edu/pubs/BuckeyeCorpus.pdf
+
 import os
 import sys
 
