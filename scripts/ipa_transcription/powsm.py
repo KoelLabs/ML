@@ -14,7 +14,9 @@ MODEL_ID = "espnet/powsm"
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()
-    else "mps" if torch.backends.mps.is_available() else "cpu"
+    else (
+        "cpu" if torch.backends.mps.is_available() else "cpu"
+    )  # temp: use "cpu" because powsm has memory leak with "mps"
 )
 TASK = "<pr>"  # phone recognition <pr>, automatic speech recognition <asr>, audio guided grapheme to phoneme <g2p>, audio guided phoneme to grapheme <p2g>
 LANGUAGE = "<eng>"  # ISO 639-3; set to <unk> for unseen languages
