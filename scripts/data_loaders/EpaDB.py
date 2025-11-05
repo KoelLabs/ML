@@ -1,4 +1,5 @@
-# EpaDB from https://github.com/JazminVidal/EpaDB
+# originally from https://github.com/JazminVidal/EpaDB (invalid now)
+# Epa DB Paper: https://www.isca-archive.org/interspeech_2019/vidal19_interspeech.pdf
 
 import os
 import sys
