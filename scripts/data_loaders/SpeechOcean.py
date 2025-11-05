@@ -1,4 +1,5 @@
 # Native Mandarin speakers in English, half children/half adults: https://github.com/jimbozhang/speechocean762
+# Paper: https://arxiv.org/pdf/2104.01378
 
 import os
 import sys
