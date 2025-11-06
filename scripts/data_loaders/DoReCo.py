@@ -1,4 +1,5 @@
 # 100 hours from 53 languages with time aligned phoneme transcriptions and translations: https://doreco.huma-num.fr/UsingDoReCo
+# Paper: https://aclanthology.org/2025.fieldmatters-1.5.pdf
 
 import os
 import sys

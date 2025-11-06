@@ -1,5 +1,5 @@
 # ISLE Speech corpus details here: https://catalogue.elra.info/en-us/repository/browse/ELRA-S0083/
-# paper: http://www.lrec-conf.org/proceedings/lrec2000/pdf/313.pdf
+# Paper: https://eprints.whiterose.ac.uk/id/eprint/81664/1/TheIsleCorpusNonNativeSpokenEnglish.pdf
 
 import os
 import sys
