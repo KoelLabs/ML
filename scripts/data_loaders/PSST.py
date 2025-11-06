@@ -1,5 +1,5 @@
 # Post-stroke aphasia English speech from https://aphasia.talkbank.org/derived/RaPID/
-# Details in https://aclanthology.org/2022.rapid-1.6.pdf
+# Paper: https://aclanthology.org/2022.rapid-1.6.pdf
 
 import os
 import sys

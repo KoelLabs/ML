@@ -1,4 +1,5 @@
 # L1 American English Dialects from https://catalog.ldc.upenn.edu/LDC93S1
+# Paper: https://nvlpubs.nist.gov/nistpubs/Legacy/IR/nistir4930.pdf
 
 import os
 import sys
