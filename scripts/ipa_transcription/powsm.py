@@ -15,7 +15,7 @@ DEVICE = (
     "cuda"
     if torch.cuda.is_available()
     else (
-        "cpu" if torch.backends.mps.is_available() else "cpu"
+        "mps" if torch.backends.mps.is_available() else "cpu"
     )  # temp: use "cpu" because powsm has memory leak with "mps"
 )
 TASK = "<pr>"  # phone recognition <pr>, automatic speech recognition <asr>, audio guided grapheme to phoneme <g2p>, audio guided phoneme to grapheme <p2g>
@@ -31,10 +31,19 @@ s2t = Speech2Text.from_pretrained(
     task_sym=TASK,
 )
 if DEVICE == "mps":
+    # NOTE: espnet patch until the next version ships with our fix
     s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
     s2t.beam_search.to(device=DEVICE, dtype=torch.float32)
     s2t.dtype = "float32"
     s2t.device = DEVICE
+
+    # NOTE: pytorch patch until the fix gets merged
+    from torch.nn import Linear
+
+    def forward(self, input):
+        return torch.nn.functional.linear(input.contiguous(), self.weight, self.bias)
+
+    Linear.forward = forward
 
 
 def transcribe_from_array(wav_array_16khz_float32_or_int16):
