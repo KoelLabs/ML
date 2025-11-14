@@ -28,6 +28,10 @@ DEVICE = (
 # espnet/owsm_v3.1_ebf_small_lowrestriction - 367M params, 70K audio hours
 # pyf98/owsm_ctc_v3.1_1B - 1.01B params, 180K audio hours
 # espnet/owsm_v3.2 - 367M params, 180K audio hours
+# espnet/owsm_v4_base_102M - 102M params, 320k audio hours
+# espnet/owsm_v4_small_370M - 370M params, 320k audio hours
+# espnet/owsm_v4_medium_1B - 1.02B params, 320k audio hours
+# espnet/owsm_ctc_v4_1B - 1.01B params, 320k audio hours
 
 s2t = Speech2Text.from_pretrained(
     model_tag="espnet/owsm_v3.1_ebf",
@@ -43,7 +47,7 @@ s2t = Speech2Text.from_pretrained(
 if DEVICE == "mps":
     s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
     s2t.beam_search.to(device=DEVICE, dtype=torch.float32).eval()
-    for scorer in s2t.beam_search.scorers.values():
+    for scorer in s2t.beam_search.scorers.values():  # type: ignore
         if isinstance(scorer, torch.nn.Module):
             scorer.to(device=DEVICE, dtype=torch.float32).eval()
     s2t.dtype = "float32"
