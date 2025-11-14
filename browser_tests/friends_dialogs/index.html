@@ -14,6 +14,30 @@
         * {
             box-sizing: border-box;
         }
+        .checked {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .checked .checkmark {
+            position: relative;
+            background: #00B01D;
+            border-radius: 100%;
+            height: 60%;
+            aspect-ratio: 1/1;
+            opacity: 0.4;
+        }
+        .checked .checkmark::after {
+            content: "";
+            position: absolute;
+            transform: rotate(50deg) translate(-50%, -50%);
+            left: 27%;
+            top: 43%;
+            height: 50%;
+            width: 21%;
+            border-bottom: 5px solid #fff;
+            border-right: 5px solid #fff;
+        }
     </style>
 </head>
 <body>
@@ -25,21 +49,29 @@
     <div style="display: grid; grid-template-columns: 1fr 250px; grid-gap: 1em;">
         <div>
             <video id="video" style="width: 100%" controls></video>
+            <button id="next-phrase" style="float: right; margin-left: 0.5ch">Next 💬</button>
+            <button id="microphone" style="float: right; margin-left: 0.5ch">Record 🎙️</button>
             <p id="sentence" style="margin-left: 2em"></p>
+            <div id="recorded-audio" style="margin-left: 2em; display: flex; gap: 1em; align-items: center;"></div>
         </div>
         <div>
-            <h2 style="margin-top: 0;">Practice Sections</h2>
+            <h2 style="margin-top: 0; margin-bottom: 0.2em;">Spoken Phrases 💬</h2>
             <div id="utterances" style="height: 40vh; overflow: auto;"></div>
-            <div>
-                <h2>Accent Similarity</h2>
-                <canvas id="similarity" style="width: 60%; margin: auto"></canvas>
+            <div style="white-space: nowrap;">
+                <h2>Perfect Matches</h2>
+                <canvas id="similarity" style="width: 100%; padding-left: 1em; padding-right: 2em;"></canvas>
                 <br>
-                <span id="accent" style="background-color: rgb(72, 61, 139, 0.5); border: 3px solid rgb(72, 61, 139); color: rgb(72, 61, 139); padding: 4px; border-radius: 5px; font-size: 13px">🗽 New York</span>
-                <span id="difficulty" style="background-color: rgb(139, 61, 91, 0.5); border: 3px solid rgb(139, 61, 91); color: rgb(139, 61, 91); padding: 4px; border-radius: 5px; font-size: 13px">③ Hard</span>
-                <span id="completed" style="white-space: nowrap; background-color: rgb(61, 139, 68, 0.5); border: 3px solid rgb(61, 139, 68); color: rgb(61, 139, 68); padding: 4px; border-radius: 5px; font-size: 13px">2/3 Done</span>
+                <span id="accent" title="dialect" style="background-color: rgb(72, 61, 139, 0.5); border: 3px solid rgb(72, 61, 139); color: rgb(72, 61, 139); padding: 4px; border-radius: 5px; font-size: 13px">🗽 New York</span>
+                <span id="emotion-neutral" title="emotion" style="background-color: rgb(100, 100, 120, 0.5); border: 3px solid rgb(100, 100, 120); color: rgb(100, 100, 120); padding: 4px; border-radius: 5px; font-size: 13px">⚪ Neutral</span>
+                <span id="emotion-joy" title="emotion" style="display: none; background-color: rgb(255, 195, 77, 0.5); border: 3px solid rgb(255, 195, 77); color: rgb(255, 195, 77); padding: 4px; border-radius: 5px; font-size: 13px">😄 Joy</span>
+                <span id="emotion-sadness" title="emotion" style="display: none; background-color: rgb(54, 100, 150, 0.5); border: 3px solid rgb(54, 100, 150); color: rgb(54, 100, 150); padding: 4px; border-radius: 5px; font-size: 13px">😢 Sadness</span>
+                <span id="emotion-anger" title="emotion" style="display: none; background-color: rgb(139, 61, 91, 0.5); border: 3px solid rgb(139, 61, 91); color: rgb(139, 61, 91); padding: 4px; border-radius: 5px; font-size: 13px">😡 Anger</span>
+                <span id="emotion-surprise" title="emotion" style="display: none; background-color: rgb(180, 130, 200, 0.5); border: 3px solid rgb(180, 130, 200); color: rgb(180, 130, 200); padding: 4px; border-radius: 5px; font-size: 13px">😲 Surprise</span>
+                <span id="emotion-fear" title="emotion" style="display: none; background-color: rgb(90, 70, 110, 0.5); border: 3px solid rgb(90, 70, 110); color: rgb(90, 70, 110); padding: 4px; border-radius: 5px; font-size: 13px">😨 Fear</span>
+                <span id="emotion-disgust" title="emotion" style="display: none; background-color: rgb(120, 150, 70, 0.5); border: 3px solid rgb(120, 150, 70); color: rgb(120, 150, 70); padding: 4px; border-radius: 5px; font-size: 13px">🤢 Disgust</span>
+                <span id="completed" title="overall status" style="white-space: nowrap; background-color: rgb(61, 139, 68, 0.5); border: 3px solid rgb(61, 139, 68); color: rgb(61, 139, 68); padding: 4px; border-radius: 5px; font-size: 13px">2/3 Done</span>
             </div>
             <br>
-            <label>Start Speaking: <button id="microphone" style="width: 80%; aspect-ratio: 1/1; font-size: 8rem">🎙️</button></label>
         </div>
     </div>
 
@@ -51,8 +83,9 @@
         const completed = document.getElementById('completed');
 
         let activeSubclip = null;
+        let updateCompletionFn = null;
         const setClipBtn = document.getElementById('setclip');
-        setClipBtn.addEventListener('click', async () => {
+        const setClip = async () => {
             const season = document.getElementById('season').value;
             const episode = document.getElementById('episode').value;
             const dialog = document.getElementById('dialog').value;
@@ -64,13 +97,21 @@
             const header = clips.shift();
             for (let i = 0; i < clips.length; i++) {
                 const clip = clips[i];
-                const clipObj = {};
+                const clipObj = {'done': false, 'user-audios': []};
                 for (let j = 0; j < header.length; j++) {
                     clipObj[header[j]] = clip[j];
                 }
                 clips[i] = clipObj;
             }
-            completed.textContent = `0/${clips.length} Done`;
+            updateCompletionFn = () => {
+                completed.textContent = `${clips.reduce((acc, v) => acc += v['done'] ? 1 : 0, 0)}/${clips.length} Done`;
+                for (const clip of clips) {
+                    if (clip["done"] && clip["mark_done"] != undefined) {
+                        clip["mark_done"]();
+                    }
+                }
+            };
+            updateCompletionFn();
 
             // load clip screenshots 
             for (const clip of clips) {
@@ -81,7 +122,7 @@
                 utterance.style.marginRight = '10px';
                 utterance.style.borderRadius = '10px';
                 utterance.style.overflow = 'hidden';
-                utterance.style.backgroundColor = 'midnightblue';
+                utterance.style.backgroundColor = '#A7C7E7';
                 utterance.onclick = () => {
                     const subClip = `/clips/${clipDescriptor}/utterance${clip.Utterance_ID}.mp4`;
                     video.src = subClip;
@@ -93,6 +134,13 @@
                         ol.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                     }
                     overlay.style.backgroundColor = 'transparent';
+                    for (const em of document.querySelectorAll('[id^="emotion-"]')) {
+                        if (em.id == "emotion-" + clip["Emotion"]) {
+                            em.style.display = "inline";
+                        } else {
+                            em.style.display = "none";
+                        }
+                    }
                     activeSubclip = clip;
                 };
 
@@ -110,6 +158,10 @@
                 overlay.style.width = '100%';
                 overlay.style.height = '100%';
                 overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                const checkmark = document.createElement("div");
+                checkmark.className = "checkmark";
+                clip["mark_done"] = () => overlay.classList.add("checked");
+                overlay.appendChild(checkmark)
                 utterance.appendChild(overlay);
 
                 const time = document.createElement('span');
@@ -137,7 +189,8 @@
 
             // activate the first subclip
             utterances.firstElementChild.click();
-        });
+        };
+        setClipBtn.addEventListener('click', setClip);
 
         let similarityChart = null;
         function setSimilarity(percentage = 78) {
@@ -157,9 +210,11 @@
                 },
                 options: {
                     cutout: '70%', // Makes the donut shape
+                    circumference: 180, // makes it a half donut
+                    rotation: -90, 
                     responsive: false,
                     maintainAspectRatio: true,
-                    aspectRatio: 1,
+                    aspectRatio: 2/1,
                     plugins: {
                         tooltip: { enabled: false }, // hides tooltip
                         legend: { display: false }, // hides legend
@@ -169,12 +224,12 @@
                     beforeDraw: function(chart) {
                         const { width, height, ctx } = chart;
                         ctx.restore();
-                        const fontSize = (height / 100).toFixed(2);
+                        const fontSize = (height / 50).toFixed(2);
                         ctx.font = `${fontSize}em sans-serif`;
                         ctx.textBaseline = "middle";
                         const text = percentage + "%";
                         const textX = Math.round((width - ctx.measureText(text).width) / 2);
-                        const textY = height / 2;
+                        const textY = height / 1.2;
                         ctx.fillStyle = "#4CAF50";
                         ctx.fillText(text, textX, textY);
                         ctx.save();
@@ -188,6 +243,12 @@
         mic.addEventListener('click', async () => {
             const targets = [...sentence.children];
             targets[0].style.border = '3px solid red';
+            for (const target of targets) {
+                target.style.backgroundColor = 'gray';
+            }
+
+            const stream = await navigator.mediaDevices.getUserMedia({audio: true});
+            const mediaRecorder = new MediaRecorder(stream);
 
             const recognition = new SpeechRecognition();
             recognition.lang = "en-US";
@@ -198,6 +259,8 @@
             const finalWords = [];
             let numCorrect = 0;
             recognition.onresult = (event) => {
+                if (recognition.onend == null) return;
+
                 const wordlist = [...event.results].map(result => result[0].transcript.split(' ')).reduce((a, b) => a.concat(b)).filter(w => w.length > 0);
                 const isFinal = [...event.results].at(-1).isFinal;
                 if (isFinal) {
@@ -223,11 +286,54 @@
                     } else {
                         recognition.onend = null;
                         recognition.stop();
+                        mediaRecorder.stop();
                         setSimilarity(Math.round(1000 * numCorrect / targets.length) / 10);
+                        activeSubclip["done"] = true;
+                        updateCompletionFn();
                     }
                 }
             };
+
+            const recorded_chunks = [];
+            mediaRecorder.start();
+            mediaRecorder.ondataavailable = (e) => {
+                recorded_chunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                const container = document.getElementById("recorded-audio");
+                container.innerHTML = "Your Attempt:";
+
+                const audio = document.createElement("audio");
+                audio.setAttribute("controls", "");
+
+                const blob = new Blob(recorded_chunks, { type: "audio/ogg; codecs=opus" });
+                const audioURL = window.URL.createObjectURL(blob);
+                activeSubclip['user-audios'].unshift(audioURL)
+                audio.src = audioURL;
+
+                container.appendChild(audio);
+
+                const buttons = document.createElement("div");
+                buttons.style = "display: grid; grid-template-columns: 1fr 1fr; width: 10ch; gap: 2px;";
+                function addPlayBackBtn(rate) {
+                    const btn = document.createElement("button");
+                    btn.textContent = rate + 'x';
+                    btn.onclick = () => {
+                        audio.currentTime = 0;
+                        audio.playbackRate = rate;
+                        audio.play();
+                    };
+                    buttons.appendChild(btn);
+                }
+                addPlayBackBtn(0.5);
+                addPlayBackBtn(0.7);
+                addPlayBackBtn(1.0);
+                addPlayBackBtn(1.5);
+                container.appendChild(buttons);
+            };
         });
+
+        setClip();
     </script>
 </body>
 </html>
