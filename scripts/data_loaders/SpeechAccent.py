@@ -30,7 +30,7 @@ FULL_DATASET_METADATA = os.path.join(
 FULL_DATASET_TRANSCRIPTS = os.path.join(FULL_DATASET, "textgrids")
 VALID_SPLITS = ["full", "kaggle"]
 
-WORD_LIST = {'please', 'call', 'stella', 'stellaw', 'ask', 'her', 'to', 'bring', 'these', 'things', 'with', 'from', 'the', 'store', 'six', 'spoons', 'of', 'fresh', 'snowpeas', 'five', 'thick', 'slabs', 'blue', 'cheese', 'and', 'maybe', 'a', 'snack', 'for', 'brother', 'bob', 'we', 'also', 'need', 'small', 'plastic', 'snake', 'big', 'toy', 'frog', 'for', 'kids', 'she', 'can', 'scoop', 'things', 'into', 'three', 'red', 'bags', 'we', 'will', 'go', 'meet', 'her', 'wednesday', 'at', 'train', 'station', 'stationx', '-del', 'sp'} # fmt: skip
+WORD_LIST = {'please', 'call', 'stella', 'stellaw', 'ask', 'her', 'to', 'bring', 'these', 'things', 'with', 'from', 'the', 'store', 'six', 'spoons', 'of', 'fresh', 'snowpeas', 'five', 'thick', 'slabs', 'blue', 'cheese', 'and', 'maybe', 'a', 'snack', 'for', 'brother', 'bob', 'we', 'also', 'need', 'small', 'plastic', 'snake', 'big', 'toy', 'frog', 'for', 'kids', 'she', 'can', 'scoop', 'things', 'into', 'three', 'red', 'bags', 'we', 'will', 'go', 'meet', 'her', 'wednesday', 'at', 'train', 'station', 'stationx', '-del', 'sp'}  # fmt: skip
 
 
 def split_words_with_dictionary(text, word_list=WORD_LIST):
