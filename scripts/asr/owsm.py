@@ -53,6 +53,17 @@ if DEVICE == "mps":
     s2t.dtype = "float32"
     s2t.device = DEVICE
 
+    # NOTE: torch==2.8.0 doesn't support mps without patching torch.nn.Linear's foward method to convert the input to contiguous, fixed in 2.9.0
+    if torch.__version__ == "2.8.0":
+        from torch.nn import Linear
+
+        def forward(self, input):
+            return torch.nn.functional.linear(
+                input.contiguous(), self.weight, self.bias
+            )
+
+        Linear.forward = forward
+
 
 def _naive_decode_long(wav_array, config, chunk_size=30 * TARGET_SAMPLE_RATE):
     predictions = []
