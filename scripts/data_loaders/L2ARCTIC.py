@@ -22,6 +22,7 @@ def all_arctic_speaker_splits(
     include_timestamps=False,
     include_speaker_info=False,
     include_text=False,
+    max_phonemes=None,
 ):
     dataset = ConcatDataset(
         L2ArcticDataset(
@@ -29,6 +30,7 @@ def all_arctic_speaker_splits(
             include_timestamps=include_timestamps,
             include_speaker_info=include_speaker_info,
             include_text=include_text,
+            max_phonemes=max_phonemes,
         )
         for s in SPEAKERS.keys()
     )
