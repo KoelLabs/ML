@@ -84,7 +84,7 @@ def wav2vec2_transcribe_from_array(
 def wav2vec2_transcribe_from_file(
     model, processor, input_path: str, include_timestamps=False
 ):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return wav2vec2_transcribe_from_array(
         model, processor, wav_array, include_timestamps
     )

@@ -35,7 +35,7 @@ DEVICE = (
 
 s2t = Speech2Text.from_pretrained(
     model_tag="espnet/owsm_v3.1_ebf",
-    device=DEVICE.replace("mps", "cpu"),
+    device=DEVICE,
     beam_size=5,
     ctc_weight=0.0,
     maxlenratio=0.0,  # if it seems to not terminate, set this to a small value like 0.05
@@ -44,25 +44,6 @@ s2t = Speech2Text.from_pretrained(
     task_sym="<asr>",
     predict_time=False,
 )
-if DEVICE == "mps":
-    s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
-    s2t.beam_search.to(device=DEVICE, dtype=torch.float32).eval()
-    for scorer in s2t.beam_search.scorers.values():  # type: ignore
-        if isinstance(scorer, torch.nn.Module):
-            scorer.to(device=DEVICE, dtype=torch.float32).eval()
-    s2t.dtype = "float32"
-    s2t.device = DEVICE
-
-    # NOTE: torch==2.8.0 doesn't support mps without patching torch.nn.Linear's foward method to convert the input to contiguous, fixed in 2.9.0
-    if torch.__version__ == "2.8.0":
-        from torch.nn import Linear
-
-        def forward(self, input):
-            return torch.nn.functional.linear(
-                input.contiguous(), self.weight, self.bias
-            )
-
-        Linear.forward = forward
 
 
 def _naive_decode_long(wav_array, config, chunk_size=30 * TARGET_SAMPLE_RATE):
