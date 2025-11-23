@@ -6,25 +6,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_array_to_wav_file, audio_array_play
 
-# ===== workarounds =====
 os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
-
-import importlib_resources
-import importlib.resources
-
-importlib.resources.files = importlib_resources.files
-
-
-with open("venv/lib/python3.9/site-packages/f5_tts/model/dataset.py", "r") as f:
-    # replace all occurences of "nn.Module | None" with the quoted version
-    content = f.read()
-with open("venv/lib/python3.9/site-packages/f5_tts/model/dataset.py", "w") as f:
-    f.write(
-        content.replace("nn.Module | None", '"None | nn.Module"')
-        .replace("Sampler[list[int]]", "Sampler[list]")
-        .replace("CustomDataset | HFDataset", '"HFDataset | CustomDataset"')
-    )
-# ===== workarounds =====
 
 from f5_tts.api import F5TTS
 
@@ -39,7 +21,6 @@ def f5tts_clone_voice(
         ref_text=voice_reference_text,
         gen_text=target_text,
         file_wave=None,
-        file_spect=None,
         seed=42,
     )
     return wav, sr, spect
@@ -68,4 +49,4 @@ def main(args):
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-# example: python ./scripts/voice_clone/f5tts.py data/alexIsConfused.wav "hello. alex is extra confused." "hello. alex is extra confused"
+# example: python ./scripts/voice_clone/f5tts.py data/ArunaSpeech/L1Suitcase.wav "There is a man and a woman walking with green suitcases and then suddenly they bump into each other. The man and woman appear very dizzy and when they stand up they grab their suitcases and walk away. But then the man arrives at a hotel and sees that there is a red dress in his suitcase and he looks very confused and embarrassed. And likewise the woman opens her suitcase and finds a striped yellow and black tie. The woman also seems very surprised." "Alex is awesome."
