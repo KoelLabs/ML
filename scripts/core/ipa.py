@@ -5,6 +5,12 @@
 
 import sys
 
+# Patch for ipapy
+import collections
+import collections.abc
+
+collections.MutableSequence = collections.abc.MutableSequence  # type: ignore
+
 import ipapy
 from ipapy.ipastring import IPAString
 
