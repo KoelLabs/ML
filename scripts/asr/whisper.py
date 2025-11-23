@@ -88,8 +88,7 @@ def display_whisper_result(segments, info, timestamped):
             for word in segment.words:
                 print("[%.2fs -> %.2fs] %s" % (word.start, word.end, word.word))
     else:
-        for segment in segments:
-            print("[%.2fs -> %.2fs] %s" % (segment.start, segment.end, segment.text))
+        print(whisper_output_to_text((segments, info)))
 
 
 def main(args):
