@@ -8,24 +8,26 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_record_to_array, audio_file_to_array
 
-if not os.path.exists("models/deepspeech"):
+MODEL_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "models", "deepspeech")
+
+if not os.path.exists(MODEL_DIR):
     # Download model files from https://github.com/coqui-ai/STT-models/releases/tag/english%2Fcoqui%2Fv1.0.0-huge-vocab
-    os.makedirs("models/deepspeech")
+    os.makedirs(MODEL_DIR)
     from urllib.request import urlretrieve
 
     urlretrieve(
         r"https://github.com/coqui-ai/STT-models/releases/download/english%2Fcoqui%2Fv1.0.0-huge-vocab/model.tflite",
-        "models/deepspeech/model.tflite",
+        os.path.join(MODEL_DIR, "model.tflite"),
     )
     urlretrieve(
         r"https://github.com/coqui-ai/STT-models/releases/download/english%2Fcoqui%2Fv1.0.0-huge-vocab/huge-vocabulary.scorer",
-        "models/deepspeech/huge-vocabulary.scorer",
+        os.path.join(MODEL_DIR, "huge-vocabulary.scorer"),
     )
 
 from stt import Model
 
-model = Model("models/deepspeech/model.tflite")
-model.enableExternalScorer("models/deepspeech/huge-vocabulary.scorer")
+model = Model(os.path.join(MODEL_DIR, "model.tflite"))
+model.enableExternalScorer(os.path.join(MODEL_DIR, "huge-vocabulary.scorer"))
 
 
 def deepspeech_transcribe_from_array(wav_array):
