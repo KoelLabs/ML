@@ -15,7 +15,7 @@ else
     echo "please install espeak and ffmpeg manually for this OS"
 fi
 
-pip install espnet==202511 espnet_model_zoo==0.1.7
+pip install espnet==202511 espnet_model_zoo==0.1.7 omnilingual-asr==0.1.0
 # pip install -U flash-attn --no-build-isolation # if supported on your platform
 pip install -r requirements.txt 
 python -m unidic download # dictionary for misaki[ja]
