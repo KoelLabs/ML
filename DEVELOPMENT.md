@@ -5,10 +5,10 @@
 ### With Pyenv
 
 0. `git clone https://github.com/KoelLabs/ML.git`
-1. Install Python 3.9.13
+1. Install Python 3.10.16
     - [Install pyenv](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation)
-    - Run `pyenv install 3.9.13`
-    - Pyenv should automatically use this version in this directory. If not, run `pyenv local 3.9.13`
+    - Run `pyenv install 3.10.16`
+    - Pyenv should automatically use this version in this directory. If not, run `pyenv local 3.10.16`
 2. Create a virtual environment
     - Run `python -m venv ./venv` to create it
     - Run `. venv/bin/activate` when you want to activate it
@@ -25,7 +25,7 @@
     - [Install miniconda](https://docs.conda.io/en/latest/miniconda.html)
     - Or [install anaconda](https://docs.anaconda.com/anaconda/install/)
 2. Create a virtual environment
-    - Run `conda create --prefix ./venv python=3.9.13` to create it
+    - Run `conda create --prefix ./venv python=3.10.16` to create it
     - Run `conda activate ./venv` when you want to activate it
         - Run `conda deactivate` when you want to deactivate it
     - Pro-tip: select the virtual environment in your IDE, e.g. in VSCode, click the Python version in the bottom left corner and select the virtual environment

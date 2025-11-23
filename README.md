@@ -21,7 +21,7 @@ These can be run independently of the setup for the rest of the codebase, e.g., 
 See the [DEVELOPMENT.md](DEVELOPMENT.md) for alternative setup instructions and details.
 
 0. `git clone https://github.com/KoelLabs/ML.git`
-1. Install Python 3.9.13
+1. Install Python 3.10.16
 2. Duplicate the `.env.example` file and rename it to `.env`. Fill in the necessary environment variables.
 3. Run the commands in './scripts/install.sh', e.g., with `. ./scripts/install.sh`.
 
