@@ -17,7 +17,7 @@ from omnilingual_asr.models.inference.pipeline import (
 
 USE_LLM = True
 USE_CONTEXT = False
-SIZE = "300M"  # 1B, 3B, 7B
+SIZE = "7B"  # 300M, 1B, 3B, 7B
 assert (
     not USE_CONTEXT or SIZE == "7B"
 ), "only the 7B variant supports in-context learning"
