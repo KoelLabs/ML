@@ -26,27 +26,10 @@ PROMPT = (
 
 s2t = Speech2Text.from_pretrained(
     MODEL_ID,
-    device=DEVICE.replace("mps", "cpu"),
+    device=DEVICE,
     lang_sym=LANGUAGE,
     task_sym=TASK,
 )
-if DEVICE == "mps":
-    # NOTE: espnet patch until the next version ships with our fix
-    s2t.s2t_model.to(device=DEVICE, dtype=torch.float32)
-    s2t.beam_search.to(device=DEVICE, dtype=torch.float32)
-    s2t.dtype = "float32"
-    s2t.device = DEVICE
-
-    # NOTE: torch==2.8.0 doesn't support mps without patching torch.nn.Linear's foward method to convert the input to contiguous, fixed in 2.9.0
-    if torch.__version__ == "2.8.0":
-        from torch.nn import Linear
-
-        def forward(self, input):
-            return torch.nn.functional.linear(
-                input.contiguous(), self.weight, self.bias
-            )
-
-        Linear.forward = forward
 
 
 def transcribe_from_array(wav_array_16khz_float32_or_int16):

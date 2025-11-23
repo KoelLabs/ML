@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
 
-from typing import Mapping
-from collections import abc
-
-abc.Mapping = Mapping
-
 from allosaurus.app import read_recognizer
 
 from tempfile import NamedTemporaryFile
@@ -14,8 +9,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_record_to_file
 
-model_name = "eng2102"
-model = read_recognizer(model_name)
+model = read_recognizer()
 
 
 def allosaurus_transcribe(input_path):
