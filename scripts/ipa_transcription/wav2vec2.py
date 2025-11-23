@@ -6,13 +6,12 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_record_to_array, audio_file_to_array
 
+import gc
 import torch
 import numpy as np
 from transformers import AutoProcessor, AutoModelForCTC
 
 # set espeak library path for macOS
-import sys
-
 if sys.platform == "darwin":
     from phonemizer.backend.espeak.wrapper import EspeakWrapper
 
@@ -56,6 +55,7 @@ MODEL_IDS = [
 
 
 def clear_cache():
+    gc.collect()
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
         torch.cuda.ipc_collect()
