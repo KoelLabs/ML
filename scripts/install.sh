@@ -1,4 +1,4 @@
-# Tested with Python 3.9.13 on MacOS 14.4.1
+# Tested with Python 3.10.16 on MacOS 14.4.1
 
 # dependencies
 if [ "$(uname)" == "Darwin" ]; then
@@ -15,9 +15,10 @@ else
     echo "please install espeak and ffmpeg manually for this OS"
 fi
 
-pip install -r requirements.txt 
-pip install espnet==202412 espnet_model_zoo==0.1.7
+pip install espnet==202511 espnet_model_zoo==0.1.7
 # pip install -U flash-attn --no-build-isolation # if supported on your platform
+pip install -r requirements.txt 
+python -m unidic download # dictionary for misaki[ja]
 
 # create gitignored directories
 mkdir -p ./.data
