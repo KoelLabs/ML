@@ -24,7 +24,7 @@ model_id = "facebook/mms-lid-4017"
 processor = AutoFeatureExtractor.from_pretrained(model_id)
 model = Wav2Vec2ForSequenceClassification.from_pretrained(model_id).to(DEVICE)  # type: ignore
 
-SUPPORTED_LANGUAGES = set(model.config.id2label.values())
+SUPPORTED_LANGUAGES = set(model.config.id2label.values())  # type: ignore
 
 
 def mms_detect_language_from_array(wav_array, topk=3):
@@ -53,7 +53,7 @@ def mms_detect_language_from_array(wav_array, topk=3):
 
 
 def mms_detect_language_from_file(input_path: str, language="eng"):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return mms_detect_language_from_array(wav_array)
 
 

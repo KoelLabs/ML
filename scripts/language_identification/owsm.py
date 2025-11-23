@@ -22,13 +22,9 @@ DEVICE = (
 
 s2l = Speech2Language.from_pretrained(
     model_tag="espnet/owsm_v3.1_ebf",
-    device=DEVICE.replace("mps", "cpu"),
+    device=DEVICE,
     nbest=3,  # return nbest prediction and probability
 )
-if DEVICE == "mps":
-    s2l.s2t_model.to(device=DEVICE, dtype=torch.float32)
-    s2l.dtype = "float32"
-    s2l.device = DEVICE
 
 
 def owsm_detect_language_from_array(
@@ -48,7 +44,7 @@ def owsm_detect_language_from_array(
 def owsm_detect_language_from_file(
     input_path: str,
 ):
-    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768  # type: ignore
     return owsm_detect_language_from_array(wav_array)
 
 

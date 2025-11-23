@@ -22,5 +22,5 @@ def main(args):
 
 
 if __name__ == "__main__":
-    # Usage: python ./scripts/language_identification/fasttext.py <text>
+    # Usage: python ./scripts/language_identification/meta_fasttext.py <text>
     main(sys.argv[1:])
