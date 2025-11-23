@@ -41,3 +41,10 @@ speechbrain==1.0.3
 f5-tts==1.1.9
 pandarallel==1.6.5
 seaborn==0.13.2
+gradio==5.50.0
+tqdm==4.67.1
+nltk==3.9.2
+antlr4-python3-runtime==4.9.3
+huggingface-hub==0.36.0
+httpcore==1.0.9
+accelerate==1.12.0

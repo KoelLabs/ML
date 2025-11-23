@@ -19,6 +19,7 @@ pip install espnet==202511 espnet_model_zoo==0.1.7
 # pip install -U flash-attn --no-build-isolation # if supported on your platform
 pip install -r requirements.txt 
 python -m unidic download # dictionary for misaki[ja]
+pip install git+https://github.com/bootphon/spokenlm-phoneme.git@47225179e664787b28e78edb0ff77e20a82a0078 --no-deps --ignore-requires-python # HuBERT Phoneme
 
 # create gitignored directories
 mkdir -p ./.data

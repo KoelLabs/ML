@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# pip install git+https://github.com/bootphon/spokenlm-phoneme.git@47225179e664787b28e78edb0ff77e20a82a0078 --no-deps --ignore-requires-python
+
+# https://github.com/bootphon/spokenlm-phoneme
 
 import os
 import sys
