@@ -32,12 +32,12 @@ def qwen_transcribe_from_array(wav_array):
     if wav_array.dtype != np.float32:  # qwen expects normalized float32 at 16 kHz
         wav_array = wav_array.astype(np.float32) / 32768
 
-    prompt = "<|audio_bos|><|AUDIO|><|audio_eos|>Transcribe the speech in English:"
+    prompt = "<|audio_bos|><|AUDIO|><|audio_eos|>Generate the caption in English:"
     inputs = processor(
         text=prompt,
-        audios=wav_array,
-        return_tensors="pt",
-        sampling_rate=TARGET_SAMPLE_RATE,
+        audio=wav_array,
+        return_tensors="pt",  # type: ignore
+        sampling_rate=TARGET_SAMPLE_RATE,  # type: ignore
     ).to(DEVICE)
 
     generated_ids = model.generate(**inputs, max_length=np.inf)
