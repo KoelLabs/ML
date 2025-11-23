@@ -6,7 +6,6 @@
 import os
 import sys
 import time
-import requests
 from io import BytesIO
 
 import ffmpeg
@@ -307,29 +306,6 @@ def audio_record_to_file(output_path, output_sample_rate=TARGET_SAMPLE_RATE):
     audio_array_to_wav_file(samples, output_path, output_sample_rate)
 
 
-def audio_file_from_text(text, output_path):
-    assert os.environ.get("GOOEY_API_KEY"), "GOOEY_API_KEY environment variable not set"
-
-    response = requests.post(
-        "https://api.gooey.ai/v2/TextToSpeech",
-        headers={
-            "Authorization": "bearer " + os.environ["GOOEY_API_KEY"],
-        },
-        json={
-            "text_prompt": text,
-            "tts_provider": "AZURE_TTS",
-            "azure_voice_name": "en-US-KaiNeural",
-        },
-    )
-    assert response.ok, response.content
-
-    result = response.json()
-    audio_url = result["output"]["audio_url"]
-    response = requests.get(audio_url)
-    with open(output_path, "wb") as f:
-        f.write(response.content)
-
-
 def audio_array_float64_to_int16(audio_data_float64):
     """Converts a float64 numpy array to int16."""
 
@@ -407,8 +383,6 @@ def main(args):
         audio_wav_file_play(args[1], start, end)
     elif args[0] == "crop":
         audio_wav_file_crop(args[1], float(args[2]), float(args[3]), args[4])
-    elif args[0] == "text":
-        audio_file_from_text(args[1], args[2])
     elif args[0] == "speed":
         speed_factor = float(args[2])
         audio: np.ndarray = audio_file_to_array(args[1])  # type: ignore
@@ -427,7 +401,6 @@ def main(args):
         print(
             "Usage: python ./scripts/core/audio.py convert <input_path> <output_path> <output_sample_rate>"
         )
-        print("Usage: python ./scripts/core/audio.py text <text> <output_wav_path>")
         print(
             "Usage: python ./scripts/core/audio.py crop <input_wav_path> <start> <end> <output_wav_path>"
         )
