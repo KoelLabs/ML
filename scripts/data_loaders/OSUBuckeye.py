@@ -114,7 +114,7 @@ class BuckeyeDataset(BaseDataset):
                     stop = 0
                 elif phone.strip().upper() in ["IVER", "VOCNOISE", "SIL", "LAUGH"]:
                     # zero out audio for interviewer
-                    audio[
+                    audio[  # type: ignore
                         int(start * TARGET_SAMPLE_RATE) : int(stop * TARGET_SAMPLE_RATE)
                     ] = 0
                     # reduce zeroed out silence duration to REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
@@ -127,7 +127,7 @@ class BuckeyeDataset(BaseDataset):
                             stop - start
                         ) - REPLACE_INTERVIEWER_SOUNDS_WITH_SILENCE_SECONDS
                         stop = start + extraneous_duration
-                        audio = audio_array_clip(audio, start, stop)
+                        audio = audio_array_clip(audio, start, stop)  # type: ignore
                         accumulated_removal += extraneous_duration
 
                 phone = BUCKEYE2IPA.get(phone.lower(), "")

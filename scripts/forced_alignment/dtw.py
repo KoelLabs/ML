@@ -3,7 +3,7 @@
 import os
 import sys
 
-from fastdtw import fastdtw
+from fastdtw import fastdtw  # type: ignore
 from scipy.spatial.distance import euclidean
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))

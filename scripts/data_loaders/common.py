@@ -3,7 +3,7 @@ import sys
 
 from torch.utils.data import Dataset
 from abc import abstractmethod, ABCMeta
-from collections import Iterable
+from collections.abc import Iterable
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE

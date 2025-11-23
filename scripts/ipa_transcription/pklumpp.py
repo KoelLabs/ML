@@ -51,7 +51,7 @@ def pklumpp_transcribe(input_path, model_id=MODEL_IDS[0]):
         wav2vec2 = Wav2Vec2.from_pretrained(
             "pklumpp/Wav2Vec2_CommonPhone",
         )
-        wav2vec2.to(device)
+        wav2vec2.to(device)  # type: ignore
         wav2vec2.eval()
 
         # Save model
@@ -61,7 +61,7 @@ def pklumpp_transcribe(input_path, model_id=MODEL_IDS[0]):
 
     # Load audio file
     audio = audio_file_to_array(input_path)
-    audio = audio.reshape((1, audio.shape[0]))
+    audio = audio.reshape((1, audio.shape[0]))  # type: ignore
 
     # IMPORTANT: Always standardize input audio
     mean = audio.mean()

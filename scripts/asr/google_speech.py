@@ -2,6 +2,7 @@
 
 from google.cloud.speech_v2 import SpeechClient
 from google.cloud.speech_v2.types import cloud_speech
+from google.api_core.client_options import ClientOptions
 
 import os
 import sys
@@ -13,19 +14,21 @@ from core.load_secrets import load_secrets
 
 load_secrets()
 
-# Instantiates a client
-client = SpeechClient()
+REGION = "us"  # must use "us" or other supported region (https://docs.cloud.google.com/speech-to-text/docs/models/chirp-3) with chirp_3
+MODEL = "chirp_3"
+
+client = SpeechClient(
+    client_options=ClientOptions(api_endpoint=f"{REGION}-speech.googleapis.com")
+)
 
 
 def google_transcribe_from_bytes(input_bytes, longer_than_one_minute=True, timeout=120):
     config = cloud_speech.RecognitionConfig(
         auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
-        language_codes=["en-US"],
-        model="long" if longer_than_one_minute else "short",  # Chosen model
+        language_codes=["en-US"],  # chirp_3 also supports "auto"
+        model=MODEL,
     )
-    recognizer = (
-        f"projects/{os.environ.get('GOOGLE_PROJECT_ID')}/locations/global/recognizers/_"
-    )
+    recognizer = f"projects/{os.environ.get('GOOGLE_PROJECT_ID')}/locations/{REGION}/recognizers/_"
 
     if longer_than_one_minute:
         with create_temp_object_from_bytes(input_bytes) as key:

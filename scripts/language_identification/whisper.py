@@ -39,7 +39,7 @@ def whisper_detect_language_from_array(
 def whisper_detect_language_from_file(
     input_path: str,
 ) -> "tuple[str, float, list[tuple[str, float]]]":
-    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float64) / 32768  # type: ignore
     return whisper_detect_language_from_array(wav_array)
 
 

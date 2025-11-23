@@ -79,9 +79,9 @@ def transcribe(
     processed = processor(
         wav_array,
         sampling_rate=processor.feature_extractor.sampling_rate,  # type: ignore
-        return_tensors="pt",
-        padding="max_length",
-        max_length=receptive,
+        return_tensors="pt",  # type: ignore
+        padding="max_length",  # type: ignore
+        max_length=receptive,  # type: ignore
     )
     processed["input_values"] = (
         processed["input_values"].type(torch.float32).to(model.device)

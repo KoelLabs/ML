@@ -22,7 +22,7 @@ assert API_KEY, "SALAD_API_KEY is not set"
 
 def salad_transcribe(audio_path):
     print(f"Status: uploading audio")
-    with create_temp_object(audio_path) as key:
+    with create_temp_object(audio_path) as key:  # type: ignore
         url = get_presigned_url(key, expiration=7200)
         response = requests.post(
             API_URL,  # type: ignore

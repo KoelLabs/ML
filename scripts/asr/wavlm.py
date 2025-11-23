@@ -56,7 +56,7 @@ def wavlm_transcribe_from_array(wav_array):
 
 
 def wavlm_transcribe_from_file(input_path: str):
-    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768
+    wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return wavlm_transcribe_from_array(wav_array)
 
 
