@@ -24,7 +24,7 @@ def show_sample(sample, skip_plot=False, format_metadata=lambda x: x):
     display(Audio(audio, rate=TARGET_SAMPLE_RATE))
 
 
-def show_hf_sample(sample):
+def show_hf_sample(sample, skip_plot=False):
     import matplotlib.pyplot as plt
     from IPython.display import Audio, display
 
@@ -34,8 +34,9 @@ def show_hf_sample(sample):
 
     print("IPA:", ipa)
     print("Metadata:", sample)
-    plt.plot(audio["array"])
-    plt.show()
+    if not skip_plot:
+        plt.plot(audio["array"])
+        plt.show()
     display(Audio(audio["array"], rate=audio["sampling_rate"]))
 
 
