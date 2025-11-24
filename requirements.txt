@@ -9,7 +9,7 @@ sounddevice==0.5.3
 scipy==1.15.3
 python-dotenv==1.2.1
 google-cloud-speech==2.34.0
-google-cloud-storage==3.6.0
+google-cloud-storage>=2.10.0
 boto3==1.41.2
 azure-cognitiveservices-speech==1.47.0
 transformers==4.57.1
@@ -42,7 +42,7 @@ f5-tts==1.1.9
 pandarallel==1.6.5
 seaborn==0.13.2
 gradio==5.50.0
-tqdm==4.67.1
+tqdm>=4.65.0
 nltk==3.9.2
 antlr4-python3-runtime==4.9.3
 huggingface-hub==0.36.0
