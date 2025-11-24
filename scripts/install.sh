@@ -187,3 +187,32 @@ curl -L https://www.kaggle.com/api/v1/datasets/download/kodaliradha20phd7093/non
 # request permissions from https://buckeyecorpus.osu.edu/, then get the patch and apply it
 # curl -L https://raw.githubusercontent.com/MontrealCorpusTools/mfa-models/refs/heads/main/scripts/alignment_benchmarks/data_prep/buckeye.patch > ./.data/buckeye.patch
 # python scripts/data_loaders/OSUBuckeye.py patch
+
+# OpenSLR 83 (https://www.openslr.org/83/)
+mkdir -p ./.data/OpenSLR83/audios
+curl -L https://openslr.trmal.net/resources/83/about.html > ./.data/OpenSLR83/about.html
+curl -L https://openslr.trmal.net/resources/83/line_index_all.csv > ./.data/OpenSLR83/line_index_all.csv
+curl -L https://openslr.trmal.net/resources/83/LICENSE > ./.data/OpenSLR83/LICENSE
+curl -L https://openslr.trmal.net/resources/83/dialect_info.txt > ./.data/OpenSLR83/dialect_info.txt
+curl -L https://openslr.trmal.net/resources/83/irish_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/midlands_english_female.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/midlands_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/northern_english_female.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/northern_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/scottish_english_female.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/scottish_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/southern_english_female.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/southern_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/welsh_english_female.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
+curl -L https://openslr.trmal.net/resources/83/welsh_english_male.zip > ./.data/OpenSLR83/temp.zip
+unzip -o ./.data/OpenSLR83/temp.zip -d ./.data/OpenSLR83/audios && rm ./.data/OpenSLR83/temp.zip
