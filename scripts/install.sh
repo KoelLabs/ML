@@ -7,6 +7,7 @@ if [ "$(uname)" == "Darwin" ]; then
     brew install ffmpeg      
     brew install portaudio
     pip install pyaudio
+    brew install wget
 elif [ "$(expr substr $(uname -s) 1 5)" == "Linux" ]; then
     # GNU/Linux specific
     sudo apt-get update
