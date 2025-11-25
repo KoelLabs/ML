@@ -29,6 +29,8 @@ SPEAKERS = {
     "slt": {"sex": "female", "lang": "US English", "accent": "US"},
 }
 
+DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "CMU_ARCTIC")
+
 
 class L1ArcticDataset(BaseDataset):
     """
@@ -37,12 +39,10 @@ class L1ArcticDataset(BaseDataset):
 
     def __init__(
         self,
-        data_dir=".data/CMU_ARCTIC",
         include_speaker_info=False,
         include_text=True,
         speaker_list=None,
     ):
-        self.data_dir = data_dir
         self.include_speaker_info = include_speaker_info
         self.include_text = include_text
 
@@ -58,7 +58,7 @@ class L1ArcticDataset(BaseDataset):
 
         # Process each speaker directory
         for speaker in self.speaker_list:
-            speaker_dir = os.path.join(self.data_dir, f"cmu_us_{speaker}_arctic")
+            speaker_dir = os.path.join(DATA_DIR, f"cmu_us_{speaker}_arctic")
 
             # Skip if speaker directory doesn't exist
             if not os.path.exists(speaker_dir):
@@ -129,21 +129,18 @@ class L1ArcticDataset(BaseDataset):
             audio = audio_bytes_to_array(f.read())
 
         result = [None, audio]
-        if self.include_text:
-            result.append(sample["text"])
         if self.include_speaker_info:
             speaker_info = SPEAKERS[sample["speaker"]]
-            result.append(speaker_info)
-
+            result.append({**speaker_info, "speaker": sample["speaker"]})
+        if self.include_text:
+            result.append(sample["text"])
         return tuple(result)
 
 
 # Example usage
 if __name__ == "__main__":
     # Create the dataset with all speakers
-    dataset = L1ArcticDataset(
-        data_dir=".data/CMU_ARCTIC", include_speaker_info=True, include_text=True
-    )
+    dataset = L1ArcticDataset(include_speaker_info=True, include_text=True)
 
     # Get the first sample
     sample = dataset[0]
@@ -156,7 +153,6 @@ if __name__ == "__main__":
 
     # Example of getting a specific speaker
     bdl_dataset = L1ArcticDataset(
-        data_dir=".data/CMU_ARCTIC",
         include_speaker_info=True,
         include_text=True,
         speaker_list=["bdl"],
