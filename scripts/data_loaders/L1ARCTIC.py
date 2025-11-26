@@ -9,24 +9,24 @@ from core.audio import audio_bytes_to_array
 from data_loaders.common import BaseDataset
 
 SPEAKERS = {
-    "aew": {"sex": "male", "lang": "US English", "accent": "US"},
+    "aew": {"sex": "male", "lang": "US English", "accent": "USA"},
     "ahw": {"sex": "male", "lang": "US English", "accent": "German"},
     "aup": {"sex": "male", "lang": "US English", "accent": "Indian"},
     "awb": {"sex": "male", "lang": "US English", "accent": "Scottish"},
     "axb": {"sex": "female", "lang": "US English", "accent": "Indian"},
-    "bdl": {"sex": "male", "lang": "US English", "accent": "US"},
-    "clb": {"sex": "female", "lang": "US English", "accent": "US"},
-    "eey": {"sex": "female", "lang": "US English", "accent": "US"},
+    "bdl": {"sex": "male", "lang": "US English", "accent": "USA"},
+    "clb": {"sex": "female", "lang": "US English", "accent": "USA"},
+    "eey": {"sex": "female", "lang": "US English", "accent": "USA"},
     "fem": {"sex": "male", "lang": "US English", "accent": "Irish"},
     "gka": {"sex": "male", "lang": "US English", "accent": "Indian"},
     "jmk": {"sex": "male", "lang": "US English", "accent": "Canadian"},
     "ksp": {"sex": "male", "lang": "US English", "accent": "Indian"},
-    "ljm": {"sex": "female", "lang": "US English", "accent": "US"},
-    "lnh": {"sex": "female", "lang": "US English", "accent": "US"},
-    "rms": {"sex": "male", "lang": "US English", "accent": "US"},
+    "ljm": {"sex": "female", "lang": "US English", "accent": "USA"},
+    "lnh": {"sex": "female", "lang": "US English", "accent": "USA"},
+    "rms": {"sex": "male", "lang": "US English", "accent": "USA"},
     "rxr": {"sex": "male", "lang": "US English", "accent": "Dutch"},
     "slp": {"sex": "female", "lang": "US English", "accent": "Indian"},
-    "slt": {"sex": "female", "lang": "US English", "accent": "US"},
+    "slt": {"sex": "female", "lang": "US English", "accent": "USA"},
 }
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "CMU_ARCTIC")
