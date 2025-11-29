@@ -1,5 +1,9 @@
 import os
-from dotenv import load_dotenv
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = lambda _: None
 
 
 def load_secrets():
