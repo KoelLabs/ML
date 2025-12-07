@@ -101,22 +101,27 @@ class SpeechAccentDataset(BaseDataset):
             self.df = pd.read_excel(FULL_DATASET_METADATA, dtype={"notes": str})
             # NOTE: some audio files in processed_wav_files have no corresponding textgrid
             # for some use cases they might be useful, for now, they are not included
-            self.textgrids = [
-                os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file)
-                for subdir in os.listdir(FULL_DATASET_TRANSCRIPTS)
-                if os.path.isdir(os.path.join(FULL_DATASET_TRANSCRIPTS, subdir))
-                for file in os.listdir(os.path.join(FULL_DATASET_TRANSCRIPTS, subdir))
-                if file.endswith(".TextGrid")
-                and (
-                    include_samples_without_phonemes
-                    or _textgrid_contains_tier(
-                        os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file), "phones"
+            self.textgrids = sorted(
+                [
+                    os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file)
+                    for subdir in os.listdir(FULL_DATASET_TRANSCRIPTS)
+                    if os.path.isdir(os.path.join(FULL_DATASET_TRANSCRIPTS, subdir))
+                    for file in os.listdir(
+                        os.path.join(FULL_DATASET_TRANSCRIPTS, subdir)
                     )
-                    or _textgrid_contains_tier(
-                        os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file), "MAU"
+                    if file.endswith(".TextGrid")
+                    and (
+                        include_samples_without_phonemes
+                        or _textgrid_contains_tier(
+                            os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file),
+                            "phones",
+                        )
+                        or _textgrid_contains_tier(
+                            os.path.join(FULL_DATASET_TRANSCRIPTS, subdir, file), "MAU"
+                        )
                     )
-                )
-            ]
+                ]
+            )
 
     def __del__(self):
         if self.split == "kaggle":
