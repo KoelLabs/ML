@@ -124,10 +124,10 @@ def gen_l2arctic_suitcase_split():
                     continue
                 phone = ipa.pop(0)
                 while phone == "-":
-                    subg2p.append(g2p.pop(0))
+                    subg2p.append(g2p.pop(0).replace("-", ""))
                     phone = ipa.pop(0)
                 assert phone == p
-                subg2p.append(g2p.pop(0))
+                subg2p.append(g2p.pop(0).replace("-", ""))
 
             yield {
                 "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
@@ -175,10 +175,10 @@ def gen_buckeye_split():
                     continue
                 phone = ipa.pop(0)
                 while phone == "-":
-                    subg2p.append(g2p.pop(0))
+                    subg2p.append(g2p.pop(0).replace("-", ""))
                     phone = ipa.pop(0)
                 assert phone == p
-                subg2p.append(g2p.pop(0))
+                subg2p.append(g2p.pop(0).replace("-", ""))
 
             yield {
                 "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore

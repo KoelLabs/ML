@@ -56,8 +56,12 @@ def plot_dataset_distributions(datasets: list[Dataset]):
     labels = []
 
     for ds in datasets:
-        # Calculate audio durations
-        durations = [x["audio"]["array"].shape[0] / x["audio"]["sampling_rate"] for x in ds]  # type: ignore
+        try:
+            # Calculate audio durations
+            durations = [x["audio"]["array"].shape[0] / x["audio"]["sampling_rate"] for x in ds]  # type: ignore
+        except:
+            print(ds)
+            raise
         audio_lengths.append(durations)
         # Calculate IPA string lengths
         ipa_len = [len(x["ipa"]) for x in ds]  # type: ignore
@@ -107,8 +111,12 @@ def plot_dataset_distributions(datasets: list[Dataset]):
     )
 
 
-def combine_datasets(datasets: list[Dataset], sample_probabilities=None, seed=42):
-    columns = ["ipa", "audio"]
+def combine_datasets(
+    datasets: list[Dataset],
+    sample_probabilities=None,
+    seed=42,
+    columns=["ipa", "audio"],
+):
     datasets = list(
         map(
             lambda x: x.remove_columns(
@@ -131,27 +139,26 @@ def combine_datasets(datasets: list[Dataset], sample_probabilities=None, seed=42
 
 
 def is_not_empty(row):
-    return (
-        row.get("audio") is not None
-        and row.get("ipa") is not None
-        and len(row["ipa"]) > 0
-        and row["audio"].get("array") is not None
-        and len(row["audio"]["array"]) > 0
-    )
+    try:
+        return len(row["ipa"]) > 0 and len(row["audio"]["array"]) > 0
+    except:
+        return False
 
 
-def process_row(processor: Wav2Vec2Processor, rows):
+def process_row(processor: Wav2Vec2Processor, rows, col="ipa"):
     # model expects audio to be float32 @ 16 kHz
     all_input_values = []
     all_labels = []
-    for ipa, audio in zip(rows["ipa"], rows["audio"]):
+    for ipa, audio in zip(rows[col], rows["audio"]):
         assert audio["sampling_rate"] == TARGET_SAMPLE_RATE
         audio = audio["array"].astype(np.float32, copy=False)
         inputs = processor(audio, sampling_rate=TARGET_SAMPLE_RATE, return_tensors=None)  # type: ignore
         input_values = np.asarray(inputs["input_values"][0], dtype=np.float32)
         all_input_values.append(input_values)
 
-        ipa = remove_length_diacritics(remove_tones_and_stress(ipa.replace(" ", "")))
+        ipa = remove_length_diacritics(
+            remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
+        )
         labels = processor(text=ipa).input_ids
         all_labels.append(labels)
     return {
@@ -161,16 +168,30 @@ def process_row(processor: Wav2Vec2Processor, rows):
 
 
 def process_dataset(
-    combined_ds: Dataset, processor: Wav2Vec2Processor, num_proc: int, seed: int
+    combined_ds: Dataset,
+    processor: Wav2Vec2Processor,
+    num_proc: int,
+    seed: int,
+    ipa_proportion: float = 1.00,
 ):
     processed_ds = combined_ds.filter(is_not_empty, num_proc=num_proc).shuffle(
         seed=seed
     )
+
+    # random allocation of ipa vs g2p labels
+    rng = np.random.default_rng(seed)
+    n = len(processed_ds)
+    n_ipa = int(round(n * ipa_proportion))
+    ipa_indices = rng.choice(n, size=n_ipa, replace=False)
+
     return processed_ds.map(
-        lambda r: process_row(processor, r),
+        lambda r, idx: process_row(
+            processor, r, col="ipa" if idx[0] in ipa_indices else "g2p"
+        ),
         num_proc=num_proc,
         batch_size=1,
         batched=True,
+        with_indices=True,
     )
 
 
@@ -180,11 +201,14 @@ def get_or_create_processed_dataset(
     processor: Wav2Vec2Processor,
     num_proc: int,
     seed: int,
+    ipa_proportion: float = 1.00,
 ):
     if os.path.exists(path):
         processed_ds = load_from_disk(path)
     else:
-        processed_ds = process_dataset(combined_ds, processor, num_proc, seed)
+        processed_ds = process_dataset(
+            combined_ds, processor, num_proc, seed, ipa_proportion
+        )
         processed_ds.save_to_disk(path)
     return processed_ds
 
@@ -261,7 +285,7 @@ def align_dataset_with_model_vocab(
         ):  # edge case, this one doesn't split properly when looping through characters
             parts = ["ɪ", "̃"] if s == "ĩ" else ["i", "̃"]
             matched = [p in combined_model_vocab.keys() for p in parts]
-        elif s == "ə̥":
+        elif s == "ə̥" and "ə" in combined_model_vocab and "h" in combined_model_vocab:
             partial_matched_tokens[s] = [
                 combined_model_vocab["ə"],
                 combined_model_vocab["h"],
@@ -284,12 +308,16 @@ def save_model_with_updated_vocab(
     special_tokens,
     matched_tokens,
     partial_matched_tokens,
+    unmatched_tokens={},
     seed=42,
 ):
     # Renumber the token sequence
     token_to_old_id = special_tokens | matched_tokens | partial_matched_tokens
     token_sequence = sorted(token_to_old_id.keys(), key=lambda x: token_to_old_id[x][0] if isinstance(token_to_old_id[x], list) else token_to_old_id[x])  # type: ignore
     vocab_dict = {tok: idx for idx, tok in enumerate(token_sequence)}
+    vocab_dict |= {
+        tok: idx + len(token_sequence) for idx, tok in enumerate(unmatched_tokens)
+    }
 
     # Save vocab.json
     os.makedirs(save_dir, exist_ok=True)
@@ -308,7 +336,17 @@ def save_model_with_updated_vocab(
     tokenizer.save_pretrained(save_dir)
 
     # Save updated processor
-    feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(old_model_id)
+    try:
+        feature_extractor = Wav2Vec2FeatureExtractor.from_pretrained(old_model_id)
+    except:
+        print("WARNING: setting up fresh preprocessor for model")
+        feature_extractor = Wav2Vec2FeatureExtractor(
+            feature_size=1,
+            sampling_rate=TARGET_SAMPLE_RATE,
+            padding_value=0.0,
+            do_normalize=True,
+            return_attention_mask=True,
+        )
     Wav2Vec2Processor(
         feature_extractor=feature_extractor, tokenizer=tokenizer
     ).save_pretrained(save_dir)
@@ -332,6 +370,9 @@ def save_model_with_updated_vocab(
 
     # copy / average / jitter weights
     for tok, new_id in vocab_dict.items():
+        if tok not in token_to_old_id:
+            continue
+
         old_ids = token_to_old_id[tok]
 
         if isinstance(old_ids, int):
