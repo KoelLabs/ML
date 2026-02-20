@@ -34,9 +34,10 @@ class PSSTDataset(BaseDataset):
         split="train",
         include_timestamps=False,
         include_speaker_info=False,
+        include_text=False,
         force_offline=False,
     ):
-        super().__init__(split, include_timestamps, include_speaker_info)
+        super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
         if include_timestamps:
             raise NotImplementedError("Timestamps are not available for PSST.")
@@ -85,10 +86,9 @@ class PSSTDataset(BaseDataset):
                 end = int(1.8 * TARGET_SAMPLE_RATE)
                 audio = audio[:end]
 
+        result = [ipa, audio]
         if self.include_speaker_info:
-            return (
-                ipa,
-                audio,
+            result.append(
                 {
                     "utterance_id": utterance.utterance_id,  # type: ignore
                     "test": utterance.test,  # type: ignore
@@ -97,10 +97,11 @@ class PSSTDataset(BaseDataset):
                     "correct": utterance.correctness,  # type: ignore
                     "aq_index": utterance.aq_index,  # type: ignore
                     "filename": utterance.filename_absolute,  # type: ignore
-                },
+                }
             )
-        else:
-            return ipa, audio
+        if self.include_text:
+            result.append(utterance.prompt)  # type: ignore
+        return result
 
 
 if __name__ == "__main__":

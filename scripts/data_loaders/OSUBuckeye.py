@@ -47,9 +47,7 @@ class BuckeyeDataset(BaseDataset):
         include_text=False,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
-
-        assert not include_text, "Text not parsed for Buckeye yet"
-        # NOTE: also includes information on laughing etc. which is not parsed
+        # NOTE: buckeye also includes information on laughing etc. which is not parsed
 
         self.datazip = zipfile.ZipFile(DATA_ZIP, "r")
         speakers = [
@@ -149,6 +147,20 @@ class BuckeyeDataset(BaseDataset):
             speaker = SPEAKERS[self.split]
             speaker["id"] = self.split
             result.append(speaker)
+        if self.include_text:
+            words = []
+            with conversation_zip.open(f"{utterance}.words") as text_file:
+                for line in text_file.read().decode("utf-8").split("\n")[9:]:
+                    if line == "":
+                        continue
+                    line = line.split(";")[0].strip()
+                    fields = line.split()
+                    if len(fields) < 3:
+                        continue
+                    word: str = fields[2]
+                    if not word.startswith("<") and not word.startswith("{"):
+                        words.append(word)
+            result.append(" ".join(words))
         return tuple(result)
 
 

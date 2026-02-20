@@ -21,6 +21,9 @@ from data_loaders.TIMIT import TIMITDataset
 from data_loaders.ISLE import ISLEDataset
 from data_loaders.SpeechAccent import SpeechAccentDataset
 
+from core.text import english2ipa
+from forced_alignment.needleman_wunsch import needleman_wunsch
+
 
 # ==================================================
 # =================== Generators ===================
@@ -37,6 +40,7 @@ def gen_doreco():
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
             "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "id": metadata["id"],  # type: ignore
             "speaker_code": metadata["spk_code"],  # type: ignore
             "speaker_age": metadata["spk_age"],  # type: ignore
@@ -62,6 +66,7 @@ def gen_epadb(split):
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
                 "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["speaker_id"],  # type: ignore
             }
 
@@ -89,6 +94,7 @@ def gen_l2arctic(split):
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
                 "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["gender"].lower(),  # type: ignore
                 "speaker_native_language": metadata["native-language"],  # type: ignore
@@ -103,14 +109,30 @@ def gen_l2arctic_suitcase_split():
         split="suitcase_corpus",
         include_timestamps=True,
         include_speaker_info=True,
+        include_text=True,
     )
     for sample in dataset:
         metadata = sample[3]  # type: ignore
+        g2p = english2ipa(sample[4])  # type: ignore
+        ipa, g2p = needleman_wunsch(list(filter(lambda p: p, map(lambda p: p[0], sample[2]))), g2p)  # type: ignore
         for subsample in split_utterance_into_multiple(sample[2], sample[1], 0.01, 10):  # type: ignore
             assert subsample[1].dtype == np.int16  # type: ignore
+
+            subg2p = []
+            for p, _, _ in subsample[2]:
+                if not p:
+                    continue
+                phone = ipa.pop(0)
+                while phone == "-":
+                    subg2p.append(g2p.pop(0))
+                    phone = ipa.pop(0)
+                assert phone == p
+                subg2p.append(g2p.pop(0))
+
             yield {
                 "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": subsample[0],  # type: ignore
+                "g2p": "".join(subg2p),
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["gender"].lower(),  # type: ignore
                 "speaker_native_language": metadata["native-language"],  # type: ignore
@@ -118,13 +140,15 @@ def gen_l2arctic_suitcase_split():
 
 
 def gen_buckeye():
-    dataset = all_buckeye_speaker_splits(include_speaker_info=True)
+    dataset = all_buckeye_speaker_splits(include_speaker_info=True, include_text=True)
     for sample in dataset:
         assert sample[1].dtype == np.int16  # type: ignore
         metadata = sample[2]  # type: ignore
         yield {
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
+            "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "speaker_code": metadata["id"],
             "speaker_gender": metadata["gender"][0],
             "speaker_age": metadata["age"],
@@ -134,15 +158,32 @@ def gen_buckeye():
 
 def gen_buckeye_split():
     dataset = all_buckeye_speaker_splits(
-        include_timestamps=True, include_speaker_info=True
+        include_timestamps=True,
+        include_speaker_info=True,
+        include_text=True,
     )
     for sample in dataset:
         metadata = sample[3]  # type: ignore
+        g2p = english2ipa(sample[4])  # type: ignore
+        ipa, g2p = needleman_wunsch(list(filter(lambda p: p, map(lambda p: p[0], sample[2]))), g2p)  # type: ignore
         for subsample in split_utterance_into_multiple(sample[2], sample[1], 0.01, 30):  # type: ignore
             assert subsample[1].dtype == np.int16  # type: ignore
+
+            subg2p = []
+            for p, _, _ in subsample[2]:
+                if not p:
+                    continue
+                phone = ipa.pop(0)
+                while phone == "-":
+                    subg2p.append(g2p.pop(0))
+                    phone = ipa.pop(0)
+                assert phone == p
+                subg2p.append(g2p.pop(0))
+
             yield {
                 "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": subsample[0],  # type: ignore
+                "g2p": "".join(subg2p),
                 "speaker_code": metadata["id"],
                 "speaker_gender": metadata["gender"][0],
                 "speaker_age": metadata["age"],
@@ -153,7 +194,10 @@ def gen_buckeye_split():
 def gen_psst(split):
     def generator():
         dataset = PSSTDataset(
-            split=split, include_speaker_info=True, force_offline=True
+            split=split,
+            include_speaker_info=True,
+            include_text=True,
+            force_offline=True,
         )
         for sample in dataset:
             assert sample[1].dtype == np.int16  # type: ignore
@@ -161,6 +205,8 @@ def gen_psst(split):
             yield {
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
+                "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "utterance_id": metadata["utterance_id"],  # type: ignore
                 "utterance_text_prompt": metadata["text_prompt"],  # type: ignore
                 "recording_test": metadata["test"],  # type: ignore
@@ -184,6 +230,7 @@ def gen_speech_ocean(split):
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
                 "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["speaker_id"],  # type: ignore
                 "speaker_gender": metadata["gender"],  # type: ignore
                 "speaker_age": metadata["age"],  # type: ignore
@@ -219,6 +266,7 @@ def gen_timit(split):
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
                 "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["SEX"],  # type: ignore
                 "speaker_dialect": metadata["DIALECT"],  # type: ignore
@@ -245,6 +293,7 @@ def gen_isle():
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
             "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "speaker_code": metadata["speaker_id"],  # type: ignore
             "speaker_native_language": metadata["native_language"],  # type: ignore
             "recording_session": metadata["session"],  # type: ignore
@@ -262,6 +311,7 @@ def gen_speech_accent_archive():
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
             "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "speaker_code": metadata["speakerid"],  # type: ignore
             "speaker_native_language": metadata["native_language"],  # type: ignore
             "speaker_native_language_alternative": metadata["native_language_alternative"],  # type: ignore
