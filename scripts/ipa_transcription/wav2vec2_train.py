@@ -416,7 +416,7 @@ def prepare_model_and_processor(
     processor = Wav2Vec2Processor.from_pretrained(model_dir)
     if torch.cuda.is_available():
         model = Wav2Vec2ForCTC.from_pretrained(
-            model_dir, #attn_implementation="flash_attention_2"
+            model_dir,  # attn_implementation="flash_attention_2"
         )
     else:
         model = Wav2Vec2ForCTC.from_pretrained(model_dir)
