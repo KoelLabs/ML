@@ -15,6 +15,8 @@ from core.ipa import filter_chars
 
 from string import punctuation
 import g2p_en
+from phonemizer import phonemize
+from phonemizer.separator import Separator
 
 g2p = g2p_en.G2p()
 
@@ -32,6 +34,19 @@ def english2ipa(text, filter_type="letters_rmv_tie"):
 
     text = remove_punctuation("\n".join("".join(map(arpa2ipa, arp)) for arp in arpa))
     return filter_chars(text, filter_type)
+
+
+def english2ipa_phonemizer(text, filter_type="letters_rmv_tie"):
+    ipa = phonemize(
+        text.split("\n"),
+        backend="espeak",
+        language="en-us",
+        separator=Separator(word=" ", phone=""),  # words separated, phones joined
+        with_stress=True,
+        preserve_punctuation=False,
+    )
+    result = remove_punctuation("\n".join(ipa))
+    return filter_chars(result, filter_type)
 
 
 def remove_punctuation(text):
