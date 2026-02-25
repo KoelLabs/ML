@@ -419,6 +419,8 @@ def main(args):
     text = args[1]
     if command == "english2ipa":
         print(english2ipa(text))
+    elif command == "english2ipa_phonemizer":
+        print(english2ipa_phonemizer(text))
     elif command == "remove_punctuation":
         print(remove_punctuation(text))
     elif command == "normalize_english":
