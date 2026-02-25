@@ -17,8 +17,13 @@ from string import punctuation
 import g2p_en
 from phonemizer import phonemize
 from phonemizer.separator import Separator
+from phonemizer.backend import EspeakBackend
 
 g2p = g2p_en.G2p()
+
+backend = EspeakBackend(
+    "en-us", preserve_punctuation=False, with_stress=True
+)  # One-time backend init
 
 
 def english2ipa(text, filter_type="letters_rmv_tie"):
@@ -36,16 +41,13 @@ def english2ipa(text, filter_type="letters_rmv_tie"):
     return filter_chars(text, filter_type)
 
 
-def english2ipa_phonemizer(text, filter_type="letters_rmv_tie"):
-    ipa = phonemize(
-        text.split("\n"),
-        backend="espeak",
-        language="en-us",
-        separator=Separator(word=" ", phone=""),  # words separated, phones joined
-        with_stress=True,
-        preserve_punctuation=False,
-    )
-    result = remove_punctuation("\n".join(ipa))
+def english2ipa_espeak(text, filter_type="letters_rmv_tie"):
+    lines = text.split("\n")
+    ipa_lines = backend.phonemize(
+        lines, separator=None
+    )  # separator=None joins phonemes without delimiter
+
+    result = remove_punctuation("\n".join(ipa_lines))
     return filter_chars(result, filter_type)
 
 
@@ -419,8 +421,8 @@ def main(args):
     text = args[1]
     if command == "english2ipa":
         print(english2ipa(text))
-    elif command == "english2ipa_phonemizer":
-        print(english2ipa_phonemizer(text))
+    elif command == "english2ipa_espeak":
+        print(english2ipa_espeak(text))
     elif command == "remove_punctuation":
         print(remove_punctuation(text))
     elif command == "normalize_english":
