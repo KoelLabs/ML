@@ -21,6 +21,9 @@ DEVICE = (
 )
 
 # valid model ids:
+# espnet/owsm_v1 - 272M params, 38K audio hours
+# espnet/owsm_v2 - 712M params, 129K audio hours
+# espnet/owsm_v2_ebranchformer - 739M params, 129K audio hours
 # espnet/owsm_v3 - 889M params, 180K audio hours
 # espnet/owsm_v3.1_ebf_base - 101M params, 180K audio hours
 # espnet/owsm_v3.1_ebf_small - 367M params, 180K audio hours
@@ -33,14 +36,24 @@ DEVICE = (
 # espnet/owsm_v4_medium_1B - 1.02B params, 320k audio hours
 # espnet/owsm_ctc_v4_1B - 1.01B params, 320k audio hours
 
+# model_tag = "espnet/owsm_v1"
+# model_tag = "espnet/owsm_v2_ebranchformer"
+# model_tag = "espnet/owsm_v3.1_ebf"
+model_tag = "espnet/owsm_v4_medium_1B"
+
+IS_LEGACY = model_tag in [
+    "espnet/owsm_v1",
+    "espnet/owsm_v2",
+    "espnet/owsm_v2_ebranchformer",
+]
 s2t = Speech2Text.from_pretrained(
-    model_tag="espnet/owsm_v3.1_ebf",
+    model_tag=model_tag,
     device=DEVICE,
     beam_size=5,
     ctc_weight=0.0,
     maxlenratio=0.0,  # if it seems to not terminate, set this to a small value like 0.05
     # below are default values which can be overwritten in __call__
-    lang_sym="<eng>",
+    lang_sym=("<eng>" if not IS_LEGACY else "<en>"),
     task_sym="<asr>",
     predict_time=False,
 )
@@ -65,6 +78,15 @@ def owsm_transcribe_from_array(
 ):
     if wav_array.dtype != np.float64:
         wav_array = wav_array.astype(np.float64) / 32768
+
+    # Compatability with v2 and earlier
+    if IS_LEGACY:
+        import langcodes
+
+        translate = (
+            langcodes.get(translate[0]).language,
+            langcodes.get(translate[1]).language,
+        )  # type: ignore
 
     # enable long-form decoding for audio longer than 30s
     long = len(wav_array) > 30 * TARGET_SAMPLE_RATE
