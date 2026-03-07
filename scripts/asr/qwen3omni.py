@@ -1,3 +1,6 @@
+# Docs: https://github.com/QwenLM/Qwen3-Omni
+# ASR Example Code: https://github.com/QwenLM/Qwen3-Omni/blob/main/cookbooks/speech_recognition.ipynb
+
 import os, sys
 
 os.environ["VLLM_USE_V1"] = "0"
