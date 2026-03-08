@@ -21,6 +21,13 @@ from phonemizer.backend import EspeakBackend
 
 g2p = g2p_en.G2p()
 
+# set espeak library path for macOS
+if sys.platform == "darwin":
+    from phonemizer.backend.espeak.wrapper import EspeakWrapper
+
+    _ESPEAK_LIBRARY = "/opt/homebrew/Cellar/espeak/1.48.04_1/lib/libespeak.1.1.48.dylib"
+    EspeakWrapper.set_library(_ESPEAK_LIBRARY)
+
 backend = EspeakBackend(
     "en-us", preserve_punctuation=False, with_stress=True
 )  # One-time backend init
