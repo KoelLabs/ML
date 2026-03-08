@@ -13,7 +13,6 @@ import torch
 import numpy as np
 from espnet2.bin.s2t_inference import Speech2Text
 
-
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()

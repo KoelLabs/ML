@@ -26,7 +26,6 @@ from core.audio import audio_array_to_wav_file
 
 from tempfile import NamedTemporaryFile
 
-
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()

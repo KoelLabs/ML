@@ -6,7 +6,6 @@ import sys
 
 import zipfile
 
-
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array

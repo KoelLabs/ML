@@ -17,7 +17,6 @@ import numpy as np
 import torch
 from transformers import Wav2Vec2Processor, Wav2Vec2ForCTC
 
-
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()

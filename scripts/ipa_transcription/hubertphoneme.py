@@ -13,7 +13,6 @@ import torch
 import numpy as np
 from phonslm import HuBERTPhoneme
 
-
 DEVICE = (
     "cuda"
     if torch.cuda.is_available()
