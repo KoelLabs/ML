@@ -3,7 +3,11 @@ import sys
 from tempfile import NamedTemporaryFile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.audio import audio_array_to_wav_file, audio_record_to_array
+from core.audio import (
+    audio_array_to_wav_file,
+    audio_record_to_array,
+    TARGET_SAMPLE_RATE,
+)
 import torchaudio
 from transformers import AutoProcessor, SeamlessM4Tv2Model
 
@@ -14,9 +18,11 @@ model = SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large")
 def seamlessm4t_transcribe_from_file(input_path: str):
     audio, orig_freq = torchaudio.load(input_path)
     audio = torchaudio.functional.resample(
-        audio, orig_freq=orig_freq, new_freq=16_000
+        audio, orig_freq=orig_freq, new_freq=TARGET_SAMPLE_RATE
     )  # must be a 16 kHz waveform array
-    audio_inputs = processor(audios=audio, return_tensors="pt")
+    audio_inputs = processor(
+        audios=audio, return_tensors="pt", sampling_rate=TARGET_SAMPLE_RATE
+    )
     output_tokens = model.generate(
         **audio_inputs, tgt_lang="eng", generate_speech=False
     )
