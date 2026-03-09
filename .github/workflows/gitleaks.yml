@@ -9,11 +9,14 @@ jobs:
   scan:
     name: gitleaks
     runs-on: ubuntu-latest
+    environment: security
+
     steps:
       - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
         with:
           persist-credentials: false
           fetch-depth: 0
+
       - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
