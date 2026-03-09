@@ -14,22 +14,62 @@ from transformers import AutoProcessor, SeamlessM4Tv2Model
 processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
 model = SeamlessM4Tv2Model.from_pretrained("facebook/seamless-m4t-v2-large")
 
+CHUNK_SECONDS = 10
+
+
+def chunk_audio(audio, sample_rate):
+    chunk_size = CHUNK_SECONDS * sample_rate
+    return [audio[i : i + chunk_size] for i in range(0, len(audio), chunk_size)]
+
+
+def seamlessm4t_transcribe_chunk(audio_chunk):
+    audio_inputs = processor(
+        audio=audio_chunk,
+        sampling_rate=TARGET_SAMPLE_RATE,
+        return_tensors="pt",
+        src_lang="eng",
+    )
+
+    output_tokens = model.generate(
+        **audio_inputs,
+        tgt_lang="eng",
+        generate_speech=False,
+        max_new_tokens=512,
+    )
+
+    text = processor.batch_decode(
+        output_tokens[0],
+        skip_special_tokens=True,
+    )[0]
+
+    return text
+
 
 def seamlessm4t_transcribe_from_file(input_path: str):
     audio, orig_freq = torchaudio.load(input_path)
+
+    # Convert to mono
+    if audio.shape[0] > 1:
+        audio = audio.mean(dim=0)
+    else:
+        audio = audio.squeeze(0)
+
+    # Resample
     audio = torchaudio.functional.resample(
-        audio, orig_freq=orig_freq, new_freq=TARGET_SAMPLE_RATE
-    )  # must be a 16 kHz waveform array
-    audio_inputs = processor(
-        audios=audio, return_tensors="pt", sampling_rate=TARGET_SAMPLE_RATE
+        audio,
+        orig_freq=orig_freq,
+        new_freq=TARGET_SAMPLE_RATE,
     )
-    output_tokens = model.generate(
-        **audio_inputs, tgt_lang="eng", generate_speech=False
-    )
-    text_from_audio = processor.decode(
-        output_tokens[0].tolist()[0], skip_special_tokens=True
-    )
-    return text_from_audio
+
+    audio = audio.numpy()
+
+    chunks = chunk_audio(audio, TARGET_SAMPLE_RATE)
+
+    transcripts = []
+    for chunk in chunks:
+        transcripts.append(seamlessm4t_transcribe_chunk(chunk))
+
+    return " ".join(transcripts)
 
 
 def seamlessm4t_transcribe_from_array(wav_array):
