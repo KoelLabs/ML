@@ -1,7 +1,8 @@
 # Docs: https://github.com/QwenLM/Qwen3-ASR
 # ASR Example Code: https://github.com/QwenLM/Qwen3-ASR/blob/main/qwen_asr/inference/qwen3_asr.py
 
-import os, sys
+import os
+import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import audio_record_to_array, audio_file_to_array, TARGET_SAMPLE_RATE
@@ -25,15 +26,12 @@ DEVICE = (
 model_id = "Qwen/Qwen3-ASR-1.7B"
 
 processor: Qwen3ASRProcessor = Qwen3ASRProcessor.from_pretrained(model_id)  # type: ignore
-model = Qwen3ASRForConditionalGeneration.from_pretrained(model_id, dtype=torch.bfloat16).to(DEVICE)  # type: ignore
+model = Qwen3ASRForConditionalGeneration.from_pretrained(
+    model_id, dtype=torch.bfloat16
+).to(
+    DEVICE
+)  # type: ignore
 model.eval()
-print(
-    "Model loaded to",
-    DEVICE,
-    "with",
-    sum(p.numel() for p in model.parameters()),
-    "parameters",
-)
 MAX_TOKENS = 2048
 
 
@@ -66,7 +64,7 @@ def qwen_transcribe_from_array(wav_array):
         generated_ids.sequences[:, inputs.input_ids.shape[1] :],
         skip_special_tokens=True,
         clean_up_tokenization_spaces=False,
-    )[0]  # returns format: language<asr_text>transcript
+    )[0]  # format: language<asr_text>transcript
     _, transcription = parse_asr_output(response)  # returns language, transcription
     return transcription
 
@@ -89,9 +87,11 @@ def main(args):
 
     input_path = args[0]
     if input_path == "mic":
-        print(qwen_asr_transcribe_from_file())
+        print(qwen_asr_transcribe_from_mic())
     else:
-        print(qwen_asr_transcribe_from_mic(input_path))
+        print(qwen_asr_transcribe_from_file(input_path))
+
 
 if __name__ == "__main__":
+
     main(sys.argv[1:])
