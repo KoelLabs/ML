@@ -71,12 +71,12 @@ def qwen_transcribe_from_array(wav_array):
     return transcription
 
 
-def qwen_transcribe_from_file(input_path: str):
+def qwen_asr_transcribe_from_file(input_path: str):
     wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
     return qwen_transcribe_from_array(wav_array)
 
 
-def qwen_transcribe_from_mic():
+def qwen_asr_transcribe_from_mic():
     wav_array = audio_record_to_array().astype(np.float32) / 32768
     return qwen_transcribe_from_array(wav_array)
 
@@ -89,10 +89,9 @@ def main(args):
 
     input_path = args[0]
     if input_path == "mic":
-        print(qwen_transcribe_from_mic())
+        print(qwen_asr_transcribe_from_file())
     else:
-        print(qwen_transcribe_from_file(input_path))
-
+        print(qwen_asr_transcribe_from_mic(input_path))
 
 if __name__ == "__main__":
     main(sys.argv[1:])
