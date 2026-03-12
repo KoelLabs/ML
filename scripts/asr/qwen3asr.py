@@ -33,7 +33,7 @@ model.eval()
 MAX_TOKENS = 2048
 
 
-def qwen_transcribe_from_array(wav_array):
+def qwen_asr_transcribe_from_array(wav_array):
     """
     wav_array is an int16 16kHz wav pcm array or a normalized float32 16kHz pcm array
     """
@@ -57,7 +57,11 @@ def qwen_transcribe_from_array(wav_array):
             padding=True,
             sampling_rate=TARGET_SAMPLE_RATE,  # type: ignore
         ).to(DEVICE, dtype=torch.bfloat16)
-        generated_ids = model.generate(**inputs, max_new_tokens=MAX_TOKENS)
+        generated_ids = model.generate(
+            **inputs,
+            max_new_tokens=MAX_TOKENS,
+            pad_token_id=processor.tokenizer.eos_token_id
+        )
     decoded = processor.batch_decode(
         generated_ids.sequences[:, inputs.input_ids.shape[1] :],
         skip_special_tokens=True,
@@ -70,12 +74,12 @@ def qwen_transcribe_from_array(wav_array):
 
 def qwen_asr_transcribe_from_file(input_path: str):
     wav_array = audio_file_to_array(input_path).astype(np.float32) / 32768  # type: ignore
-    return qwen_transcribe_from_array(wav_array)
+    return qwen_asr_transcribe_from_array(wav_array)
 
 
 def qwen_asr_transcribe_from_mic():
     wav_array = audio_record_to_array().astype(np.float32) / 32768
-    return qwen_transcribe_from_array(wav_array)
+    return qwen_asr_transcribe_from_array(wav_array)
 
 
 def main(args):
