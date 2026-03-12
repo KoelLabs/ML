@@ -26,9 +26,8 @@ DEVICE = (
 model_id = "Qwen/Qwen3-ASR-1.7B"
 
 processor: Qwen3ASRProcessor = Qwen3ASRProcessor.from_pretrained(model_id)  # type: ignore
-model = Qwen3ASRForConditionalGeneration.from_pretrained(
-    model_id, dtype=torch.bfloat16
-).to(DEVICE)
+model = Qwen3ASRForConditionalGeneration.from_pretrained(model_id, dtype=torch.bfloat16)
+model = model.to(DEVICE)  # type: ignore
 model.eval()
 MAX_TOKENS = 2048
 
@@ -60,10 +59,10 @@ def qwen_asr_transcribe_from_array(wav_array):
         generated_ids = model.generate(
             **inputs,
             max_new_tokens=MAX_TOKENS,
-            pad_token_id=processor.tokenizer.eos_token_id
+            pad_token_id=processor.tokenizer.eos_token_id  # type: ignore
         )
     decoded = processor.batch_decode(
-        generated_ids.sequences[:, inputs.input_ids.shape[1] :],
+        generated_ids.sequences[:, inputs.input_ids.shape[1] :],  # type: ignore
         skip_special_tokens=True,
         clean_up_tokenization_spaces=False,
     )

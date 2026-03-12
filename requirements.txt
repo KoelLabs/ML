@@ -52,3 +52,4 @@ fairseq2==0.7.0
 qwen-omni-utils==0.0.9
 vllm==0.17.0
 torchao==0.13.0
+qwen-asr==0.0.6
