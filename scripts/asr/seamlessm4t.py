@@ -8,7 +8,8 @@ from core.audio import (
     audio_record_to_array,
     TARGET_SAMPLE_RATE,
 )
-import torchaudio
+import librosa
+import soundfile as sf
 from transformers import AutoProcessor, SeamlessM4Tv2Model
 
 processor = AutoProcessor.from_pretrained("facebook/seamless-m4t-v2-large")
@@ -46,22 +47,18 @@ def seamlessm4t_transcribe_chunk(audio_chunk):
 
 
 def seamlessm4t_transcribe_from_file(input_path: str):
-    audio, orig_freq = torchaudio.load(input_path)
+    audio, orig_freq = sf.read(input_path, dtype="float32")
 
     # Convert to mono
-    if audio.shape[0] > 1:
-        audio = audio.mean(dim=0)
-    else:
-        audio = audio.squeeze(0)
+    if audio.ndim > 1:
+        audio = audio.mean(axis=1)
 
     # Resample
-    audio = torchaudio.functional.resample(
+    audio = librosa.resample(
         audio,
-        orig_freq=orig_freq,
-        new_freq=TARGET_SAMPLE_RATE,
+        orig_sr=orig_freq,
+        target_sr=TARGET_SAMPLE_RATE,
     )
-
-    audio = audio.numpy()
 
     chunks = chunk_audio(audio, TARGET_SAMPLE_RATE)
 

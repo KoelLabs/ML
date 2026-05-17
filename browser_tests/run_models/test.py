@@ -4,7 +4,10 @@ from dotenv import load_dotenv
 
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
-model = "google"  # or "deepspeech"
+model = "deepspeech"
+# Other supported values:
+# canary, google, mms, omni, owsm, qwen2audio, qwen3asr,
+# seamlessm4t, whisper, wavlm
 
 # url = f"http://127.0.0.1:5000/api/v1/asr/{model}"
 url = f"https://koel-api.fly.dev/api/v1/asr/{model}"
