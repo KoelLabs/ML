@@ -165,11 +165,7 @@ def _run_omni(input_path: str) -> str:
     raw_languages = request.args.get(
         "languages", request.args.get("language", "eng_Latn")
     )
-    languages = [
-        lang.strip()
-        for lang in raw_languages.split(",")
-        if lang.strip()
-    ]
+    languages = [lang.strip() for lang in raw_languages.split(",") if lang.strip()]
     return _stringify_transcript(transcribe(input_path, languages=languages))
 
 
