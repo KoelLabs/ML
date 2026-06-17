@@ -5,11 +5,12 @@
 ![PayPal](https://img.shields.io/badge/PayPal-00457C?style=for-the-badge&logo=paypal&logoColor=white)
 
 # Koel Labs - Machine Learning
+[![arXiv](https://img.shields.io/badge/arXiv-2606.16019-b31b1b.svg)](https://arxiv.org/abs/2606.16019)
 ![Black Formatting](https://github.com/KoelLabs/ML/actions/workflows/black.yml/badge.svg)
 ![Zizmor](https://github.com/KoelLabs/ML/actions/workflows/zizmor.yml/badge.svg)
 ![Gitleaks Secret Scanning](https://github.com/KoelLabs/ML/actions/workflows/gitleaks.yml/badge.svg)
 
-Contains the EDA, training, evaluation, and data processing code for Koel Labs. Evaluation results will be made available via [Hugging Face Leaderboards](https://huggingface.co/spaces/KoelLabs/IPA-Transcription-EN). Cleaned datasets and model weights will also be made available via [Hugging Face](https://huggingface.co/KoelLabs). We will be releasing a paper as well so stay tuned!
+Contains the EDA, training, evaluation, and data processing code for Koel Labs. Evaluation results will be made available via [Hugging Face Leaderboards](https://huggingface.co/spaces/KoelLabs/IPA-Transcription-EN). Cleaned datasets and model weights will also be made available via [Hugging Face](https://huggingface.co/KoelLabs).
 
 Read about all our repositories [here](https://github.com/KoelLabs).
 
@@ -36,3 +37,18 @@ The code in this repository is licensed under the [GNU Affero General Public Lic
 With the exception of a few models and Huggingface spaces released during the builders program under the [Mozilla Public License](https://www.mozilla.org/en-US/MPL/2.0/), all Huggingface models and code will be released under the GNU Affero General Public License.
 
 We retain all rights to the Koel Labs brand, logos, blog posts and website content.
+
+## Citation
+If you use any of our models, datasets, or code for a publication, please cite our paper:
+
+```bibtex
+@inproceedings{metzger2026scaling,
+  title={Scaling Human and G2P Supervision for Robust Phonetic Transcription},
+  author={Metzger, Alexander and Srivastava, Aruna and Mukhamedvaleev, Ruslan},
+  booktitle={Proceedings of Interspeech},
+  year={2026},
+  eprint={2606.16019},
+  archivePrefix={arXiv},
+  primaryClass={cs.CL}
+}
+```
