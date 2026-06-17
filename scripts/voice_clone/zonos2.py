@@ -23,6 +23,7 @@ Most useful knobs:
   ZONOS2_MAX_TOKENS_CAP=2048            Upper bound for auto tokens.
   ZONOS2_TEMPERATURE=1.15               Sampling temperature.
   ZONOS2_SEED=0                         Deterministic sampling seed; empty disables.
+  ZONOS2_CHUNK_SIZE=4                   Compiled decode steps per Python sync.
   ZONOS2_PROFILE=1                      Print prompt/sample/decode timing.
 
 Checkpoint creation:
@@ -404,6 +405,123 @@ def _state_from_explicit_caches(cache):
     return [(layer.keys, layer.values, layer.offset) for layer in cache]
 
 
+def _normalize_probs(probs):
+    denom = mx.sum(probs, axis=-1, keepdims=True)
+    return probs / mx.maximum(denom, 1e-12)
+
+
+def _apply_top_k(logits, top_k: int):
+    if top_k <= 0 or top_k >= logits.shape[-1]:
+        return logits
+    kth = mx.sort(logits, axis=-1)[:, -int(top_k)][:, None]
+    return mx.where(logits < kth, float("-inf"), logits)
+
+
+def _apply_top_p(probs, top_p: float):
+    if top_p <= 0.0 or top_p >= 1.0:
+        return probs
+    order = mx.argsort(-probs, axis=-1)
+    sorted_probs = mx.take_along_axis(probs, order, axis=-1)
+    cumsum = mx.cumsum(sorted_probs, axis=-1)
+    mask = cumsum - sorted_probs > top_p
+    sorted_probs = mx.where(mask, 0.0, sorted_probs)
+    out = mx.put_along_axis(mx.zeros_like(probs), order, sorted_probs, axis=-1)
+    return _normalize_probs(out)
+
+
+def _apply_min_p(probs, min_p: float):
+    if min_p <= 0.0:
+        return probs
+    threshold = mx.max(probs, axis=-1, keepdims=True) * float(min_p)
+    out = mx.where(probs < threshold, 0.0, probs)
+    return _normalize_probs(out)
+
+
+def _append_history(history, history_count, ids):
+    if history.shape[0] == 0:
+        return history, history_count
+    history = mx.concatenate([history[1:], ids[None, :]], axis=0)
+    history_count = mx.minimum(history_count + 1, history.shape[0])
+    return history, history_count
+
+
+def _apply_repetition_penalty_device(
+    logits,
+    history,
+    history_count,
+    *,
+    penalty: float,
+    repetition_codebooks: int,
+):
+    if penalty <= 1.0 or history.shape[0] == 0:
+        return logits
+
+    n_codebooks, vocab_size = logits.shape
+    if repetition_codebooks < 0:
+        limit = n_codebooks
+    else:
+        limit = min(n_codebooks, int(repetition_codebooks))
+
+    vocab = mx.arange(vocab_size)
+    valid_positions = mx.arange(history.shape[0]) >= (history.shape[0] - history_count)
+    rows = []
+    for cb in range(limit):
+        token_ids = history[:, cb].astype(mx.int32)
+        valid_tokens = valid_positions & (token_ids >= 0) & (token_ids < vocab_size)
+        mask = mx.any(
+            (vocab[None, :] == token_ids[:, None]) & valid_tokens[:, None], axis=0
+        )
+        row = logits[cb]
+        penalized = mx.where(row > 0, row / penalty, row * penalty)
+        rows.append(mx.where(mask, penalized, row))
+    rows.extend(logits[cb] for cb in range(limit, n_codebooks))
+    return mx.stack(rows, axis=0)
+
+
+def _sample_frame_ids_device(
+    logits,
+    history,
+    history_count,
+    *,
+    temperature: float,
+    top_k: int,
+    top_p: float,
+    min_p: float,
+    repetition_penalty: float,
+    repetition_codebooks: int,
+    key=None,
+):
+    logits = mx.array(logits, dtype=mx.float32)
+    logits = _apply_repetition_penalty_device(
+        logits,
+        history,
+        history_count,
+        penalty=repetition_penalty,
+        repetition_codebooks=repetition_codebooks,
+    )
+
+    if temperature <= 1e-8:
+        return mx.argmax(logits, axis=-1).astype(mx.int32)
+
+    filtered = logits / float(temperature)
+    filtered = _apply_top_k(filtered, int(top_k))
+    probs = mx.softmax(filtered, axis=-1)
+    probs = _apply_top_p(probs, float(top_p))
+    probs = _apply_min_p(probs, float(min_p))
+    finite = mx.all(mx.isfinite(probs), axis=-1)
+    positive = mx.sum(probs, axis=-1) > 0
+    valid = finite & positive
+    safe_probs = mx.where(mx.isfinite(probs), probs, 0.0)
+    sample_logits = mx.where(
+        valid[:, None],
+        mx.log(mx.maximum(safe_probs, 1e-20)),
+        mx.zeros_like(filtered),
+    )
+    sampled = mx.random.categorical(sample_logits, axis=-1, key=key).astype(mx.int32)
+    greedy = mx.argmax(filtered, axis=-1).astype(mx.int32)
+    return mx.where(valid, sampled, greedy)
+
+
 def _decode_audio_timed(model, delayed_rows: list[list[int]] | list[Any] | Any, eos):
     start = time.perf_counter()
     audio = model._decode_audio(delayed_rows, eos)
@@ -431,10 +549,8 @@ def generate_sampled_compiled(
     accurate_mode: bool,
 ):
     from mlx_audio.tts.models.zonos2.generation import (
-        TTSSamplingParams,
         Zonos2GenerationState,
         format_duration,
-        sample_frame_ids,
     )
     from mlx_lm.models.cache import make_prompt_cache
 
@@ -474,18 +590,6 @@ def generate_sampled_compiled(
     mx.eval(last_logits)
     prompt_seconds = time.perf_counter() - prompt_start
 
-    params = TTSSamplingParams(
-        temperature=float(temperature),
-        top_k=int(top_k),
-        top_p=float(top_p),
-        min_p=float(min_p),
-        max_tokens=int(max_tokens),
-        ignore_eos=bool(ignore_eos),
-        repetition_window=int(repetition_window),
-        repetition_penalty=float(repetition_penalty),
-        repetition_codebooks=int(repetition_codebooks),
-        seed=seed,
-    )
     state = Zonos2GenerationState(
         n_codebooks=model.config.n_codebooks,
         eoa_id=model.config.eoa_id,
@@ -493,22 +597,131 @@ def generate_sampled_compiled(
     )
     sample_start = time.perf_counter()
     explicit_cache_state = _make_explicit_cache_state(cache, int(max_tokens))
+    history_size = max(0, int(repetition_window))
+    history = mx.zeros((history_size, state.n_codebooks), dtype=mx.int32)
+    history_count = mx.array(0, dtype=mx.int32)
+    chunk_size = max(1, env_int("ZONOS2_CHUNK_SIZE", 4))
+    chunk_steps = {}
 
-    def decode_step(next_ids, cache_state):
-        explicit_cache = _caches_from_explicit_state(cache_state)
-        logits = model(next_ids, cache=explicit_cache)
-        return logits[0, -1], _state_from_explicit_caches(explicit_cache)
+    def get_decode_chunk_step(steps: int):
+        if steps in chunk_steps:
+            return chunk_steps[steps]
 
-    decode_step = mx.compile(decode_step)
-    for step in range(int(max_tokens)):
-        sample_key = mx.random.key(int(seed) + step) if seed is not None else None
-        ids = sample_frame_ids(last_logits, state, params, key=sample_key)
-        row = [int(token) for token in ids.tolist()]  # type: ignore
-        state.append(row + [state.text_vocab], ignore_eos=params.ignore_eos)
-        if state.finished:
-            break
-        next_ids = _frame_from_ids(ids, state.text_vocab)[None, None, :]
-        last_logits, explicit_cache_state = decode_step(next_ids, explicit_cache_state)
+        if seed is None:
+
+            def decode_chunk_step(last_logits, cache_state, history, history_count):  # type: ignore
+                rows = []
+                logits = last_logits
+                for _ in range(steps):
+                    ids = _sample_frame_ids_device(
+                        logits,
+                        history,
+                        history_count,
+                        temperature=float(temperature),
+                        top_k=int(top_k),
+                        top_p=float(top_p),
+                        min_p=float(min_p),
+                        repetition_penalty=float(repetition_penalty),
+                        repetition_codebooks=int(repetition_codebooks),
+                    )
+                    rows.append(ids)
+                    history, history_count = _append_history(
+                        history, history_count, ids
+                    )
+                    next_ids = _frame_from_ids(ids, state.text_vocab)[None, None, :]
+                    explicit_cache = _caches_from_explicit_state(cache_state)
+                    logits = model(next_ids, cache=explicit_cache)[0, -1]
+                    cache_state = _state_from_explicit_caches(explicit_cache)
+                return (
+                    mx.stack(rows, axis=0),
+                    logits,
+                    cache_state,
+                    history,
+                    history_count,
+                )
+
+        else:
+
+            def decode_chunk_step(
+                last_logits, cache_state, history, history_count, keys
+            ):
+                rows = []
+                logits = last_logits
+                for idx in range(steps):
+                    ids = _sample_frame_ids_device(
+                        logits,
+                        history,
+                        history_count,
+                        temperature=float(temperature),
+                        top_k=int(top_k),
+                        top_p=float(top_p),
+                        min_p=float(min_p),
+                        repetition_penalty=float(repetition_penalty),
+                        repetition_codebooks=int(repetition_codebooks),
+                        key=keys[idx],
+                    )
+                    rows.append(ids)
+                    history, history_count = _append_history(
+                        history, history_count, ids
+                    )
+                    next_ids = _frame_from_ids(ids, state.text_vocab)[None, None, :]
+                    explicit_cache = _caches_from_explicit_state(cache_state)
+                    logits = model(next_ids, cache=explicit_cache)[0, -1]
+                    cache_state = _state_from_explicit_caches(explicit_cache)
+                return (
+                    mx.stack(rows, axis=0),
+                    logits,
+                    cache_state,
+                    history,
+                    history_count,
+                )
+
+        chunk_steps[steps] = mx.compile(decode_chunk_step)
+        return chunk_steps[steps]
+
+    generated_total = 0
+    while generated_total < int(max_tokens) and not state.finished:
+        steps = min(chunk_size, int(max_tokens) - generated_total)
+        decode_chunk_step = get_decode_chunk_step(steps)
+        if seed is None:
+            (
+                chunk_ids,
+                last_logits,
+                explicit_cache_state,
+                history,
+                history_count,
+            ) = decode_chunk_step(
+                last_logits,
+                explicit_cache_state,
+                history,
+                history_count,
+            )
+        else:
+            keys = tuple(
+                mx.random.key(int(seed) + generated_total + idx) for idx in range(steps)
+            )
+            (
+                chunk_ids,
+                last_logits,
+                explicit_cache_state,
+                history,
+                history_count,
+            ) = decode_chunk_step(
+                last_logits,
+                explicit_cache_state,
+                history,
+                history_count,
+                keys,
+            )
+        mx.eval(chunk_ids, last_logits, history_count)
+        for row in chunk_ids.tolist():  # type: ignore
+            state.append(
+                [int(token) for token in row] + [state.text_vocab],
+                ignore_eos=bool(ignore_eos),
+            )
+            generated_total += 1
+            if state.finished:
+                break
     generated_rows = state.generated
     token_count = len(state.generated)
     eos_frame = state.eos_frame
@@ -523,6 +736,7 @@ def generate_sampled_compiled(
     if profile:
         print(
             "Profile: "
+            f"chunk={chunk_size}, "
             f"speaker={speaker_seconds:.2f}s, "
             f"prompt={prompt_seconds:.2f}s, "
             f"sample={sample_seconds:.2f}s, "
