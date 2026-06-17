@@ -20,7 +20,7 @@ Most useful knobs:
   ZONOS2_WORDS_PER_MINUTE=150           Speaking-rate assumption for auto tokens.
   ZONOS2_CHARS_PER_SECOND=24            Character-rate assumption for auto tokens.
   ZONOS2_MIN_TOKENS=64                  Lower bound for auto tokens.
-  ZONOS2_MAX_TOKENS_CAP=2048            Upper bound for auto tokens.
+  ZONOS2_MAX_TOKENS_CAP=4096           Upper bound for auto tokens.
   ZONOS2_TEMPERATURE=1.15               Sampling temperature.
   ZONOS2_SEED=0                         Deterministic sampling seed; empty disables.
   ZONOS2_CHUNK_SIZE=4                   Compiled decode steps per Python sync.
@@ -34,6 +34,7 @@ Advanced/debug knobs:
   ZONOS2_OVERWRITE_QUANTIZED=1          Recreate the quantized checkpoint.
   ZONOS2_QUANTIZE_GROUP_SIZE=64         Quantization group size.
   ZONOS2_QUANTIZE_SKIP_PATTERNS=...     Comma-separated module-name skips.
+  ZONOS2_FAST_DAC_FROM_CODES=1          Use exact DAC codebook projection tables.
   ZONOS2_CLEAR_CACHE_AFTER_GENERATE=0   Keep MLX cache after a generation.
   ZONOS2_USE_LOCAL_DAC_CACHE=0          Let DAC loader call snapshot_download.
   ZONOS2_LAZY_LOAD=1                    Lazy-load model parameters; slower here.
@@ -163,7 +164,7 @@ def estimate_max_tokens(text: str, prompt_tokens: int, model) -> int:
     estimated_tokens = ceil(estimated_seconds * tokens_per_second)
 
     min_tokens = env_int("ZONOS2_MIN_TOKENS", 64)
-    configured_cap = env_int("ZONOS2_MAX_TOKENS_CAP", 2048)
+    configured_cap = env_int("ZONOS2_MAX_TOKENS_CAP", 4096)
     sequence_cap = max(1, int(model.config.max_seqlen) - int(prompt_tokens) - 16)
     max_tokens = max(min_tokens, min(configured_cap, sequence_cap))
     return max(min_tokens, min(estimated_tokens, max_tokens))
@@ -437,23 +438,37 @@ def _apply_min_p(probs, min_p: float):
     return _normalize_probs(out)
 
 
-def _append_history(history, history_count, ids):
+def _one_hot_ids(ids, vocab_size: int, dtype):
+    return (mx.arange(vocab_size)[None, :] == ids[:, None]).astype(dtype)
+
+
+def _append_repetition_state(history, counts, history_count, history_pos, ids):
     if history.shape[0] == 0:
-        return history, history_count
-    history = mx.concatenate([history[1:], ids[None, :]], axis=0)
+        return history, counts, history_count, history_pos
+
+    old_ids = history[history_pos]
+    remove_old = history_count >= history.shape[0]
+    new_mask = _one_hot_ids(ids.astype(mx.int32), counts.shape[1], counts.dtype)
+    old_mask = _one_hot_ids(old_ids.astype(mx.int32), counts.shape[1], counts.dtype)
+    counts = counts + new_mask - mx.where(remove_old, old_mask, mx.zeros_like(old_mask))
+
+    start = mx.stack([history_pos.astype(mx.int32), mx.array(0, dtype=mx.int32)])
+    history = mx.slice_update(
+        history, ids[None, :].astype(mx.int32), start, axes=(0, 1)
+    )
     history_count = mx.minimum(history_count + 1, history.shape[0])
-    return history, history_count
+    history_pos = (history_pos + 1) % history.shape[0]
+    return history, counts, history_count, history_pos
 
 
 def _apply_repetition_penalty_device(
     logits,
-    history,
-    history_count,
+    counts,
     *,
     penalty: float,
     repetition_codebooks: int,
 ):
-    if penalty <= 1.0 or history.shape[0] == 0:
+    if penalty <= 1.0 or counts.shape[0] == 0:
         return logits
 
     n_codebooks, vocab_size = logits.shape
@@ -462,15 +477,9 @@ def _apply_repetition_penalty_device(
     else:
         limit = min(n_codebooks, int(repetition_codebooks))
 
-    vocab = mx.arange(vocab_size)
-    valid_positions = mx.arange(history.shape[0]) >= (history.shape[0] - history_count)
     rows = []
     for cb in range(limit):
-        token_ids = history[:, cb].astype(mx.int32)
-        valid_tokens = valid_positions & (token_ids >= 0) & (token_ids < vocab_size)
-        mask = mx.any(
-            (vocab[None, :] == token_ids[:, None]) & valid_tokens[:, None], axis=0
-        )
+        mask = counts[cb] > 0
         row = logits[cb]
         penalized = mx.where(row > 0, row / penalty, row * penalty)
         rows.append(mx.where(mask, penalized, row))
@@ -480,8 +489,7 @@ def _apply_repetition_penalty_device(
 
 def _sample_frame_ids_device(
     logits,
-    history,
-    history_count,
+    counts,
     *,
     temperature: float,
     top_k: int,
@@ -494,8 +502,7 @@ def _sample_frame_ids_device(
     logits = mx.array(logits, dtype=mx.float32)
     logits = _apply_repetition_penalty_device(
         logits,
-        history,
-        history_count,
+        counts,
         penalty=repetition_penalty,
         repetition_codebooks=repetition_codebooks,
     )
@@ -522,11 +529,83 @@ def _sample_frame_ids_device(
     return mx.where(valid, sampled, greedy)
 
 
+def _decode_audio_fast_from_codes(
+    model, delayed_rows: list[list[int]] | list[Any] | Any, eos
+):
+    from mlx_audio.tts.models.zonos2.prompt import shear_up
+
+    if isinstance(delayed_rows, mx.array):
+        raw = delayed_rows.astype(mx.int32)  # type: ignore
+        if raw.shape[0] == 0:
+            return mx.zeros((0,), dtype=mx.float32)
+    else:
+        if not delayed_rows:
+            return mx.zeros((0,), dtype=mx.float32)
+        raw = mx.array(delayed_rows, dtype=mx.int32)
+
+    codes = shear_up(raw, model.config.audio_pad_id)
+    if eos is not None:
+        codes = codes[: max(0, int(eos))]
+    if codes.size == 0:
+        return mx.zeros((0,), dtype=mx.float32)
+
+    codes = mx.clip(codes, 0, model.config.codebook_size - 1)
+    dac = model._load_dac()
+    n_codebooks = int(codes.shape[1])
+    _prepare_dac_codebook_tables(dac, n_codebooks)
+
+    codebooks = codes.T[None, :, :].astype(mx.int32)
+    tables = dac._zonos2_codebook_tables
+    z = 0.0
+    for codebook_idx in range(n_codebooks):
+        z = z + tables[codebook_idx][codebooks[:, codebook_idx, :]]
+    audio = dac.decode(z.moveaxis(1, 2)).astype(mx.float32).reshape(-1)  # type: ignore
+    audio = audio[: int(codes.shape[0]) * 512]
+    mx.eval(audio)
+    return audio
+
+
 def _decode_audio_timed(model, delayed_rows: list[list[int]] | list[Any] | Any, eos):
     start = time.perf_counter()
-    audio = model._decode_audio(delayed_rows, eos)
+    if env_bool("ZONOS2_FAST_DAC_FROM_CODES", True):
+        audio = _decode_audio_fast_from_codes(model, delayed_rows, eos)
+    else:
+        audio = model._decode_audio(delayed_rows, eos)
     mx.eval(audio)
     return audio, time.perf_counter() - start
+
+
+def _norm_except_dim(weight, except_dim: int):
+    axes = tuple(axis for axis in range(weight.ndim) if axis != except_dim)
+    return mx.sqrt(mx.sum(mx.power(weight, 2), axis=axes, keepdims=True))
+
+
+def _wnconv1d_weight(layer):
+    fused = getattr(layer, "_zonos2_fused_weight", None)
+    if fused is not None:
+        return fused
+    return layer.weight_g * layer.weight_v / _norm_except_dim(layer.weight_v, 0)
+
+
+def _prepare_dac_codebook_tables(dac, n_codebooks: int) -> int:
+    tables = getattr(dac, "_zonos2_codebook_tables", None)
+    if tables is None:
+        tables = []
+        dac._zonos2_codebook_tables = tables
+    if len(tables) >= n_codebooks:
+        return 0
+
+    new_tables = []
+    for quantizer in dac.quantizer.quantizers[len(tables) : n_codebooks]:
+        weight = _wnconv1d_weight(quantizer.out_proj)
+        table = quantizer.codebook.weight @ weight[:, 0, :].T
+        if "bias" in quantizer.out_proj:
+            table = table + quantizer.out_proj.bias
+        tables.append(table)
+        new_tables.append(table)
+    if new_tables:
+        mx.eval(new_tables)
+    return len(new_tables)
 
 
 def generate_sampled_compiled(
@@ -599,7 +678,9 @@ def generate_sampled_compiled(
     explicit_cache_state = _make_explicit_cache_state(cache, int(max_tokens))
     history_size = max(0, int(repetition_window))
     history = mx.zeros((history_size, state.n_codebooks), dtype=mx.int32)
+    counts = mx.zeros((state.n_codebooks, last_logits.shape[-1]), dtype=mx.int32)
     history_count = mx.array(0, dtype=mx.int32)
+    history_pos = mx.array(0, dtype=mx.int32)
     chunk_size = max(1, env_int("ZONOS2_CHUNK_SIZE", 4))
     chunk_steps = {}
 
@@ -609,14 +690,20 @@ def generate_sampled_compiled(
 
         if seed is None:
 
-            def decode_chunk_step(last_logits, cache_state, history, history_count):  # type: ignore
+            def decode_chunk_step(  # type: ignore
+                last_logits,
+                cache_state,
+                history,
+                counts,
+                history_count,
+                history_pos,
+            ):
                 rows = []
                 logits = last_logits
                 for _ in range(steps):
                     ids = _sample_frame_ids_device(
                         logits,
-                        history,
-                        history_count,
+                        counts,
                         temperature=float(temperature),
                         top_k=int(top_k),
                         top_p=float(top_p),
@@ -625,8 +712,10 @@ def generate_sampled_compiled(
                         repetition_codebooks=int(repetition_codebooks),
                     )
                     rows.append(ids)
-                    history, history_count = _append_history(
-                        history, history_count, ids
+                    history, counts, history_count, history_pos = (
+                        _append_repetition_state(
+                            history, counts, history_count, history_pos, ids
+                        )
                     )
                     next_ids = _frame_from_ids(ids, state.text_vocab)[None, None, :]
                     explicit_cache = _caches_from_explicit_state(cache_state)
@@ -637,21 +726,28 @@ def generate_sampled_compiled(
                     logits,
                     cache_state,
                     history,
+                    counts,
                     history_count,
+                    history_pos,
                 )
 
         else:
 
             def decode_chunk_step(
-                last_logits, cache_state, history, history_count, keys
+                last_logits,
+                cache_state,
+                history,
+                counts,
+                history_count,
+                history_pos,
+                keys,
             ):
                 rows = []
                 logits = last_logits
                 for idx in range(steps):
                     ids = _sample_frame_ids_device(
                         logits,
-                        history,
-                        history_count,
+                        counts,
                         temperature=float(temperature),
                         top_k=int(top_k),
                         top_p=float(top_p),
@@ -661,8 +757,10 @@ def generate_sampled_compiled(
                         key=keys[idx],
                     )
                     rows.append(ids)
-                    history, history_count = _append_history(
-                        history, history_count, ids
+                    history, counts, history_count, history_pos = (
+                        _append_repetition_state(
+                            history, counts, history_count, history_pos, ids
+                        )
                     )
                     next_ids = _frame_from_ids(ids, state.text_vocab)[None, None, :]
                     explicit_cache = _caches_from_explicit_state(cache_state)
@@ -673,7 +771,9 @@ def generate_sampled_compiled(
                     logits,
                     cache_state,
                     history,
+                    counts,
                     history_count,
+                    history_pos,
                 )
 
         chunk_steps[steps] = mx.compile(decode_chunk_step)
@@ -689,12 +789,16 @@ def generate_sampled_compiled(
                 last_logits,
                 explicit_cache_state,
                 history,
+                counts,
                 history_count,
+                history_pos,
             ) = decode_chunk_step(
                 last_logits,
                 explicit_cache_state,
                 history,
+                counts,
                 history_count,
+                history_pos,
             )
         else:
             keys = tuple(
@@ -705,15 +809,19 @@ def generate_sampled_compiled(
                 last_logits,
                 explicit_cache_state,
                 history,
+                counts,
                 history_count,
+                history_pos,
             ) = decode_chunk_step(
                 last_logits,
                 explicit_cache_state,
                 history,
+                counts,
                 history_count,
+                history_pos,
                 keys,
             )
-        mx.eval(chunk_ids, last_logits, history_count)
+        mx.eval(chunk_ids, last_logits, history_count, history_pos, counts)
         for row in chunk_ids.tolist():  # type: ignore
             state.append(
                 [int(token) for token in row] + [state.text_vocab],
@@ -741,6 +849,7 @@ def generate_sampled_compiled(
             f"prompt={prompt_seconds:.2f}s, "
             f"sample={sample_seconds:.2f}s, "
             f"decode={decode_seconds:.2f}s, "
+            f"fastdac={int(env_bool('ZONOS2_FAST_DAC_FROM_CODES', True))}, "
             f"tokens/s={token_count / sample_seconds if sample_seconds else 0:.2f}",
             flush=True,
         )
