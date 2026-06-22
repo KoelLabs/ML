@@ -111,20 +111,24 @@ def plot_dataset_distributions(datasets: list[Dataset]):
     )
 
 
+def _select_and_pad_columns(dataset: Dataset, columns: list[str]) -> Dataset:
+    dataset = dataset.remove_columns(
+        [col for col in dataset.column_names if col not in columns]
+    )
+    for col in columns:
+        if col not in dataset.column_names:
+            default = [] if col.endswith("_tokens") else None
+            dataset = dataset.add_column(col, [default] * len(dataset))
+    return dataset
+
+
 def combine_datasets(
     datasets: list[Dataset],
     sample_probabilities=None,
     seed=42,
-    columns=["ipa", "audio"],
+    columns=["ipa", "ipa_tokens", "g2p", "g2p_tokens", "audio"],
 ):
-    datasets = list(
-        map(
-            lambda x: x.remove_columns(
-                [col for col in x.column_names if col not in columns]
-            ),
-            datasets,
-        )
-    )
+    datasets = [_select_and_pad_columns(ds, columns) for ds in datasets]
     if sample_probabilities is None:
         return concatenate_datasets(datasets)
     else:
@@ -145,21 +149,42 @@ def is_not_empty(row):
         return False
 
 
+def _normalize_ipa_label(ipa: str) -> str:
+    return remove_length_diacritics(
+        remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
+    )
+
+
+def _normalize_ipa_tokens(tokens) -> list[str]:
+    return [
+        token
+        for token in (_normalize_ipa_label(token) for token in tokens or [])
+        if token
+    ]
+
+
+def _label_input_ids(processor: Wav2Vec2Processor, ipa: str, tokens=None):
+    tokens = _normalize_ipa_tokens(tokens)
+    if tokens:
+        return processor.tokenizer(tokens, is_split_into_words=True).input_ids
+
+    return processor(text=_normalize_ipa_label(ipa)).input_ids
+
+
 def process_row(processor: Wav2Vec2Processor, rows, col="ipa"):
     # model expects audio to be float32 @ 16 kHz
     all_input_values = []
     all_labels = []
-    for ipa, audio in zip(rows[col], rows["audio"]):
+    token_col = f"{col}_tokens"
+    token_rows = rows.get(token_col, [None] * len(rows[col]))
+    for ipa, tokens, audio in zip(rows[col], token_rows, rows["audio"]):
         assert audio["sampling_rate"] == TARGET_SAMPLE_RATE
         audio = audio["array"].astype(np.float32, copy=False)
         inputs = processor(audio, sampling_rate=TARGET_SAMPLE_RATE, return_tensors=None)  # type: ignore
         input_values = np.asarray(inputs["input_values"][0], dtype=np.float32)
         all_input_values.append(input_values)
 
-        ipa = remove_length_diacritics(
-            remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
-        )
-        labels = processor(text=ipa).input_ids
+        labels = _label_input_ids(processor, ipa, tokens)
         all_labels.append(labels)
     return {
         "input_values": all_input_values,
@@ -222,16 +247,25 @@ def identify_dataset_vocab(combined_ds: Dataset):
     def uses_only_symbols(string):
         return string in ALL_ANNOTATED_IPA_SYMBOLS or all(string2symbols(string, ALL_ANNOTATED_IPA_SYMBOLS)[1])  # type: ignore
 
-    def reduce_uses(ipa, idx):
-        ipa = remove_length_diacritics(remove_tones_and_stress(ipa.replace(" ", "")))
-        assert uses_only_symbols(
-            ipa
-        ), f"Dataset contains unaccounted for symbols: {ipa}"
+    def reduce_uses(row, idx):
+        tokens = _normalize_ipa_tokens(row.get("ipa_tokens"))
+        if tokens:
+            for token in tokens:
+                assert uses_only_symbols(
+                    token
+                ), f"Dataset contains unaccounted for symbol: {token}"
+            for symbol in symbol_uses.keys():
+                if symbol in tokens:
+                    symbol_uses[symbol].append(idx)
+            return
+
+        ipa = _normalize_ipa_label(row["ipa"])
+        assert uses_only_symbols(ipa), f"Dataset contains unaccounted for symbols: {ipa}"
         for symbol in symbol_uses.keys():
             if symbol in ipa:
                 symbol_uses[symbol].append(idx)
 
-    combined_ds.map(reduce_uses, input_columns="ipa", with_indices=True)
+    combined_ds.map(reduce_uses, with_indices=True)
 
     return set(k for k, v in symbol_uses.items() if len(v) > 0 and k), symbol_uses
 
