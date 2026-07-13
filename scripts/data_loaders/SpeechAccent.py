@@ -3,6 +3,8 @@
 import os
 import sys
 
+import re
+import warnings
 import zipfile
 import textgrids
 import numpy as np
@@ -28,6 +30,7 @@ FULL_DATASET_METADATA = os.path.join(
 )
 # FULL_DATASET_WAVS = os.path.join(FULL_DATASET, "processed_wav_files")
 FULL_DATASET_TRANSCRIPTS = os.path.join(FULL_DATASET, "textgrids")
+FULL_DATASET_RTF_TRANSCRIPTS = os.path.join(FULL_DATASET, "transcription_texts")
 VALID_SPLITS = ["full", "kaggle"]
 
 WORD_LIST = {'please', 'call', 'stella', 'stellaw', 'ask', 'her', 'to', 'bring', 'these', 'things', 'with', 'from', 'the', 'store', 'six', 'spoons', 'of', 'fresh', 'snowpeas', 'five', 'thick', 'slabs', 'blue', 'cheese', 'and', 'maybe', 'a', 'snack', 'for', 'brother', 'bob', 'we', 'also', 'need', 'small', 'plastic', 'snake', 'big', 'toy', 'frog', 'for', 'kids', 'she', 'can', 'scoop', 'things', 'into', 'three', 'red', 'bags', 'we', 'will', 'go', 'meet', 'her', 'wednesday', 'at', 'train', 'station', 'stationx', '-del', 'sp'}  # fmt: skip
@@ -60,6 +63,164 @@ def _textgrid_contains_tier(textgrid_path, tier):
     with open(textgrid_path, "rb") as f:
         tg.parse(f.read())
     return tier in tg.keys()
+
+
+def _rtf_codec(rtf: str):
+    match = re.search(r"\\ansicpg(\d+)", rtf)
+    if match:
+        codepage = match.group(1)
+        if codepage == "10000":
+            return "mac_roman"
+        return f"cp{codepage}"
+    if "\\mac" in rtf:
+        return "mac_roman"
+    return "cp1252"
+
+
+def _decode_rtf_hex(hex_value: str, codec: str):
+    try:
+        return bytes.fromhex(hex_value).decode(codec)
+    except Exception:
+        return bytes.fromhex(hex_value).decode("cp1252", errors="ignore")
+
+
+def _skip_rtf_fallback_char(rtf: str, i: int):
+    while i < len(rtf) and rtf[i] in "\r\n":
+        i += 1
+    if i >= len(rtf):
+        return i
+    if rtf[i] != "\\":
+        return i + 1
+    if i + 1 < len(rtf) and rtf[i + 1] == "'":
+        return min(i + 4, len(rtf))
+
+    i += 1
+    while i < len(rtf) and rtf[i].isalpha():
+        i += 1
+    while i < len(rtf) and (rtf[i].isdigit() or rtf[i] == "-"):
+        i += 1
+    if i < len(rtf) and rtf[i] == " ":
+        i += 1
+    return i
+
+
+def _rtf_to_text(rtf_bytes: bytes):
+    rtf = rtf_bytes.decode("latin-1")
+    codec = _rtf_codec(rtf)
+    text = []
+    uc_skip = 1
+    i = 0
+
+    while i < len(rtf):
+        char = rtf[i]
+        if char in "{}\r\n":
+            i += 1
+            continue
+
+        if char != "\\":
+            text.append(char)
+            i += 1
+            continue
+
+        i += 1
+        if i >= len(rtf):
+            break
+
+        control = rtf[i]
+        if control == "'":
+            if i + 2 < len(rtf):
+                text.append(_decode_rtf_hex(rtf[i + 1 : i + 3], codec))
+            i += 3
+            continue
+
+        if control in "\\{}":
+            text.append(control)
+            i += 1
+            continue
+
+        if not control.isalpha():
+            i += 1
+            continue
+
+        start = i
+        while i < len(rtf) and rtf[i].isalpha():
+            i += 1
+        word = rtf[start:i]
+
+        sign = 1
+        if i < len(rtf) and rtf[i] == "-":
+            sign = -1
+            i += 1
+        number_start = i
+        while i < len(rtf) and rtf[i].isdigit():
+            i += 1
+        value = None
+        if i > number_start:
+            value = sign * int(rtf[number_start:i])
+        if i < len(rtf) and rtf[i] == " ":
+            i += 1
+
+        if word == "u" and value is not None:
+            text.append(chr(value if value >= 0 else value + 65536))
+            for _ in range(uc_skip):
+                i = _skip_rtf_fallback_char(rtf, i)
+        elif word == "uc" and value is not None:
+            uc_skip = value
+        elif word in {"par", "line"}:
+            text.append("\n")
+        elif word == "tab":
+            text.append("\t")
+
+    return "".join(text)
+
+
+def _extract_bracketed_ipa(text: str):
+    start = text.rfind("[")
+    end = text.find("]", start)
+    if start >= 0 and end > start:
+        ipa = text[start + 1 : end]
+    else:
+        candidates = [
+            candidate
+            for candidate in re.split(r"[\n;]+", text)
+            if "Doulos" not in candidate and len(candidate.strip()) > 50
+        ]
+        if not candidates:
+            return None
+        ipa = max(candidates, key=len)
+    ipa = "".join(ipa.split()).replace("ӕ", "æ")
+    return ipa or None
+
+
+# Valid IPA codepoints outside the Unicode blocks checked in _is_ipa_char.
+# Anything else in a parsed transcription is treated as a decoding artifact.
+_IPA_EXTRA = frozenset("æçðøŋœ" "ãñõăĩũŭẽ" "ǀǁǂǃǝ" "βθχ" ":,")
+
+
+def _is_ipa_char(ch: str):
+    o = ord(ch)
+    return (
+        0x0041 <= o <= 0x005A  # A-Z
+        or 0x0061 <= o <= 0x007A  # a-z
+        or 0x0250 <= o <= 0x02AF  # IPA Extensions
+        or 0x02B0 <= o <= 0x02FF  # Spacing Modifier Letters
+        or 0x0300 <= o <= 0x036F  # Combining Diacritical Marks
+        or 0x1D00 <= o <= 0x1DFF  # Phonetic Extensions
+        or ch in _IPA_EXTRA
+    )
+
+
+def _is_clean_ipa(ipa):
+    return bool(ipa) and all(_is_ipa_char(c) for c in ipa)
+
+
+def _read_rtf_ipa(path: str):
+    # Return None on any parse error so the caller can fall back to TextGrid IPA.
+    try:
+        with open(path, "rb") as f:
+            return _extract_bracketed_ipa(_rtf_to_text(f.read()))
+    except Exception:
+        return None
 
 
 class SpeechAccentDataset(BaseDataset):
@@ -99,6 +260,13 @@ class SpeechAccentDataset(BaseDataset):
             ), "Parsing of samples without phoneme annotations not handled yet"
 
             self.df = pd.read_excel(FULL_DATASET_METADATA, dtype={"notes": str})
+            self.rtf_transcripts = {
+                os.path.splitext(file)[0].lower(): os.path.join(
+                    FULL_DATASET_RTF_TRANSCRIPTS, file
+                )
+                for file in os.listdir(FULL_DATASET_RTF_TRANSCRIPTS)
+                if file.lower().endswith(".rtf")
+            }
             # NOTE: some audio files in processed_wav_files have no corresponding textgrid
             # for some use cases they might be useful, for now, they are not included
             self.textgrids = sorted(
@@ -152,7 +320,6 @@ class SpeechAccentDataset(BaseDataset):
             if phonemes[0]["label"].startswith("(...)"):
                 phone2ipa = lambda x: x
 
-            # TODO: use rtf files to fix textgrid annotations for IPA
             timestamped_phonemes = [
                 (
                     phone2ipa(c["label"]).removeprefix("(...)"),
@@ -166,6 +333,30 @@ class SpeechAccentDataset(BaseDataset):
                 timestamped_phonemes = timestamped_phonemes[: self.max_phonemes]
                 audio = audio[: timestamped_phonemes[-1][2]]
             ipa = "".join(t[0] for t in timestamped_phonemes)
+            rtf_path = self.rtf_transcripts.get(
+                os.path.basename(transcript_path).removesuffix(".TextGrid").lower()
+            )
+            ipa_from_rtf = False
+            if rtf_path is not None and self.max_phonemes is None:
+                rtf_ipa = _read_rtf_ipa(rtf_path)
+                if _is_clean_ipa(rtf_ipa):
+                    ipa = rtf_ipa
+                    ipa_from_rtf = True
+                else:
+                    # Keep TextGrid IPA over a corrupt RTF one, but warn.
+                    if rtf_ipa is None:
+                        reason = "could not parse RTF transcription"
+                    else:
+                        bad = "".join(
+                            sorted({c for c in rtf_ipa if not _is_ipa_char(c)})
+                        )
+                        reason = (
+                            f"RTF transcription contains non-IPA characters {bad!r}"
+                        )
+                    warnings.warn(
+                        f"{os.path.basename(rtf_path)}: {reason}; "
+                        "falling back to TextGrid-derived IPA"
+                    )
 
             # TODO: clean up word annotations instead of this approximated processing
             words = tg.interval_tier_to_array(word_tier)
@@ -263,6 +454,9 @@ class SpeechAccentDataset(BaseDataset):
             row = self.df[self.df["speech_sample"] == sample_id].iloc[0]
             row.fillna("", inplace=True)
             metadata_dict = {
+                # IPA provenance; rtf_transcript_path is set only when RTF was used.
+                "ipa_source": "rtf" if ipa_from_rtf else "textgrid",
+                "rtf_transcript_path": rtf_path if ipa_from_rtf else "",
                 "speakerid": row["speakerid"],
                 "native_language": row["native_language"],
                 "native_language_alternative": row["alternative_native_language"],
