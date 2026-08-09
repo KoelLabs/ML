@@ -63,6 +63,7 @@ def remove_tie_marker(ipa_string: str):
 
 def normalize_ipa_label(ipa_string: str):
     """Normalize IPA labels for tokenizer input."""
+    # Joined label path: "t͡ʃ iː" -> "tʃi".
     return remove_tie_marker(
         remove_length_diacritics(
             remove_tones_and_stress(ipa_string.replace("-", "").replace(" ", ""))
@@ -72,6 +73,7 @@ def normalize_ipa_label(ipa_string: str):
 
 def normalize_ipa_tokens(ipa_tokens):
     """Normalize IPA tokens without joining adjacent phones."""
+    # Token path: ["t", "ʃ"] stays split, not "tʃ".
     return [
         token
         for token in (normalize_ipa_label(token) for token in ipa_tokens or [])
