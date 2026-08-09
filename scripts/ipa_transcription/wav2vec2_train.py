@@ -3,7 +3,11 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
-from core.ipa import remove_length_diacritics, remove_tie_marker, remove_tones_and_stress
+from core.ipa import (
+    remove_length_diacritics,
+    remove_tie_marker,
+    remove_tones_and_stress,
+)
 from core.codes import ALL_ANNOTATED_IPA_SYMBOLS, string2symbols
 from data_loaders.common import show_hf_sample
 
@@ -265,7 +269,9 @@ def identify_dataset_vocab(combined_ds: Dataset):
             return
 
         ipa = _normalize_ipa_label(row["ipa"])
-        assert uses_only_symbols(ipa), f"Dataset contains unaccounted for symbols: {ipa}"
+        assert uses_only_symbols(
+            ipa
+        ), f"Dataset contains unaccounted for symbols: {ipa}"
         for symbol in symbol_uses.keys():
             if symbol in ipa:
                 symbol_uses[symbol].append(idx)

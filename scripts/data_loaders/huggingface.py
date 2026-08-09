@@ -94,14 +94,14 @@ def gen_l2arctic(split):
             )
         )
         for sample in dataset:
-            assert sample[1].dtype == np.int16  # type: ignore
-            metadata = sample[3]  # type: ignore
+            ipa, audio, timestamped_phonemes, metadata, text = sample  # type: ignore
+            assert audio.dtype == np.int16  # type: ignore
             yield {
-                "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
-                "ipa": sample[0],  # type: ignore
-                "ipa_tokens": ipa_tokens(sample[2]),  # type: ignore
-                "text": sample[4],  # type: ignore
-                "g2p": english2ipa(sample[4]),  # type: ignore
+                "audio": {"array": audio.astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
+                "ipa": ipa,  # type: ignore
+                "ipa_tokens": ipa_tokens(timestamped_phonemes),  # type: ignore
+                "text": text,  # type: ignore
+                "g2p": english2ipa(text),  # type: ignore
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["gender"].lower(),  # type: ignore
                 "speaker_native_language": metadata["native-language"],  # type: ignore
@@ -119,14 +119,15 @@ def gen_l2arctic_suitcase_split():
         include_text=True,
     )
     for sample in dataset:
-        metadata = sample[3]  # type: ignore
-        g2p = english2ipa(sample[4])  # type: ignore
-        ipa, g2p = needleman_wunsch(list(filter(lambda p: p, map(lambda p: p[0], sample[2]))), g2p)  # type: ignore
-        for subsample in split_utterance_into_multiple(sample[2], sample[1], 0.01, 10):  # type: ignore
-            assert subsample[1].dtype == np.int16  # type: ignore
+        _, audio, timestamped_phonemes, metadata, text = sample  # type: ignore
+        g2p = english2ipa(text)  # type: ignore
+        ipa, g2p = needleman_wunsch(list(filter(lambda p: p, map(lambda p: p[0], timestamped_phonemes))), g2p)  # type: ignore
+        for subsample in split_utterance_into_multiple(timestamped_phonemes, audio, 0.01, 10):  # type: ignore
+            sub_ipa, sub_audio, sub_timestamped_phonemes = subsample  # type: ignore
+            assert sub_audio.dtype == np.int16  # type: ignore
 
             subg2p = []
-            for p, _, _ in subsample[2]:
+            for p, _, _ in sub_timestamped_phonemes:
                 if not p:
                     continue
                 phone = ipa.pop(0)
@@ -137,9 +138,9 @@ def gen_l2arctic_suitcase_split():
                 subg2p.append(g2p.pop(0).replace("-", ""))
 
             yield {
-                "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
-                "ipa": subsample[0],  # type: ignore
-                "ipa_tokens": ipa_tokens(subsample[2]),  # type: ignore
+                "audio": {"array": sub_audio.astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
+                "ipa": sub_ipa,  # type: ignore
+                "ipa_tokens": ipa_tokens(sub_timestamped_phonemes),  # type: ignore
                 "g2p": "".join(subg2p),
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["gender"].lower(),  # type: ignore
