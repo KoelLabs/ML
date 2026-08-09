@@ -58,7 +58,7 @@ def remove_stress_marker(ipa_string: str):
 
 def remove_tie_marker(ipa_string: str):
     """Remove tie marker from the IPA string"""
-    return "".join({"͡": ""}.get(c, c) for c in ipa_string)
+    return "".join({"͡": "", "͜": ""}.get(c, c) for c in ipa_string)
 
 
 def simplify_ipa(ipa_string: str):

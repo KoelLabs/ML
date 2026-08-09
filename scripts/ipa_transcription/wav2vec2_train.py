@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
-from core.ipa import remove_length_diacritics, remove_tones_and_stress
+from core.ipa import remove_length_diacritics, remove_tie_marker, remove_tones_and_stress
 from core.codes import ALL_ANNOTATED_IPA_SYMBOLS, string2symbols
 from data_loaders.common import show_hf_sample
 
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 import torch
 from datasets import (
     Dataset,
+    Sequence,
+    Value,
     load_dataset,
     load_from_disk,
     concatenate_datasets,
@@ -118,7 +120,8 @@ def _select_and_pad_columns(dataset: Dataset, columns: list[str]) -> Dataset:
     for col in columns:
         if col not in dataset.column_names:
             default = [] if col.endswith("_tokens") else None
-            dataset = dataset.add_column(col, [default] * len(dataset))
+            feature = Sequence(Value("string")) if col.endswith("_tokens") else None
+            dataset = dataset.add_column(col, [default] * len(dataset), feature=feature)
     return dataset
 
 
@@ -150,8 +153,10 @@ def is_not_empty(row):
 
 
 def _normalize_ipa_label(ipa: str) -> str:
-    return remove_length_diacritics(
-        remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
+    return remove_tie_marker(
+        remove_length_diacritics(
+            remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
+        )
     )
 
 
@@ -166,7 +171,7 @@ def _normalize_ipa_tokens(tokens) -> list[str]:
 def _label_input_ids(processor: Wav2Vec2Processor, ipa: str, tokens=None):
     tokens = _normalize_ipa_tokens(tokens)
     if tokens:
-        return processor.tokenizer(tokens, is_split_into_words=True).input_ids
+        return processor.tokenizer.convert_tokens_to_ids(tokens)
 
     return processor(text=_normalize_ipa_label(ipa)).input_ids
 

@@ -60,19 +60,17 @@ def gen_epadb(split):
     def generator():
         dataset = EpaDBDataset(
             split=split,
-            include_timestamps=True,
             include_speaker_info=True,
             include_text=True,
         )
         for sample in dataset:
             assert sample[1].dtype == np.int16  # type: ignore
-            metadata = sample[3]  # type: ignore
+            metadata = sample[2]  # type: ignore
             yield {
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
-                "ipa_tokens": ipa_tokens(sample[2]),  # type: ignore
-                "text": sample[4],  # type: ignore
-                "g2p": english2ipa(sample[4]),  # type: ignore
+                "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["speaker_id"],  # type: ignore
             }
 
@@ -150,18 +148,15 @@ def gen_l2arctic_suitcase_split():
 
 
 def gen_buckeye():
-    dataset = all_buckeye_speaker_splits(
-        include_timestamps=True, include_speaker_info=True, include_text=True
-    )
+    dataset = all_buckeye_speaker_splits(include_speaker_info=True, include_text=True)
     for sample in dataset:
         assert sample[1].dtype == np.int16  # type: ignore
-        metadata = sample[3]  # type: ignore
+        metadata = sample[2]  # type: ignore
         yield {
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
-            "ipa_tokens": ipa_tokens(sample[2]),  # type: ignore
-            "text": sample[4],  # type: ignore
-            "g2p": english2ipa(sample[4]),  # type: ignore
+            "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "speaker_code": metadata["id"],
             "speaker_gender": metadata["gender"][0],
             "speaker_age": metadata["age"],
@@ -196,7 +191,6 @@ def gen_buckeye_split():
             yield {
                 "audio": {"array": subsample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": subsample[0],  # type: ignore
-                "ipa_tokens": ipa_tokens(subsample[2]),  # type: ignore
                 "g2p": "".join(subg2p),
                 "speaker_code": metadata["id"],
                 "speaker_gender": metadata["gender"][0],
@@ -271,20 +265,16 @@ def gen_speech_ocean_no_th(split):
 def gen_timit(split):
     def generator():
         dataset = TIMITDataset(
-            split=split,
-            include_timestamps=True,
-            include_speaker_info=True,
-            include_text=True,
+            split=split, include_speaker_info=True, include_text=True
         )
         for sample in dataset:
             assert sample[1].dtype == np.int16  # type: ignore
-            metadata = sample[3]  # type: ignore
+            metadata = sample[2]  # type: ignore
             yield {
                 "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
                 "ipa": sample[0],  # type: ignore
-                "ipa_tokens": ipa_tokens(sample[2]),  # type: ignore
-                "text": sample[4],  # type: ignore
-                "g2p": english2ipa(sample[4]),  # type: ignore
+                "text": sample[3],  # type: ignore
+                "g2p": english2ipa(sample[3]),  # type: ignore
                 "speaker_code": metadata["id"],  # type: ignore
                 "speaker_gender": metadata["SEX"],  # type: ignore
                 "speaker_dialect": metadata["DIALECT"],  # type: ignore
@@ -301,19 +291,17 @@ def gen_timit(split):
 def gen_isle():
     dataset = ISLEDataset(
         split="all",
-        include_timestamps=True,
         include_speaker_info=True,
         include_text=True,
     )
     for sample in dataset:
         assert sample[1].dtype == np.int16  # type: ignore
-        metadata = sample[3]  # type: ignore
+        metadata = sample[2]  # type: ignore
         yield {
             "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
             "ipa": sample[0],  # type: ignore
-            "ipa_tokens": ipa_tokens(sample[2]),  # type: ignore
-            "text": sample[4],  # type: ignore
-            "g2p": english2ipa(sample[4]),  # type: ignore
+            "text": sample[3],  # type: ignore
+            "g2p": english2ipa(sample[3]),  # type: ignore
             "speaker_code": metadata["speaker_id"],  # type: ignore
             "speaker_native_language": metadata["native_language"],  # type: ignore
             "recording_session": metadata["session"],  # type: ignore
