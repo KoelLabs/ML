@@ -175,6 +175,7 @@ def _normalize_ipa_tokens(tokens) -> list[str]:
 def _label_input_ids(processor: Wav2Vec2Processor, ipa: str, tokens=None):
     tokens = _normalize_ipa_tokens(tokens)
     if tokens:
+        # Token lists already preserve phoneme boundaries; avoid inserting word delimiters.
         return processor.tokenizer.convert_tokens_to_ids(tokens)
 
     return processor(text=_normalize_ipa_label(ipa)).input_ids
