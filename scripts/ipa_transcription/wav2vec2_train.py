@@ -3,11 +3,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
-from core.ipa import (
-    remove_length_diacritics,
-    remove_tie_marker,
-    remove_tones_and_stress,
-)
+from core.ipa import normalize_ipa_label, normalize_ipa_tokens
 from core.codes import ALL_ANNOTATED_IPA_SYMBOLS, string2symbols
 from data_loaders.common import show_hf_sample
 
@@ -117,25 +113,22 @@ def plot_dataset_distributions(datasets: list[Dataset]):
     )
 
 
-def _select_and_pad_columns(dataset: Dataset, columns: list[str]) -> Dataset:
-    dataset = dataset.remove_columns(
-        [col for col in dataset.column_names if col not in columns]
-    )
-    for col in columns:
-        if col not in dataset.column_names:
-            default = [] if col.endswith("_tokens") else None
-            feature = Sequence(Value("string")) if col.endswith("_tokens") else None
-            dataset = dataset.add_column(col, [default] * len(dataset), feature=feature)
-    return dataset
-
-
 def combine_datasets(
     datasets: list[Dataset],
     sample_probabilities=None,
     seed=42,
-    columns=["ipa", "ipa_tokens", "g2p", "g2p_tokens", "audio"],
+    columns=["ipa", "ipa_tokens", "audio"],
 ):
-    datasets = [_select_and_pad_columns(ds, columns) for ds in datasets]
+    datasets = [
+        x.remove_columns([col for col in x.column_names if col not in columns])
+        for x in datasets
+    ]
+    if "ipa_tokens" in columns:
+        for idx, ds in enumerate(datasets):
+            if "ipa_tokens" not in ds.column_names:
+                datasets[idx] = ds.add_column(
+                    "ipa_tokens", [[]] * len(ds), feature=Sequence(Value("string"))
+                )
     if sample_probabilities is None:
         return concatenate_datasets(datasets)
     else:
@@ -156,29 +149,13 @@ def is_not_empty(row):
         return False
 
 
-def _normalize_ipa_label(ipa: str) -> str:
-    return remove_tie_marker(
-        remove_length_diacritics(
-            remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
-        )
-    )
-
-
-def _normalize_ipa_tokens(tokens) -> list[str]:
-    return [
-        token
-        for token in (_normalize_ipa_label(token) for token in tokens or [])
-        if token
-    ]
-
-
 def _label_input_ids(processor: Wav2Vec2Processor, ipa: str, tokens=None):
-    tokens = _normalize_ipa_tokens(tokens)
+    tokens = normalize_ipa_tokens(tokens)
     if tokens:
         # Token lists already preserve phoneme boundaries; avoid inserting word delimiters.
         return processor.tokenizer.convert_tokens_to_ids(tokens)
 
-    return processor(text=_normalize_ipa_label(ipa)).input_ids
+    return processor(text=normalize_ipa_label(ipa)).input_ids
 
 
 def process_row(processor: Wav2Vec2Processor, rows, col="ipa"):
@@ -258,7 +235,7 @@ def identify_dataset_vocab(combined_ds: Dataset):
         return string in ALL_ANNOTATED_IPA_SYMBOLS or all(string2symbols(string, ALL_ANNOTATED_IPA_SYMBOLS)[1])  # type: ignore
 
     def reduce_uses(row, idx):
-        tokens = _normalize_ipa_tokens(row.get("ipa_tokens"))
+        tokens = normalize_ipa_tokens(row.get("ipa_tokens"))
         if tokens:
             for token in tokens:
                 assert uses_only_symbols(
@@ -269,7 +246,7 @@ def identify_dataset_vocab(combined_ds: Dataset):
                     symbol_uses[symbol].append(idx)
             return
 
-        ipa = _normalize_ipa_label(row["ipa"])
+        ipa = normalize_ipa_label(row["ipa"])
         assert uses_only_symbols(
             ipa
         ), f"Dataset contains unaccounted for symbols: {ipa}"
