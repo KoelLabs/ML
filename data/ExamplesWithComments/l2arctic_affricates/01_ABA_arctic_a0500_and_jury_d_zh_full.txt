@@ -1,0 +1,10 @@
+Ground Truth Text:
+who the devil gave it to you to be judge and jury
+
+Ground Truth Transcription:
+h u z ʌ d ɛ v ʌ ɡ eɪ v ɪ t t u j u t u b i ʒ ʌ dʒ ʌ n d ʒ ʊ ɹ i
+
+Old Joined Parse:
+h u z ʌ d ɛ v ʌ ɡ eɪ v ɪ t t u j u t u b i ʒ ʌ dʒ ʌ n dʒ ʊ ɹ i
+
+- "and jury" has separate D + JH/ZH TextGrid phones; joining the label creates a fake dʒ across the word boundary.

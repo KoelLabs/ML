@@ -1,0 +1,10 @@
+Ground Truth Text:
+thus he turned the tenets and jargon of psychology back on me
+
+Ground Truth Transcription:
+z u s h i t ɝ n ʌ d ð ʌ t ɛ n ʌ t s ʌ n d ʒ ɑ ɹ ɡ ʌ n ʌ v s aɪ k ɑ l ʌ ʒ i p æ k ɔ n m i
+
+Old Joined Parse:
+z u s h i t ɝ n ʌ d ð ʌ t ɛ n ʌ t s ʌ n dʒ ɑ ɹ ɡ ʌ n ʌ v s aɪ k ɑ l ʌ ʒ i p æ k ɔ n m i
+
+- "and jargon" has separate D + JH/ZH TextGrid phones; joining the label creates a fake dʒ across the word boundary.

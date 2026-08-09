@@ -3,7 +3,7 @@ import sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
-from core.ipa import remove_length_diacritics, remove_tones_and_stress
+from core.ipa import normalize_ipa_label, normalize_ipa_tokens
 from core.codes import ALL_ANNOTATED_IPA_SYMBOLS, string2symbols
 from data_loaders.common import show_hf_sample
 
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 import torch
 from datasets import (
     Dataset,
+    Sequence,
+    Value,
     load_dataset,
     load_from_disk,
     concatenate_datasets,
@@ -115,16 +117,18 @@ def combine_datasets(
     datasets: list[Dataset],
     sample_probabilities=None,
     seed=42,
-    columns=["ipa", "audio"],
+    columns=["ipa", "ipa_tokens", "audio"],
 ):
-    datasets = list(
-        map(
-            lambda x: x.remove_columns(
-                [col for col in x.column_names if col not in columns]
-            ),
-            datasets,
-        )
-    )
+    datasets = [
+        x.remove_columns([col for col in x.column_names if col not in columns])
+        for x in datasets
+    ]
+    if "ipa_tokens" in columns:
+        for idx, ds in enumerate(datasets):
+            if "ipa_tokens" not in ds.column_names:
+                datasets[idx] = ds.add_column(
+                    "ipa_tokens", [[]] * len(ds), feature=Sequence(Value("string"))
+                )
     if sample_probabilities is None:
         return concatenate_datasets(datasets)
     else:
@@ -145,21 +149,29 @@ def is_not_empty(row):
         return False
 
 
+def _label_input_ids(processor: Wav2Vec2Processor, ipa: str, tokens=None):
+    tokens = normalize_ipa_tokens(tokens)
+    if tokens:
+        # Token lists already preserve phoneme boundaries; avoid inserting word delimiters.
+        return processor.tokenizer.convert_tokens_to_ids(tokens)
+
+    return processor(text=normalize_ipa_label(ipa)).input_ids
+
+
 def process_row(processor: Wav2Vec2Processor, rows, col="ipa"):
     # model expects audio to be float32 @ 16 kHz
     all_input_values = []
     all_labels = []
-    for ipa, audio in zip(rows[col], rows["audio"]):
+    token_col = f"{col}_tokens"
+    token_rows = rows.get(token_col, [None] * len(rows[col]))
+    for ipa, tokens, audio in zip(rows[col], token_rows, rows["audio"]):
         assert audio["sampling_rate"] == TARGET_SAMPLE_RATE
         audio = audio["array"].astype(np.float32, copy=False)
         inputs = processor(audio, sampling_rate=TARGET_SAMPLE_RATE, return_tensors=None)  # type: ignore
         input_values = np.asarray(inputs["input_values"][0], dtype=np.float32)
         all_input_values.append(input_values)
 
-        ipa = remove_length_diacritics(
-            remove_tones_and_stress(ipa.replace("-", "").replace(" ", ""))
-        )
-        labels = processor(text=ipa).input_ids
+        labels = _label_input_ids(processor, ipa, tokens)
         all_labels.append(labels)
     return {
         "input_values": all_input_values,
@@ -222,8 +234,19 @@ def identify_dataset_vocab(combined_ds: Dataset):
     def uses_only_symbols(string):
         return string in ALL_ANNOTATED_IPA_SYMBOLS or all(string2symbols(string, ALL_ANNOTATED_IPA_SYMBOLS)[1])  # type: ignore
 
-    def reduce_uses(ipa, idx):
-        ipa = remove_length_diacritics(remove_tones_and_stress(ipa.replace(" ", "")))
+    def reduce_uses(row, idx):
+        tokens = normalize_ipa_tokens(row.get("ipa_tokens"))
+        if tokens:
+            for token in tokens:
+                assert uses_only_symbols(
+                    token
+                ), f"Dataset contains unaccounted for symbol: {token}"
+            for symbol in symbol_uses.keys():
+                if symbol in tokens:
+                    symbol_uses[symbol].append(idx)
+            return
+
+        ipa = normalize_ipa_label(row["ipa"])
         assert uses_only_symbols(
             ipa
         ), f"Dataset contains unaccounted for symbols: {ipa}"
@@ -231,7 +254,7 @@ def identify_dataset_vocab(combined_ds: Dataset):
             if symbol in ipa:
                 symbol_uses[symbol].append(idx)
 
-    combined_ds.map(reduce_uses, input_columns="ipa", with_indices=True)
+    combined_ds.map(reduce_uses, with_indices=True)
 
     return set(k for k, v in symbol_uses.items() if len(v) > 0 and k), symbol_uses
 
