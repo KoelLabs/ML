@@ -87,6 +87,7 @@ XSAMPA2IPA = {"_": "͡", "a": "a", "b": "b", "b_<": "ɓ", "c": "c", "d": "d", "d
 # -
 # *
 # rhotization for consonants
+# TODO: Affricates and double articulation - https://en.wikipedia.org/wiki/X-SAMPA#Consonants
 IPA2XSAMPA = {v: k for k, v in XSAMPA2IPA.items()}
 
 
