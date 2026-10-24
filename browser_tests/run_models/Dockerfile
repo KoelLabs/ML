@@ -1,5 +1,15 @@
 FROM python:3.10.19-slim
 
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && update-ca-certificates --fresh \
+    && rm -rf /var/lib/apt/lists/*
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
+    REQUESTS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    AWS_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
+    PIP_CERT=/etc/ssl/certs/ca-certificates.crt
+RUN python -c 'import hashlib,re,ssl,pathlib; p=pathlib.Path("/etc/ssl/certs/ca-certificates.crt"); certs=re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",p.read_text(),re.S); hashes={hashlib.sha256(ssl.PEM_cert_to_DER_cert(c)).hexdigest() for c in certs}; assert certs and not hashes.intersection({"86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b","d7a7a0fb5d7e2731d771e9484ebcdef71d5f0c3e0a2948782bc83ee0ea699ef4"}), "CA bundle is not patched"'
+
 WORKDIR /app
 ENV TF_LITE_DISABLE_XNNPACK=1
 ENV STT_BINARY=/opt/coqui-stt/stt

@@ -26,3 +26,4 @@ espnet==202511
 espnet-model-zoo==0.1.7
 omnilingual-asr==0.1.0
 qwen-asr==0.0.6
+certifi>=2026.10.23

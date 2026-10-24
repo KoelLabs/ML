@@ -8,7 +8,51 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       security-events: write
+    env:
+      NODE_OPTIONS: --use-openssl-ca
+      UV_SYSTEM_CERTS: "true"
     steps:
+      - name: Prepare trusted TLS certificate authorities
+        shell: bash
+        run: |
+          set -euo pipefail
+          export SSL_CERT_FILE="$RUNNER_TEMP/tls-ca.pem"
+          export SSL_CERT_DIR="$RUNNER_TEMP/tls-empty-certs"
+          if [ "$RUNNER_OS" = Linux ]; then
+            if [ "$(id -u)" = 0 ]; then ca_sudo=; else ca_sudo=sudo; fi
+            $ca_sudo apt-get update
+            $ca_sudo apt-get install -y --no-install-recommends ca-certificates python3
+          fi
+          if [ "$RUNNER_OS" = Windows ]; then ca_python=python; else ca_python=python3; fi
+          "$ca_python" - <<'CA_PY'
+          import hashlib, os, pathlib, re, ssl, sys
+          blocked = {
+              "86a1ecba089c4a8d3bbe2734c612ba341d813e043cf9e8a862cd5c57a36bbe6b",
+              "d7a7a0fb5d7e2731d771e9484ebcdef71d5f0c3e0a2948782bc83ee0ea699ef4",
+          }
+          if sys.platform == "win32":
+              certificates = [ssl.DER_cert_to_PEM_cert(der) for der, encoding, trust
+                              in ssl.enum_certificates("ROOT") if encoding == "x509_asn"
+                              and (trust is True or "1.3.6.1.5.5.7.3.1" in trust)]
+          else:
+              source = pathlib.Path("/etc/ssl/cert.pem" if sys.platform == "darwin"
+                                    else "/etc/ssl/certs/ca-certificates.crt")
+              certificates = re.findall(r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+                                        source.read_text(), re.S)
+          kept = [pem for pem in certificates
+                  if hashlib.sha256(ssl.PEM_cert_to_DER_cert(pem)).hexdigest() not in blocked]
+          if not kept:
+              raise SystemExit("No usable certificate authorities found")
+          target = pathlib.Path(os.environ["SSL_CERT_FILE"])
+          target.parent.mkdir(parents=True, exist_ok=True)
+          target.write_text("\n".join(kept) + "\n")
+          pathlib.Path(os.environ["SSL_CERT_DIR"]).mkdir(parents=True, exist_ok=True)
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as output:
+              for name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE", "CURL_CA_BUNDLE", "AWS_CA_BUNDLE", "PIP_CERT"):
+                  output.write(name + "=" + str(target) + "\n")
+              output.write("SSL_CERT_DIR=" + os.environ["SSL_CERT_DIR"] + "\n")
+          print("Prepared", len(kept), "certificate authorities; affected roots excluded")
+          CA_PY
       - name: Checkout repository
         uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955
         with:
