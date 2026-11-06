@@ -378,6 +378,12 @@ class DoReCoDataset(BaseDataset):
             if reason:
                 skipped[reason] += 1
                 continue
+            # Items are found by utterance id, so an id may come from one language only.
+            if x in self.utterance_rows:
+                raise ValueError(
+                    f"Utterance id {x!r} is in both {self.utterance_language[x]} and"
+                    f" {glottocode}, so these languages cannot be read together."
+                )
             for row in rows_by_ref[x]:
                 if not is_special_symbol(row.ph):
                     self.phone_ipa[row.ph] = units[row.ph][0]
