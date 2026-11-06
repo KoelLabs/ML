@@ -1,7 +1,27 @@
 # 100 hours from 53 languages with time aligned phoneme transcriptions and translations: https://doreco.huma-num.fr/UsingDoReCo
 # Paper: https://aclanthology.org/2025.fieldmatters-1.5.pdf
+# How the labels were made: Paschen et al. 2020, https://aclanthology.org/2020.lrec-1.324.pdf
+#
+# Languages: pass a glottocode, a list of glottocodes, or "all" as `language`. Every DoReCo language,
+# with its name, licenses and download links, is in doreco_language_table.json next to this file.
+# Licenses differ by language, and some have NC, ND or SA terms. Every dataset that is used must be
+# cited on its own, with its creators, as the dataset-info file in each bundle says.
+#
+# Download instructions, for a language with glottocode <g> (links in doreco_language_table.json):
+#   1. Annotations: save the core bundle from https://doreco.huma-num.fr/languages/<g> as
+#      ./.data/DoReCo/<g>/doreco_<g>_core_v2.zip, without unzipping it.
+#   2. Audio: save the core WAV files from the audio link on the same page in ./.data/DoReCo/<g>/,
+#      either as loose files, in any subfolder, or as one zip of them.
+# English (sout3282) also works in the older flat layout this loader first used:
+#   ./.data/DoReCo/sout3282_annotations_v2.zip and ./.data/DoReCo/sout3282_audio_core_v2.zip
+#
+# Tested on Nov 5, 2026: English with its audio, all 577 items, and Nǁng (nngg1234) and Sümi
+# (sumi1235) on their annotations only, because their audio had not arrived yet.
+# TODO: manual verification
 
 import collections
+import glob
+import json
 import os
 import sys
 
@@ -14,8 +34,11 @@ from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
 from core.codes import xsampa2ipa
 
 TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
+LANGUAGE_TABLE = os.path.join(os.path.dirname(__file__), "doreco_language_table.json")
+DEFAULT_LANGUAGE = "sout3282"
 
-# We use specifically the Southern British English data for now: https://doreco.huma-num.fr/languages/sout3282, https://multicast.aspra.uni-bamberg.de/#english
+# English in the older flat layout, which is still found: https://doreco.huma-num.fr/languages/sout3282, https://multicast.aspra.uni-bamberg.de/#english
+# extended recordings, opened only if an item needs them
 AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
 AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
 SOURCE_SAMPLE_RATE = None  # auto detect
@@ -76,6 +99,87 @@ def find_member(zip_file, suffix):
     return matches[0]
 
 
+# What the loader keeps for each language it reads
+Language = collections.namedtuple("Language", ["entry", "metadata_df"])
+
+
+def language_table():
+    """Every DoReCo language, by glottocode, from doreco_language_table.json."""
+    with open(LANGUAGE_TABLE, encoding="utf-8") as f:
+        return {entry["glottocode"]: entry for entry in json.load(f)["languages"]}
+
+
+def annotation_zip_path(glottocode):
+    """The language's annotation bundle on disk: the one zip in its folder with a phone table.
+    None if there is none. English in the older flat layout comes first."""
+    if glottocode == DEFAULT_LANGUAGE and os.path.exists(ANNOTATION_ZIP):
+        return ANNOTATION_ZIP
+    bundles = []
+    for path in sorted(glob.glob(os.path.join(TOP_DIR, glottocode, "*.zip"))):
+        with zipfile.ZipFile(path, "r") as z:
+            if any(name.endswith(PHONEMES_SUFFIX) for name in z.namelist()):
+                bundles.append(path)
+    if len(bundles) > 1:
+        raise ValueError(
+            f"More than one DoReCo annotation bundle for {glottocode}: {bundles}"
+        )
+    return bundles[0] if bundles else None
+
+
+def wav_files(glottocode):
+    """Every WAV on disk for a language, by file name without .wav, as (zip path, member) for a WAV
+    inside a zip or (None, file path) for a loose one. The first one found wins: English in the older
+    flat layout, then zips, then loose files, each in sorted order."""
+    folder = os.path.join(TOP_DIR, glottocode)
+    zips = sorted(glob.glob(os.path.join(folder, "**", "*.zip"), recursive=True))
+    if glottocode == DEFAULT_LANGUAGE and os.path.exists(AUDIO_CORE_ZIP):
+        zips.insert(0, AUDIO_CORE_ZIP)
+    found = {}
+    for zip_path in zips:
+        with zipfile.ZipFile(zip_path, "r") as z:
+            for member in z.namelist():
+                if member.lower().endswith(".wav"):
+                    found.setdefault(os.path.basename(member)[:-4], (zip_path, member))
+    for path in sorted(glob.glob(os.path.join(folder, "**", "*.wav"), recursive=True)):
+        found.setdefault(os.path.basename(path)[:-4], (None, path))
+    return found
+
+
+def available_languages():
+    """The glottocodes whose annotation bundle and audio are both on disk, sorted. These are what
+    language="all" reads."""
+    return [
+        g for g in sorted(language_table()) if annotation_zip_path(g) and wav_files(g)
+    ]
+
+
+def missing_annotations(glottocode, entry):
+    folder = os.path.normpath(os.path.join(TOP_DIR, glottocode))
+    english = (
+        f" For English, {os.path.normpath(ANNOTATION_ZIP)} also works."
+        if glottocode == DEFAULT_LANGUAGE
+        else ""
+    )
+    return FileNotFoundError(
+        f"No DoReCo annotation bundle for {entry['name']} ({glottocode}) in {folder}."
+        f" Download the core bundle from {entry['core_annotation_download_url']}"
+        f" (language page: {entry['language_page']}) and save it there as"
+        f" doreco_{glottocode}_core_v2.zip, without unzipping it.{english}"
+    )
+
+
+def missing_audio(glottocode, entry, name):
+    folder = os.path.normpath(os.path.join(TOP_DIR, glottocode))
+    where = (
+        f"Download the core WAV files from {entry['audio_list_url']} into that folder."
+        if entry["audio_list_url"] != "na"
+        else f"DoReCo links to this audio elsewhere: see {entry['language_page']}."
+    )
+    return FileNotFoundError(
+        f"No audio file {name}.wav for {entry['name']} ({glottocode}) in {folder}. {where}"
+    )
+
+
 class DoReCoDataset(BaseDataset):
     def __init__(
         self,
@@ -83,73 +187,120 @@ class DoReCoDataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        language=DEFAULT_LANGUAGE,
     ):
         """
-        Valid splits are "all" to include all the utterances, T001-T010 for each of the recording sessions, or EN01-EN04 for each of the speakers.
+        `language` is a DoReCo glottocode, such as "sout3282" for English (Southern England), a list
+        of glottocodes, or "all" for every language whose annotations and audio are on disk, sorted
+        by glottocode. doreco_language_table.json lists every code.
+
+        For English alone, split can be "all", or "EN01" or "EN03", the two speakers with phone
+        transcriptions. For other languages, split must be "all".
         """
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
-        self.audio_zip = zipfile.ZipFile(AUDIO_ZIP, "r")
-        self.audio_core_zip = zipfile.ZipFile(AUDIO_CORE_ZIP, "r")
         self.audio_cache = collections.OrderedDict()  # decoded recordings, oldest first
+        self.open_zips = {}  # audio zips, each opened when an item first needs it
+        self.wav_index = {}  # glottocode -> its WAV files, found when first needed
+        self.languages = {}  # glottocode -> Language
+        self.utterance_rows = {}  # utterance id (ref) -> its rows of the phone table
+        self.utterance_language = {}  # utterance id (ref) -> glottocode
 
-        with zipfile.ZipFile(ANNOTATION_ZIP, "r") as annotation_zip:
+        glottocodes = self._glottocodes(language)
+        if split != "all" and glottocodes != [DEFAULT_LANGUAGE]:
+            raise ValueError(
+                f'split must be "all" when reading {glottocodes}. Speaker splits exist for'
+                f" English (sout3282) only."
+            )
+        tables = [self._read_language(glottocode, split) for glottocode in glottocodes]
+        self.utterances = list(self.utterance_rows)
+        # The tables of a single language stay available, as before. For several languages they
+        # are not joined, to save memory: see self.languages and self.utterance_rows instead.
+        single = len(tables) == 1
+        self.metadata_df, self.phoneme_df = tables[0] if single else (None, None)
+
+    @staticmethod
+    def _glottocodes(language):
+        """The glottocodes to read, in order, from a glottocode, a list of them, or "all"."""
+        if language == "all":
+            glottocodes = available_languages()
+            if not glottocodes:
+                raise FileNotFoundError(
+                    f"No DoReCo language has both its annotation bundle and its audio in"
+                    f" {os.path.normpath(TOP_DIR)}. See the download steps at the top of DoReCo.py."
+                )
+            return glottocodes
+        glottocodes = [language] if isinstance(language, str) else list(language)
+        if not glottocodes:
+            raise ValueError(
+                'No language given. Pass a glottocode, a list of them, or "all".'
+            )
+        table = language_table()
+        unknown = [g for g in glottocodes if g not in table]
+        if unknown:
+            raise ValueError(
+                f"Unknown DoReCo glottocode(s) {unknown}. Valid codes: {', '.join(sorted(table))}"
+            )
+        # each language once, in the order given
+        return list(dict.fromkeys(glottocodes))
+
+    def _read_language(self, glottocode, split):
+        """Read one language's tables and add its kept utterances. Returns its two tables."""
+        entry = language_table()[glottocode]
+        path = annotation_zip_path(glottocode)
+        if path is None:
+            raise missing_annotations(glottocode, entry)
+        with zipfile.ZipFile(path, "r") as annotation_zip:
             with annotation_zip.open(find_member(annotation_zip, METADATA_SUFFIX)) as f:
-                self.metadata_df = pd.read_csv(f)
+                metadata_df = pd.read_csv(f)
                 # columns = ['id', 'name', 'spk_code', 'spk_age', 'spk_age_c', 'spk_sex', 'rec_date', 'rec_date_c', 'genre', 'genre_stim', 'gloss', 'transl', 'sound_quality', 'background_noise', 'word_tokens', 'word_tokens_core', 'extended']
-                # prepend "doreco_sout3282_" to all names in metadata_df to match the phonemes
-                self.metadata_df["name"] = "doreco_sout3282_" + self.metadata_df["name"]
+                # prepend "doreco_<glottocode>_" to all names in metadata_df to match the phonemes
+                metadata_df["name"] = "doreco_" + glottocode + "_" + metadata_df["name"]
 
             with annotation_zip.open(find_member(annotation_zip, PHONEMES_SUFFIX)) as f:
-                self.phoneme_df = pd.read_csv(f)
+                phoneme_df = pd.read_csv(f)
                 # columns = ['lang', 'file', 'core_extended', 'speaker', 'ph_ID', 'ph', 'start', 'end', 'ref', 'tx', 'ft', 'wd_ID', 'wd', 'mc-zero', 'mb_ID', 'mb', 'doreco-mb-algn', 'ps', 'gl', 'refind', 'isnref']
 
-        filter_by_session = split.startswith("T")
-        filter_by_speaker = split.startswith("EN")
-        if filter_by_session:
-            self.metadata_df = self.metadata_df[self.metadata_df["id"] == split]
-            self.phoneme_df = self.phoneme_df[
-                self.phoneme_df["file"].isin(self.metadata_df["name"].unique())
-            ]
-        elif filter_by_speaker:
-            self.metadata_df = self.metadata_df[self.metadata_df["spk_code"] == split]
-            self.phoneme_df = self.phoneme_df[self.phoneme_df["speaker"] == split]
+        if glottocode == DEFAULT_LANGUAGE:
+            filter_by_session = split.startswith("T")
+            filter_by_speaker = split.startswith("EN")
+            if filter_by_session:
+                metadata_df = metadata_df[metadata_df["id"] == split]
+                phoneme_df = phoneme_df[
+                    phoneme_df["file"].isin(metadata_df["name"].unique())
+                ]
+            elif filter_by_speaker:
+                metadata_df = metadata_df[metadata_df["spk_code"] == split]
+                phoneme_df = phoneme_df[phoneme_df["speaker"] == split]
 
-        # only speakers EN01 and EN03 actually have phonemic transcriptions
-        self.phoneme_df = self.phoneme_df[
-            self.phoneme_df["speaker"].isin(["EN01", "EN03"])
-        ]
-        assert split in [
-            "all",
-            "EN01",
-            "EN03",
-        ], f"There are no phonemic transcriptions for {split}, only words"
+            # only speakers EN01 and EN03 actually have phonemic transcriptions
+            phoneme_df = phoneme_df[phoneme_df["speaker"].isin(["EN01", "EN03"])]
+            assert split in [
+                "all",
+                "EN01",
+                "EN03",
+            ], f"There are no phonemic transcriptions for {split}, only words"
 
         # Split the phone table into one list of rows per utterance, in a single pass, so that no item
-        # has to scan the whole table. The utterances and their order are the same as before: each ref
-        # in order of first appearance, without pause refs such as <p:>, and only with more than 10 rows
-        # (pause and label rows count).
+        # has to scan the whole table. Utterances are kept as before: each ref in order of first
+        # appearance, without pause refs such as <p:>, and only with more than 10 rows (pause and
+        # label rows count).
         rows_by_ref = collections.defaultdict(list)
-        columns = [self.phoneme_df[column].tolist() for column in Row._fields]
-        for ref, row in zip(self.phoneme_df["ref"].tolist(), zip(*columns)):
+        columns = [phoneme_df[column].tolist() for column in Row._fields]
+        for ref, row in zip(phoneme_df["ref"].tolist(), zip(*columns)):
             rows_by_ref[ref].append(Row._make(row))
-        self.utterance_rows = {
-            x: rows_by_ref[x]
-            for x in self.phoneme_df["ref"].unique()
-            if not is_special_symbol(x)
-            if len(rows_by_ref[x]) > 10
-        }
-        self.utterances = list(self.utterance_rows)
+        for x in phoneme_df["ref"].unique():
+            if not is_special_symbol(x) and len(rows_by_ref[x]) > 10:
+                self.utterance_rows[x] = rows_by_ref[x]
+                self.utterance_language[x] = glottocode
+        self.languages[glottocode] = Language(entry, metadata_df)
+        return metadata_df, phoneme_df
 
     def __del__(self):
-        # The constructor can fail before the zips are open, for example when a file is missing.
-        # getattr keeps cleanup from raising a second error on top of that one (found at Gate A).
-        for zip_file in (
-            getattr(self, "audio_zip", None),
-            getattr(self, "audio_core_zip", None),
-        ):
-            if zip_file is not None:
-                zip_file.close()
+        # Close the audio zips that items opened. getattr, because the constructor can fail
+        # before they exist, for example when a file is missing (an AttributeError here before).
+        for zip_file in getattr(self, "open_zips", {}).values():
+            zip_file.close()
 
     def __len__(self):
         # 0, not an error, after a failed constructor
@@ -158,6 +309,7 @@ class DoReCoDataset(BaseDataset):
     def _get_ix(self, ix):
         utterance: str = self.utterances[ix]
         rows = self.utterance_rows[utterance]
+        glottocode = self.utterance_language[utterance]
 
         # parse annotations
         timestamped_phonemes, text = self._parse_rows(rows)
@@ -165,20 +317,20 @@ class DoReCoDataset(BaseDataset):
 
         # parse metadata
         name = rows[0].file
-        metadata_dict = (
-            self.metadata_df[self.metadata_df["name"] == name].iloc[0].to_dict()
-        )
+        metadata_df = self.languages[glottocode].metadata_df
+        metadata_dict = metadata_df[metadata_df["name"] == name].iloc[0].to_dict()
         is_core = metadata_dict["extended"] == "no"
 
         # parse audio
         start = timestamped_phonemes[0][1]
         end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
-        if is_core:
-            filename = "doreco_sout3282_audiofiles_v2.0/" + name + ".wav"
-            audio = self._recording(self.audio_core_zip, filename)
+        if is_core or glottocode != DEFAULT_LANGUAGE:
+            audio = self._recording(*self._wav_location(glottocode, name))
         else:
+            # English extended recordings are in the Multi-CAST zip of the flat layout, named
+            # without the doreco_sout3282_ prefix. No English extended recording has phone rows.
             filename = name[len("doreco_sout3282_") :] + ".wav"
-            audio = self._recording(self.audio_zip, filename)
+            audio = self._recording(AUDIO_ZIP, filename)
         # a copy, so that changing a returned clip can never change the cached recording
         audio = audio[start:end].copy()
 
@@ -190,6 +342,15 @@ class DoReCoDataset(BaseDataset):
         if self.include_text:
             result.append(text)
         return tuple(result)
+
+    def _wav_location(self, glottocode, name):
+        """Where the WAV of recording `name` is, as (zip path or None, path)."""
+        if glottocode not in self.wav_index:
+            self.wav_index[glottocode] = wav_files(glottocode)
+        location = self.wav_index[glottocode].get(name)
+        if location is None:
+            raise missing_audio(glottocode, self.languages[glottocode].entry, name)
+        return location
 
     @staticmethod
     def _parse_rows(rows):
@@ -216,16 +377,24 @@ class DoReCoDataset(BaseDataset):
         text = " ".join(word for word in words if not is_special_symbol(word))
         return timestamped_phonemes, text
 
-    def _recording(self, zip_file, filename):
-        """A whole recording at 16 kHz, decoded once and then served from a small cache."""
-        key = (zip_file.filename, filename)
+    def _recording(self, zip_path, path):
+        """A whole recording at 16 kHz, decoded once and then served from a small cache. `path` is
+        a member of the zip at `zip_path`, or a file on disk when `zip_path` is None."""
+        key = (zip_path, path)
         if key in self.audio_cache:
             self.audio_cache.move_to_end(key)
         else:
-            with zip_file.open(filename) as f:
-                self.audio_cache[key] = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
+            if zip_path is None:
+                with open(path, "rb") as f:
+                    data = f.read()
+            else:
+                if zip_path not in self.open_zips:
+                    self.open_zips[zip_path] = zipfile.ZipFile(zip_path, "r")
+                with self.open_zips[zip_path].open(path) as f:
+                    data = f.read()
+            self.audio_cache[key] = audio_bytes_to_array(
+                data, SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
+            )
             if len(self.audio_cache) > AUDIO_CACHE_SIZE:
                 self.audio_cache.popitem(last=False)  # drop the least recently used one
         return self.audio_cache[key]
