@@ -22,6 +22,7 @@
 import collections
 import glob
 import json
+import math
 import os
 import sys
 
@@ -31,7 +32,7 @@ import pandas as pd
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
 from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
-from core.codes import xsampa2ipa
+from core.codes import XSAMPA2IPA, string2symbols, xsampa2ipa
 
 TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
 LANGUAGE_TABLE = os.path.join(os.path.dirname(__file__), "doreco_language_table.json")
@@ -51,6 +52,11 @@ PHONEMES_SUFFIX = "_ph.csv"
 # Whole recordings kept decoded in memory, so items of the same recording do not decode it again.
 # One English recording is about 31 MB at 16 kHz.
 AUDIO_CACHE_SIZE = 4
+# core/codes.py turns these three X-SAMPA marks into a space, and DoReCo uses them: ~ (nasalized)
+# and _v (voiced) in Nǁng, _t (breathy voice) in Sümi. Until shared code is fixed, the loader
+# converts them itself, to the IPA in the X-SAMPA table, and counts every use. Any other unit that
+# does not convert cleanly makes its utterance skipped and counted, in self.skipped.
+XSAMPA_MARKS = {"~": "\u0303", "_v": "\u032c", "_t": "\u0324"}
 
 SPECIAL_SYMBOLS = {
     "<<fp>>": "Filled pause",
@@ -180,6 +186,37 @@ def missing_audio(glottocode, entry, name):
     )
 
 
+def xsampa_tokens(unit):
+    """A phone unit split into X-SAMPA symbols, exactly as core/codes.py xsampa2ipa splits it."""
+    return unit.split() if " " in unit else string2symbols(unit, XSAMPA2IPA.keys())[0]
+
+
+def unit_to_ipa(unit):
+    """(IPA, None) for a phone unit the loader can use, or (None, reason) for one it cannot.
+
+    Units without the three marks in XSAMPA_MARKS go through core/codes.py unchanged. A unit cannot
+    be used if a symbol is missing from the table, if its IPA has a space or an angle bracket, or if
+    it has `_` on its own, which the table reads as a tie bar and so joins the wrong symbols.
+    """
+    tokens = xsampa_tokens(unit)
+    try:
+        if any(t in XSAMPA_MARKS for t in tokens):
+            ipa = "".join(
+                XSAMPA_MARKS[t] if t in XSAMPA_MARKS else XSAMPA2IPA[t] for t in tokens
+            )
+        else:
+            ipa = xsampa2ipa(unit)
+    except KeyError:
+        return None, "unknown_symbol"
+    if " " in ipa:
+        return None, "space"
+    if "⟨" in ipa or "⟩" in ipa:
+        return None, "angle_bracket"
+    if "_" in tokens:
+        return None, "lone_underscore"
+    return ipa, None
+
+
 class DoReCoDataset(BaseDataset):
     def __init__(
         self,
@@ -205,6 +242,11 @@ class DoReCoDataset(BaseDataset):
         self.languages = {}  # glottocode -> Language
         self.utterance_rows = {}  # utterance id (ref) -> its rows of the phone table
         self.utterance_language = {}  # utterance id (ref) -> glottocode
+        self.phone_ipa = (
+            {}
+        )  # X-SAMPA unit -> its IPA, for every unit of a kept utterance
+        self.skipped = {}  # glottocode -> {reason: utterances skipped}
+        self.mark_uses = {}  # glottocode -> {mark: uses in kept utterances}
 
         glottocodes = self._glottocodes(language)
         if split != "all" and glottocodes != [DEFAULT_LANGUAGE]:
@@ -214,6 +256,7 @@ class DoReCoDataset(BaseDataset):
             )
         tables = [self._read_language(glottocode, split) for glottocode in glottocodes]
         self.utterances = list(self.utterance_rows)
+        self.vocab = set(self.phone_ipa.values())
         # The tables of a single language stay available, as before. For several languages they
         # are not joined, to save memory: see self.languages and self.utterance_rows instead.
         single = len(tables) == 1
@@ -289,12 +332,53 @@ class DoReCoDataset(BaseDataset):
         columns = [phoneme_df[column].tolist() for column in Row._fields]
         for ref, row in zip(phoneme_df["ref"].tolist(), zip(*columns)):
             rows_by_ref[ref].append(Row._make(row))
+        # each distinct phone unit is converted, and split into symbols, only once
+        units, unit_marks = {}, {}
+        skipped, marks, kept = collections.Counter(), collections.Counter(), 0
         for x in phoneme_df["ref"].unique():
-            if not is_special_symbol(x) and len(rows_by_ref[x]) > 10:
-                self.utterance_rows[x] = rows_by_ref[x]
-                self.utterance_language[x] = glottocode
+            if is_special_symbol(x) or len(rows_by_ref[x]) <= 10:
+                continue
+            reason = self._unusable(rows_by_ref[x], units)
+            if reason:
+                skipped[reason] += 1
+                continue
+            for row in rows_by_ref[x]:
+                if not is_special_symbol(row.ph):
+                    self.phone_ipa[row.ph] = units[row.ph][0]
+                    if row.ph not in unit_marks:
+                        unit_marks[row.ph] = [
+                            t for t in xsampa_tokens(row.ph) if t in XSAMPA_MARKS
+                        ]
+                    marks.update(unit_marks[row.ph])
+            self.utterance_rows[x] = rows_by_ref[x]
+            self.utterance_language[x] = glottocode
+            kept += 1
         self.languages[glottocode] = Language(entry, metadata_df)
+        self.skipped[glottocode] = dict(skipped)
+        self.mark_uses[glottocode] = dict(marks)
+        summary = f"DoReCo {glottocode} ({entry['name']}): {kept} utterances,"
+        summary += f" {sum(skipped.values())} skipped"
+        if skipped:
+            summary += f" {dict(skipped)}"
+        if marks:
+            summary += f", marks converted by this loader {dict(marks)}"
+        print(summary)
         return metadata_df, phoneme_df
+
+    @staticmethod
+    def _unusable(rows, units):
+        """Why an utterance cannot be used, or None. `units` caches unit_to_ipa for each unit."""
+        phones = [row.ph for row in rows if not is_special_symbol(row.ph)]
+        if not phones:
+            return "no_real_phone"  # only labels and pauses, so there is no IPA and no clip start
+        if any(isinstance(row.wd_ID, float) and math.isnan(row.wd_ID) for row in rows):
+            return "missing_word_id"
+        for ph in phones:
+            if ph not in units:
+                units[ph] = unit_to_ipa(ph)
+            if units[ph][1]:
+                return units[ph][1]
+        return None
 
     def __del__(self):
         # Close the audio zips that items opened. getattr, because the constructor can fail
@@ -352,18 +436,15 @@ class DoReCoDataset(BaseDataset):
             raise missing_audio(glottocode, self.languages[glottocode].entry, name)
         return location
 
-    @staticmethod
-    def _parse_rows(rows):
+    def _parse_rows(self, rows):
         """The phones with their start and end samples, and the text, of one utterance.
 
         Pause and label rows are left out of both. The text has each word once, in order of first
-        appearance, taken from the word's first row. A row whose word id is missing (NaN) raises an
-        IndexError, as it did before this refactor. No kept utterance in the 52 DoReCo bundles checked
-        on Nov 5, 2026 has one.
+        appearance, taken from the word's first row.
         """
         timestamped_phonemes = [
             (
-                xsampa2ipa(row.ph),
+                self.phone_ipa[row.ph],
                 int(float(row.start) * TARGET_SAMPLE_RATE),
                 int(float(row.end) * TARGET_SAMPLE_RATE),
             )
