@@ -456,8 +456,10 @@ class DoReCoDataset(BaseDataset):
             # without the doreco_sout3282_ prefix. No English extended recording has phone rows.
             filename = name[len("doreco_sout3282_") :] + ".wav"
             audio = self._recording(AUDIO_ZIP, filename)
-        if timestamped_phonemes[-1][2] > len(audio):
-            # the annotation runs past the end of the recording: a cut or wrong WAV file
+        # An annotation that runs past the end of the recording means a cut or wrong WAV file. 10 ms
+        # are allowed, so that rounding of the annotation times or of the resampled length cannot
+        # make a good item fail.
+        if timestamped_phonemes[-1][2] > len(audio) + TARGET_SAMPLE_RATE // 100:
             raise ValueError(
                 f"{utterance} ends at sample {timestamped_phonemes[-1][2]}, after the end of"
                 f" {name}.wav ({len(audio)} samples at {TARGET_SAMPLE_RATE} Hz). Is the WAV file"
