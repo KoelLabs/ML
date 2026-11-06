@@ -21,17 +21,20 @@
 
 import collections
 import glob
+import io
 import json
 import math
 import os
 import sys
 
 import zipfile
+import numpy as np
 import pandas as pd
+import soundfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
+from core.audio import audio_resample, TARGET_SAMPLE_RATE
 from core.codes import XSAMPA2IPA, string2symbols, xsampa2ipa
 
 TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
@@ -42,7 +45,6 @@ DEFAULT_LANGUAGE = "sout3282"
 # extended recordings, opened only if an item needs them
 AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
 AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
-SOURCE_SAMPLE_RATE = None  # auto detect
 
 ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
 # Files inside an annotation zip are found by the end of their name, because DoReCo names them in two
@@ -215,6 +217,22 @@ def unit_to_ipa(unit):
     if "_" in tokens:
         return None, "lone_underscore"
     return ipa, None
+
+
+def decode_wav(data):
+    """A WAV file's audio as int16 at 16 kHz.
+
+    Read with soundfile, so any WAV header and sample format works. core/audio.py instead assumes
+    16-bit samples after a 44-byte header. For such files, which are all the English ones, the result
+    is the same, byte for byte: the channels are averaged as core/audio.py averages them, and the
+    same resampler is used.
+    """
+    samples, rate = soundfile.read(io.BytesIO(data), dtype="int16", always_2d=True)
+    if samples.shape[1] > 1:
+        mono = np.mean(samples, axis=1).astype(np.int16)
+    else:
+        mono = samples[:, 0]
+    return audio_resample(mono, rate, TARGET_SAMPLE_RATE)
 
 
 class DoReCoDataset(BaseDataset):
@@ -415,6 +433,13 @@ class DoReCoDataset(BaseDataset):
             # without the doreco_sout3282_ prefix. No English extended recording has phone rows.
             filename = name[len("doreco_sout3282_") :] + ".wav"
             audio = self._recording(AUDIO_ZIP, filename)
+        if timestamped_phonemes[-1][2] > len(audio):
+            # the annotation runs past the end of the recording: a cut or wrong WAV file
+            raise ValueError(
+                f"{utterance} ends at sample {timestamped_phonemes[-1][2]}, after the end of"
+                f" {name}.wav ({len(audio)} samples at {TARGET_SAMPLE_RATE} Hz). Is the WAV file"
+                f" cut short or the wrong file?"
+            )
         # a copy, so that changing a returned clip can never change the cached recording
         audio = audio[start:end].copy()
 
@@ -473,9 +498,7 @@ class DoReCoDataset(BaseDataset):
                     self.open_zips[zip_path] = zipfile.ZipFile(zip_path, "r")
                 with self.open_zips[zip_path].open(path) as f:
                     data = f.read()
-            self.audio_cache[key] = audio_bytes_to_array(
-                data, SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-            )
+            self.audio_cache[key] = decode_wav(data)
             if len(self.audio_cache) > AUDIO_CACHE_SIZE:
                 self.audio_cache.popitem(last=False)  # drop the least recently used one
         return self.audio_cache[key]
