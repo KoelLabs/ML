@@ -4,8 +4,9 @@
 #
 # Languages: pass a glottocode, a list of glottocodes, or "all" as `language`. Every DoReCo language,
 # with its name, licenses and download links, is in doreco_language_table.json next to this file.
-# Licenses differ by language, and some have NC, ND or SA terms. Every dataset that is used must be
-# cited on its own, with its creators, as the dataset-info file in each bundle says.
+# Licenses differ by language, and some have NC, ND or SA terms. English (sout3282) is under CC BY 4.0,
+# annotations and audio. Every dataset that is used must be cited on its own, with its creators, as
+# the dataset-info file in each bundle says.
 #
 # Download instructions, for a language with glottocode <g> (links in doreco_language_table.json):
 #   1. Annotations: save the core bundle from https://doreco.huma-num.fr/languages/<g> as
@@ -15,8 +16,9 @@
 # English (sout3282) also works in the older flat layout this loader first used:
 #   ./.data/DoReCo/sout3282_annotations_v2.zip and ./.data/DoReCo/sout3282_audio_core_v2.zip
 #
-# Tested on Nov 5, 2026: English with its audio, all 577 items, and Nǁng (nngg1234) and Sümi
-# (sumi1235) on their annotations only, because their audio had not arrived yet.
+# Tested on Nov 5, 2026, on the real DoReCo files: English, all 577 items with their audio, in both
+# layouts. Nǁng (nngg1234) and Sümi (sumi1235): every utterance, from the annotations alone. No item
+# of another language has been read with its real audio yet.
 # TODO: manual verification
 
 import collections
@@ -41,23 +43,25 @@ TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
 LANGUAGE_TABLE = os.path.join(os.path.dirname(__file__), "doreco_language_table.json")
 DEFAULT_LANGUAGE = "sout3282"
 
-# English in the older flat layout, which is still found: https://doreco.huma-num.fr/languages/sout3282, https://multicast.aspra.uni-bamberg.de/#english
-# extended recordings, opened only if an item needs them
+# English in the flat layout this loader first used, which is looked for first, from
+# https://doreco.huma-num.fr/languages/sout3282. The zip of extended recordings comes from
+# https://multicast.aspra.uni-bamberg.de/#english and is opened only if an item needs it.
 AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
 AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
 
 ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
 # Files inside an annotation zip are found by the end of their name, because DoReCo names them in two
-# ways: doreco_sout3282_ph.csv in version 1.3 bundles, doreco_<glottocode>_#6_ph.csv in version 2.0.
+# ways: doreco_sout3282_ph.csv in version 1.3 bundles, and doreco_<glottocode>_#6_ph.csv in version
+# 2.0, where #6 is the file's number in the bundle.
 METADATA_SUFFIX = "_metadata.csv"
 PHONEMES_SUFFIX = "_ph.csv"
 # Whole recordings kept decoded in memory, so items of the same recording do not decode it again.
-# One English recording is about 31 MB at 16 kHz.
 AUDIO_CACHE_SIZE = 4
-# core/codes.py turns these three X-SAMPA marks into a space, and DoReCo uses them: ~ (nasalized)
-# and _v (voiced) in Nǁng, _t (breathy voice) in Sümi. Until shared code is fixed, the loader
-# converts them itself, to the IPA in the X-SAMPA table, and counts every use. Any other unit that
-# does not convert cleanly makes its utterance skipped and counted, in self.skipped.
+# XSAMPA2IPA in core/codes.py maps these three X-SAMPA marks to a space, and DoReCo uses them, for
+# example ~ (nasalized) and _v (voiced) in Nǁng and _t (breathy voice) in Sümi. Until shared code is
+# fixed, the loader converts them itself, to the IPA that the X-SAMPA chart gives
+# (https://en.wikipedia.org/wiki/X-SAMPA), and counts every use. Any other unit that does not
+# convert cleanly makes its utterance skipped and counted, in self.skipped.
 XSAMPA_MARKS = {"~": "\u0303", "_v": "\u032c", "_t": "\u0324"}
 
 SPECIAL_SYMBOLS = {
@@ -206,7 +210,8 @@ def missing_audio(glottocode, entry, name):
 
 
 def xsampa_tokens(unit):
-    """A phone unit split into X-SAMPA symbols, exactly as core/codes.py xsampa2ipa splits it."""
+    """A phone unit split into X-SAMPA symbols, exactly as xsampa2ipa in core/codes.py splits it
+    (lines 100 to 105 there)."""
     return unit.split() if " " in unit else string2symbols(unit, XSAMPA2IPA.keys())[0]
 
 
@@ -215,7 +220,7 @@ def unit_to_ipa(unit):
 
     Units without the three marks in XSAMPA_MARKS go through core/codes.py unchanged. A unit cannot
     be used if a symbol is missing from the table, if its IPA has a space or an angle bracket, or if
-    it has `_` on its own, which the table reads as a tie bar and so joins the wrong symbols.
+    it has `_` on its own, which XSAMPA2IPA maps to a tie bar that joins the wrong symbols.
     """
     tokens = xsampa_tokens(unit)
     try:
@@ -239,10 +244,10 @@ def unit_to_ipa(unit):
 def decode_wav(data):
     """A WAV file's audio as int16 at 16 kHz.
 
-    Read with soundfile, so any WAV header and sample format works. core/audio.py instead assumes
-    16-bit samples after a 44-byte header. For such files, which are all the English ones, the result
-    is the same, byte for byte: the channels are averaged as core/audio.py averages them, and the
-    same resampler is used.
+    Read with soundfile, which reads the WAV header, where core/audio.py assumes 16-bit samples after
+    a 44-byte header. For such files, like the four English ones, the result is the same, byte for
+    byte, because the channels are averaged as core/audio.py averages them and the same resampler
+    is used.
     """
     samples, rate = soundfile.read(io.BytesIO(data), dtype="int16", always_2d=True)
     if samples.shape[1] > 1:
@@ -269,7 +274,7 @@ class DoReCoDataset(BaseDataset):
         For English alone, split can be "all", or "EN01" or "EN03", the two speakers with phone
         transcriptions. For other languages, split must be "all".
 
-        The speaker info dict is the recording's metadata row, as before, plus `language` (the
+        The speaker info dict is the recording's metadata row plus `language` (the
         glottocode), `language_name`, `annotation_license` and `audio_license` (DoReCo's short
         names, from doreco_language_table.json), and `utt_spk_code`, the speaker of the utterance.
         """
@@ -280,9 +285,8 @@ class DoReCoDataset(BaseDataset):
         self.languages = {}  # glottocode -> Language
         self.utterance_rows = {}  # utterance id (ref) -> its rows of the phone table
         self.utterance_language = {}  # utterance id (ref) -> glottocode
-        self.phone_ipa = (
-            {}
-        )  # X-SAMPA unit -> its IPA, for every unit of a kept utterance
+        # X-SAMPA unit -> its IPA, for every unit of a kept utterance
+        self.phone_ipa = {}
         self.skipped = {}  # glottocode -> {reason: utterances skipped}
         self.mark_uses = {}  # glottocode -> {mark: uses in kept utterances}
 
@@ -290,13 +294,13 @@ class DoReCoDataset(BaseDataset):
         if split != "all" and glottocodes != [DEFAULT_LANGUAGE]:
             raise ValueError(
                 f'split must be "all" when reading {glottocodes}. Speaker splits exist for'
-                f" English (sout3282) only."
+                " English (sout3282) only."
             )
         for glottocode in glottocodes:
             tables = self._read_language(glottocode, split)
         self.utterances = list(self.utterance_rows)
         self.vocab = set(self.phone_ipa.values())
-        # The tables of a single language stay available, as before. For several languages they
+        # The tables of a single language stay available as attributes. For several languages they
         # are not kept, to save memory: see self.languages and self.utterance_rows instead.
         single = len(glottocodes) == 1
         self.metadata_df, self.phoneme_df = tables if single else (None, None)
@@ -308,7 +312,7 @@ class DoReCoDataset(BaseDataset):
             glottocodes = available_languages()
             if not glottocodes:
                 raise FileNotFoundError(
-                    f"No DoReCo language has both its annotation bundle and its audio in"
+                    "No DoReCo language has both its annotation bundle and its audio in"
                     f" {os.path.normpath(TOP_DIR)}. See the download steps at the top of DoReCo.py."
                 )
             return glottocodes
@@ -370,9 +374,9 @@ class DoReCoDataset(BaseDataset):
             ], f"There are no phonemic transcriptions for {split}, only words"
 
         # Split the phone table into one list of rows per utterance, in a single pass, so that no item
-        # has to scan the whole table. Utterances are kept as before: each ref in order of first
-        # appearance, without pause refs such as <p:>, and only with more than 10 rows (pause and
-        # label rows count).
+        # has to scan the whole table. The rule for keeping an utterance is unchanged: each ref in
+        # order of first appearance, without pause refs such as <p:>, and only with more than 10
+        # rows (pause and label rows count).
         rows_by_ref = collections.defaultdict(list)
         columns = [phoneme_df[column].tolist() for column in Row._fields]
         for ref, row in zip(phoneme_df["ref"].tolist(), zip(*columns)):
@@ -418,7 +422,8 @@ class DoReCoDataset(BaseDataset):
 
     @staticmethod
     def _unusable(rows, units):
-        """Why an utterance cannot be used, or None. `units` caches unit_to_ipa for each unit."""
+        """Why an utterance cannot be used, or None. Only the first reason found is given.
+        `units` caches unit_to_ipa for each unit."""
         phones = [row.ph for row in rows if not is_special_symbol(row.ph)]
         if not phones:
             return "no_real_phone"  # only labels and pauses, so there is no IPA and no clip start
@@ -478,12 +483,11 @@ class DoReCoDataset(BaseDataset):
             raise ValueError(
                 f"{utterance} ends at sample {timestamped_phonemes[-1][2]}, after the end of"
                 f" {name}.wav ({len(audio)} samples at {TARGET_SAMPLE_RATE} Hz). Is the WAV file"
-                f" cut short or the wrong file?"
+                " cut short or the wrong file?"
             )
         # a copy, so that changing a returned clip can never change the cached recording
         audio = audio[start:end].copy()
         # Times are counted from the start of the returned clip, so they index into `audio`.
-        # Before, they were counted from the start of the whole recording.
         timestamped_phonemes = [
             (phone, phone_start - start, phone_end - start)
             for phone, phone_start, phone_end in timestamped_phonemes
