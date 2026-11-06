@@ -1,6 +1,7 @@
 # 100 hours from 53 languages with time aligned phoneme transcriptions and translations: https://doreco.huma-num.fr/UsingDoReCo
 # Paper: https://aclanthology.org/2025.fieldmatters-1.5.pdf
 
+import collections
 import os
 import sys
 
@@ -20,10 +21,13 @@ AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
 SOURCE_SAMPLE_RATE = None  # auto detect
 
 ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
-METADATA_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_metadata.csv"
-PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_ph.csv"
-# PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_wd.csv"
-INSTRUCTIONS_PATH = "doreco_sout3282_extended_v1.3/doreco_CONVENTIONS.txt"
+# Files inside an annotation zip are found by the end of their name, because DoReCo names them in two
+# ways: doreco_sout3282_ph.csv in version 1.3 bundles, doreco_<glottocode>_#6_ph.csv in version 2.0.
+METADATA_SUFFIX = "_metadata.csv"
+PHONEMES_SUFFIX = "_ph.csv"
+# Whole recordings kept decoded in memory, so items of the same recording do not decode it again.
+# One English recording is about 31 MB at 16 kHz.
+AUDIO_CACHE_SIZE = 4
 
 SPECIAL_SYMBOLS = {
     "<<fp>>": "Filled pause",
@@ -58,6 +62,19 @@ def is_special_symbol(ph: str):
 #   mc-zero: Only present in MultiCAST corpora; units contain two kinds of information which could not be assigned to a phone: 1) clause boundaries and 2) zero words; the contents of the mb/gl/ps tiers are separated by spaces ' ', and multiple adjacent units are further separated by pipes '|'
 #   refind and isnref: Only present in MultiCAST corpora; identification of referents following Schiborr, Nils N. & Schnell, Stefan & Thiele, Hanna. 2018. RefIND — Referent Indexing in Natural-language Discourse: Annotation guidelines. Version 1.1. (https://multicast.aspra.uni-bamberg.de/data/pubs/refind/Schiborr+etal2018_RefIND-guidelines_v1.1.pdf)
 
+# The phone table columns that items are built from, one tuple per row of the table
+Row = collections.namedtuple("Row", ["ph", "start", "end", "wd_ID", "wd", "file"])
+
+
+def find_member(zip_file, suffix):
+    """The one file in an open zip whose name ends with `suffix`. Raises if there is not exactly one."""
+    matches = [name for name in zip_file.namelist() if name.endswith(suffix)]
+    if len(matches) != 1:
+        raise FileNotFoundError(
+            f"Expected one file ending in {suffix!r} in {zip_file.filename}, found {matches}"
+        )
+    return matches[0]
+
 
 class DoReCoDataset(BaseDataset):
     def __init__(
@@ -74,15 +91,16 @@ class DoReCoDataset(BaseDataset):
 
         self.audio_zip = zipfile.ZipFile(AUDIO_ZIP, "r")
         self.audio_core_zip = zipfile.ZipFile(AUDIO_CORE_ZIP, "r")
+        self.audio_cache = collections.OrderedDict()  # decoded recordings, oldest first
 
         with zipfile.ZipFile(ANNOTATION_ZIP, "r") as annotation_zip:
-            with annotation_zip.open(METADATA_PATH) as f:
+            with annotation_zip.open(find_member(annotation_zip, METADATA_SUFFIX)) as f:
                 self.metadata_df = pd.read_csv(f)
                 # columns = ['id', 'name', 'spk_code', 'spk_age', 'spk_age_c', 'spk_sex', 'rec_date', 'rec_date_c', 'genre', 'genre_stim', 'gloss', 'transl', 'sound_quality', 'background_noise', 'word_tokens', 'word_tokens_core', 'extended']
                 # prepend "doreco_sout3282_" to all names in metadata_df to match the phonemes
                 self.metadata_df["name"] = "doreco_sout3282_" + self.metadata_df["name"]
 
-            with annotation_zip.open(PHONEMES_PATH) as f:
+            with annotation_zip.open(find_member(annotation_zip, PHONEMES_SUFFIX)) as f:
                 self.phoneme_df = pd.read_csv(f)
                 # columns = ['lang', 'file', 'core_extended', 'speaker', 'ph_ID', 'ph', 'start', 'end', 'ref', 'tx', 'ft', 'wd_ID', 'wd', 'mc-zero', 'mb_ID', 'mb', 'doreco-mb-algn', 'ps', 'gl', 'refind', 'isnref']
 
@@ -107,60 +125,46 @@ class DoReCoDataset(BaseDataset):
             "EN03",
         ], f"There are no phonemic transcriptions for {split}, only words"
 
-        self.utterances = [
-            x
+        # Split the phone table into one list of rows per utterance, in a single pass, so that no item
+        # has to scan the whole table. The utterances and their order are the same as before: each ref
+        # in order of first appearance, without pause refs such as <p:>, and only with more than 10 rows
+        # (pause and label rows count).
+        rows_by_ref = collections.defaultdict(list)
+        columns = [self.phoneme_df[column].tolist() for column in Row._fields]
+        for ref, row in zip(self.phoneme_df["ref"].tolist(), zip(*columns)):
+            rows_by_ref[ref].append(Row._make(row))
+        self.utterance_rows = {
+            x: rows_by_ref[x]
             for x in self.phoneme_df["ref"].unique()
             if not is_special_symbol(x)
-            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 10
-        ]
+            if len(rows_by_ref[x]) > 10
+        }
+        self.utterances = list(self.utterance_rows)
 
     def __del__(self):
-        self.audio_zip.close()
-        self.audio_core_zip.close()
+        # The constructor can fail before the zips are open, for example when a file is missing.
+        # getattr keeps cleanup from raising a second error on top of that one (found at Gate A).
+        for zip_file in (
+            getattr(self, "audio_zip", None),
+            getattr(self, "audio_core_zip", None),
+        ):
+            if zip_file is not None:
+                zip_file.close()
 
     def __len__(self):
-        return len(self.utterances)
+        # 0, not an error, after a failed constructor
+        return len(getattr(self, "utterances", []))
 
     def _get_ix(self, ix):
         utterance: str = self.utterances[ix]
+        rows = self.utterance_rows[utterance]
 
         # parse annotations
-        phoneme_units = self.phoneme_df[self.phoneme_df["ref"] == utterance]
-        timestamped_phonemes = [
-            (
-                xsampa2ipa(unit["ph"]),
-                int(float(unit["start"]) * TARGET_SAMPLE_RATE),
-                int(float(unit["end"]) * TARGET_SAMPLE_RATE),
-            )
-            for _, unit in phoneme_units.iterrows()
-            if not is_special_symbol(unit["ph"])
-        ]
+        timestamped_phonemes, text = self._parse_rows(rows)
         ipa = "".join(x[0] for x in timestamped_phonemes)
 
-        word_ids = phoneme_units["wd_ID"].unique()
-        timestamped_words = [
-            (
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"],
-                int(
-                    float(
-                        phoneme_units[phoneme_units["wd_ID"] == word_id]["start"].min()
-                    )
-                    * TARGET_SAMPLE_RATE
-                ),
-                int(
-                    float(phoneme_units[phoneme_units["wd_ID"] == word_id]["end"].max())
-                    * TARGET_SAMPLE_RATE
-                ),
-            )
-            for word_id in word_ids
-            if not is_special_symbol(
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"]
-            )
-        ]
-        text = " ".join(x[0] for x in timestamped_words)
-
         # parse metadata
-        name = phoneme_units["file"].iloc[0]
+        name = rows[0].file
         metadata_dict = (
             self.metadata_df[self.metadata_df["name"] == name].iloc[0].to_dict()
         )
@@ -171,17 +175,12 @@ class DoReCoDataset(BaseDataset):
         end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
         if is_core:
             filename = "doreco_sout3282_audiofiles_v2.0/" + name + ".wav"
-            with self.audio_core_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
+            audio = self._recording(self.audio_core_zip, filename)
         else:
             filename = name[len("doreco_sout3282_") :] + ".wav"
-            with self.audio_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
-        audio = audio[start:end]
+            audio = self._recording(self.audio_zip, filename)
+        # a copy, so that changing a returned clip can never change the cached recording
+        audio = audio[start:end].copy()
 
         result = [ipa, audio]
         if self.include_timestamps:
@@ -191,6 +190,45 @@ class DoReCoDataset(BaseDataset):
         if self.include_text:
             result.append(text)
         return tuple(result)
+
+    @staticmethod
+    def _parse_rows(rows):
+        """The phones with their start and end samples, and the text, of one utterance.
+
+        Pause and label rows are left out of both. The text has each word once, in order of first
+        appearance, taken from the word's first row. A row whose word id is missing (NaN) raises an
+        IndexError, as it did before this refactor. No kept utterance in the 52 DoReCo bundles checked
+        on Nov 5, 2026 has one.
+        """
+        timestamped_phonemes = [
+            (
+                xsampa2ipa(row.ph),
+                int(float(row.start) * TARGET_SAMPLE_RATE),
+                int(float(row.end) * TARGET_SAMPLE_RATE),
+            )
+            for row in rows
+            if not is_special_symbol(row.ph)
+        ]
+        words = [
+            [row.wd for row in rows if row.wd_ID == word_id][0]
+            for word_id in dict.fromkeys(row.wd_ID for row in rows)
+        ]
+        text = " ".join(word for word in words if not is_special_symbol(word))
+        return timestamped_phonemes, text
+
+    def _recording(self, zip_file, filename):
+        """A whole recording at 16 kHz, decoded once and then served from a small cache."""
+        key = (zip_file.filename, filename)
+        if key in self.audio_cache:
+            self.audio_cache.move_to_end(key)
+        else:
+            with zip_file.open(filename) as f:
+                self.audio_cache[key] = audio_bytes_to_array(
+                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
+                )
+            if len(self.audio_cache) > AUDIO_CACHE_SIZE:
+                self.audio_cache.popitem(last=False)  # drop the least recently used one
+        return self.audio_cache[key]
 
 
 if __name__ == "__main__":
