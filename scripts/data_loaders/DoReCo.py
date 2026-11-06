@@ -55,6 +55,8 @@ METADATA_SUFFIX = "_metadata.csv"
 PHONEMES_SUFFIX = "_ph.csv"
 # Whole recordings kept decoded in memory, so items of the same recording do not decode it again.
 AUDIO_CACHE_SIZE = 4
+# Rows of samples whose channels are averaged at a time, so that averaging needs little memory.
+AVERAGE_BLOCK = 2**20
 # XSAMPA2IPA in core/codes.py maps these three X-SAMPA marks to a space, and DoReCo uses them, for
 # example ~ (nasalized) and _v (voiced) in Nǁng and _t (breathy voice) in Sümi. Until shared code is
 # fixed, the loader converts them itself, to the IPA that the X-SAMPA chart gives
@@ -239,17 +241,39 @@ def unit_to_ipa(unit):
     return ipa, None
 
 
-def decode_wav(data):
-    """A WAV file's audio as int16 at 16 kHz.
+def decode_wav(zip_path, path):
+    """A WAV file's audio as int16 at 16 kHz. `path` is a member of the zip at `zip_path`, or a file
+    on disk when `zip_path` is None.
 
     Read with soundfile, which reads the WAV header, where core/audio.py assumes 16-bit samples after
     a 44-byte header. For such files, like the four English ones, the result is the same, byte for
     byte, because the channels are averaged as core/audio.py averages them and the same resampler
     is used.
+
+    The resampler makes 64-bit arrays as long as the whole recording, so it needs the most memory.
+    The file's bytes and the samples of every channel are freed before it runs, and the channels are
+    averaged a block of rows at a time, without a float64 copy of the whole recording.
     """
-    samples, rate = soundfile.read(io.BytesIO(data), dtype="int16", always_2d=True)
+    if zip_path is None:
+        with open(path, "rb") as f:
+            data = f.read()
+    else:
+        with open_zip(zip_path) as z, z.open(path) as f:
+            data = f.read()
+    try:
+        samples, rate = soundfile.read(io.BytesIO(data), dtype="int16", always_2d=True)
+    except soundfile.SoundFileError as e:
+        where = path if zip_path is None else f"{path} in {zip_path}"
+        raise ValueError(f"Cannot decode the WAV file {where}: {e}") from e
+    del data
     if samples.shape[1] > 1:
-        mono = np.mean(samples, axis=1).astype(np.int16)
+        mono = np.empty(len(samples), dtype=np.int16)
+        for i in range(0, len(samples), AVERAGE_BLOCK):
+            # the same values as np.mean(samples, axis=1).astype(np.int16), row by row
+            mono[i : i + AVERAGE_BLOCK] = np.mean(
+                samples[i : i + AVERAGE_BLOCK], axis=1
+            ).astype(np.int16)
+        del samples
     else:
         mono = samples[:, 0]
     return audio_resample(mono, rate, TARGET_SAMPLE_RATE)
@@ -538,17 +562,7 @@ class DoReCoDataset(BaseDataset):
         if key in self.audio_cache:
             self.audio_cache.move_to_end(key)
             return self.audio_cache[key]
-        if zip_path is None:
-            with open(path, "rb") as f:
-                data = f.read()
-        else:
-            with open_zip(zip_path) as z, z.open(path) as f:
-                data = f.read()
-        try:
-            audio = decode_wav(data)
-        except soundfile.SoundFileError as e:
-            where = path if zip_path is None else f"{path} in {zip_path}"
-            raise ValueError(f"Cannot decode the WAV file {where}: {e}") from e
+        audio = decode_wav(zip_path, path)
         self.audio_cache[key] = audio
         if len(self.audio_cache) > AUDIO_CACHE_SIZE:
             self.audio_cache.popitem(last=False)  # drop the least recently used one
