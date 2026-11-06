@@ -272,6 +272,8 @@ class DoReCoDataset(BaseDataset):
         For English alone, split can be "all", or "EN01" or "EN03", the two speakers with phone
         transcriptions. For other languages, split must be "all".
 
+        A missing WAV fails at the first item using it, with name and URL, so annotations load alone.
+
         The speaker info dict is the recording's metadata row plus `language` (the
         glottocode), `language_name`, `annotation_license` and `audio_license` (DoReCo's short
         names, from doreco_language_table.json), and `utt_spk_code`, the speaker of the utterance.
