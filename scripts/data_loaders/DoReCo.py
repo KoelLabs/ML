@@ -137,7 +137,8 @@ def annotation_zip_path(glottocode):
     if glottocode == DEFAULT_LANGUAGE and os.path.exists(ANNOTATION_ZIP):
         return ANNOTATION_ZIP
     bundles = []
-    for path in sorted(glob.glob(os.path.join(TOP_DIR, glottocode, "*.zip"))):
+    folder = glob.escape(os.path.join(TOP_DIR, glottocode))
+    for path in sorted(glob.glob(os.path.join(folder, "*.zip"))):
         with open_zip(path) as z:
             if any(name.endswith(PHONEMES_SUFFIX) for name in z.namelist()):
                 bundles.append(path)
@@ -152,7 +153,7 @@ def wav_files(glottocode):
     """Every WAV on disk for a language, by file name without .wav, as (zip path, member) for a WAV
     inside a zip or (None, file path) for a loose one. The first one found wins: English in the older
     flat layout, then zips, then loose files, each in sorted order."""
-    folder = os.path.join(TOP_DIR, glottocode)
+    folder = glob.escape(os.path.join(TOP_DIR, glottocode))
     zips = sorted(glob.glob(os.path.join(folder, "**", "*.zip"), recursive=True))
     if glottocode == DEFAULT_LANGUAGE and os.path.exists(AUDIO_CORE_ZIP):
         zips.insert(0, AUDIO_CORE_ZIP)
@@ -162,8 +163,10 @@ def wav_files(glottocode):
             for member in z.namelist():
                 if member.lower().endswith(".wav"):
                     found.setdefault(os.path.basename(member)[:-4], (zip_path, member))
-    for path in sorted(glob.glob(os.path.join(folder, "**", "*.wav"), recursive=True)):
-        found.setdefault(os.path.basename(path)[:-4], (None, path))
+    # any case of .wav, as for the zip members above
+    for path in sorted(glob.glob(os.path.join(folder, "**", "*"), recursive=True)):
+        if path.lower().endswith(".wav"):
+            found.setdefault(os.path.basename(path)[:-4], (None, path))
     return found
 
 
@@ -309,7 +312,13 @@ class DoReCoDataset(BaseDataset):
                     f" {os.path.normpath(TOP_DIR)}. See the download steps at the top of DoReCo.py."
                 )
             return glottocodes
-        glottocodes = [language] if isinstance(language, str) else list(language)
+        if isinstance(language, str):
+            glottocodes = [language]
+        elif isinstance(language, (set, frozenset)):
+            # a set has no order, so its languages are read in sorted order
+            glottocodes = sorted(language)
+        else:
+            glottocodes = list(language or [])
         if not glottocodes:
             raise ValueError(
                 'No language given. Pass a glottocode, a list of them, or "all".'
