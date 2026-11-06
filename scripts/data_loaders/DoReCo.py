@@ -44,9 +44,7 @@ LANGUAGE_TABLE = os.path.join(os.path.dirname(__file__), "doreco_language_table.
 DEFAULT_LANGUAGE = "sout3282"
 
 # English in the flat layout this loader first used, which is looked for first, from
-# https://doreco.huma-num.fr/languages/sout3282. The zip of extended recordings comes from
-# https://multicast.aspra.uni-bamberg.de/#english and is opened only if an item needs it.
-AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
+# https://doreco.huma-num.fr/languages/sout3282
 AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
 
 ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
@@ -453,7 +451,6 @@ class DoReCoDataset(BaseDataset):
         name = rows[0].file
         metadata_df = self.languages[glottocode].metadata_df
         metadata_dict = metadata_df[metadata_df["name"] == name].iloc[0].to_dict()
-        is_core = metadata_dict["extended"] == "no"
         # New keys only; every key above stays as it was. The metadata row describes the whole
         # recording, which can have several speakers (spk_code "AA1/RZ1" in Sümi), so utt_spk_code
         # gives the one speaker of this utterance, from the phone table.
@@ -469,13 +466,7 @@ class DoReCoDataset(BaseDataset):
         # parse audio
         start = timestamped_phonemes[0][1]
         end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
-        if is_core or glottocode != DEFAULT_LANGUAGE:
-            audio = self._recording(*self._wav_location(glottocode, name))
-        else:
-            # English extended recordings are in the Multi-CAST zip of the flat layout, named
-            # without the doreco_sout3282_ prefix. No English extended recording has phone rows.
-            filename = name[len("doreco_sout3282_") :] + ".wav"
-            audio = self._recording(AUDIO_ZIP, filename)
+        audio = self._recording(*self._wav_location(glottocode, name))
         # An annotation that runs past the end of the recording means a cut or wrong WAV file. 10 ms
         # are allowed, so that rounding of the annotation times or of the resampled length cannot
         # make a good item fail.
