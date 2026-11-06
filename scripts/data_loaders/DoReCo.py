@@ -94,7 +94,9 @@ def is_special_symbol(ph: str):
 #   refind and isnref: Only present in MultiCAST corpora; identification of referents following Schiborr, Nils N. & Schnell, Stefan & Thiele, Hanna. 2018. RefIND — Referent Indexing in Natural-language Discourse: Annotation guidelines. Version 1.1. (https://multicast.aspra.uni-bamberg.de/data/pubs/refind/Schiborr+etal2018_RefIND-guidelines_v1.1.pdf)
 
 # The phone table columns that items are built from, one tuple per row of the table
-Row = collections.namedtuple("Row", ["ph", "start", "end", "wd_ID", "wd", "file"])
+Row = collections.namedtuple(
+    "Row", ["ph", "start", "end", "wd_ID", "wd", "file", "speaker"]
+)
 
 
 def find_member(zip_file, suffix):
@@ -251,6 +253,10 @@ class DoReCoDataset(BaseDataset):
 
         For English alone, split can be "all", or "EN01" or "EN03", the two speakers with phone
         transcriptions. For other languages, split must be "all".
+
+        The speaker info dict is the recording's metadata row, as before, plus `language` (the
+        glottocode), `language_name`, `annotation_license` and `audio_license` (DoReCo's short
+        names, from doreco_language_table.json), and `utt_spk_code`, the speaker of the utterance.
         """
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
@@ -422,6 +428,17 @@ class DoReCoDataset(BaseDataset):
         metadata_df = self.languages[glottocode].metadata_df
         metadata_dict = metadata_df[metadata_df["name"] == name].iloc[0].to_dict()
         is_core = metadata_dict["extended"] == "no"
+        # New keys only; every key above stays as it was. The metadata row describes the whole
+        # recording, which can have several speakers (spk_code "AA1/RZ1" in Sümi), so utt_spk_code
+        # gives the one speaker of this utterance, from the phone table.
+        entry = self.languages[glottocode].entry
+        metadata_dict.update(
+            language=glottocode,
+            language_name=entry["name"],
+            annotation_license=entry["annotation_license"],
+            audio_license=entry["audio_license"],
+            utt_spk_code=rows[0].speaker,
+        )
 
         # parse audio
         start = timestamped_phonemes[0][1]
