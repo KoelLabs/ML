@@ -261,7 +261,6 @@ class DoReCoDataset(BaseDataset):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
         self.audio_cache = collections.OrderedDict()  # decoded recordings, oldest first
-        self.open_zips = {}  # audio zips, each opened when an item first needs it
         self.wav_index = {}  # glottocode -> its WAV files, found when first needed
         self.languages = {}  # glottocode -> Language
         self.utterance_rows = {}  # utterance id (ref) -> its rows of the phone table
@@ -278,13 +277,14 @@ class DoReCoDataset(BaseDataset):
                 f'split must be "all" when reading {glottocodes}. Speaker splits exist for'
                 f" English (sout3282) only."
             )
-        tables = [self._read_language(glottocode, split) for glottocode in glottocodes]
+        for glottocode in glottocodes:
+            tables = self._read_language(glottocode, split)
         self.utterances = list(self.utterance_rows)
         self.vocab = set(self.phone_ipa.values())
         # The tables of a single language stay available, as before. For several languages they
-        # are not joined, to save memory: see self.languages and self.utterance_rows instead.
-        single = len(tables) == 1
-        self.metadata_df, self.phoneme_df = tables[0] if single else (None, None)
+        # are not kept, to save memory: see self.languages and self.utterance_rows instead.
+        single = len(glottocodes) == 1
+        self.metadata_df, self.phoneme_df = tables if single else (None, None)
 
     @staticmethod
     def _glottocodes(language):
@@ -404,12 +404,6 @@ class DoReCoDataset(BaseDataset):
                 return units[ph][1]
         return None
 
-    def __del__(self):
-        # Close the audio zips that items opened. getattr, because the constructor can fail
-        # before they exist, for example when a file is missing (an AttributeError here before).
-        for zip_file in getattr(self, "open_zips", {}).values():
-            zip_file.close()
-
     def __len__(self):
         # 0, not an error, after a failed constructor
         return len(getattr(self, "utterances", []))
@@ -508,23 +502,27 @@ class DoReCoDataset(BaseDataset):
 
     def _recording(self, zip_path, path):
         """A whole recording at 16 kHz, decoded once and then served from a small cache. `path` is
-        a member of the zip at `zip_path`, or a file on disk when `zip_path` is None."""
+        a member of the zip at `zip_path`, or a file on disk when `zip_path` is None.
+
+        The zip is open only while the recording is read. A file handle kept open would be shared
+        by worker processes forked from this one, such as a DataLoader's, and would stop the
+        dataset from being pickled for workers that are started fresh.
+        """
         key = (zip_path, path)
         if key in self.audio_cache:
             self.audio_cache.move_to_end(key)
+            return self.audio_cache[key]
+        if zip_path is None:
+            with open(path, "rb") as f:
+                data = f.read()
         else:
-            if zip_path is None:
-                with open(path, "rb") as f:
-                    data = f.read()
-            else:
-                if zip_path not in self.open_zips:
-                    self.open_zips[zip_path] = zipfile.ZipFile(zip_path, "r")
-                with self.open_zips[zip_path].open(path) as f:
-                    data = f.read()
-            self.audio_cache[key] = decode_wav(data)
-            if len(self.audio_cache) > AUDIO_CACHE_SIZE:
-                self.audio_cache.popitem(last=False)  # drop the least recently used one
-        return self.audio_cache[key]
+            with zipfile.ZipFile(zip_path, "r") as z, z.open(path) as f:
+                data = f.read()
+        audio = decode_wav(data)
+        self.audio_cache[key] = audio
+        if len(self.audio_cache) > AUDIO_CACHE_SIZE:
+            self.audio_cache.popitem(last=False)  # drop the least recently used one
+        return audio
 
 
 if __name__ == "__main__":
