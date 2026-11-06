@@ -113,6 +113,18 @@ def find_member(zip_file, suffix):
 Language = collections.namedtuple("Language", ["entry", "metadata_df"])
 
 
+def open_zip(path):
+    """The zip at `path`, opened for reading. A file that is not a zip, such as a download that was
+    cut short or an error page saved under a .zip name, gets an error that names it."""
+    try:
+        return zipfile.ZipFile(path, "r")
+    except zipfile.BadZipFile as e:
+        raise zipfile.BadZipFile(
+            f"{path} is not a valid zip file. Download it again, from the links in"
+            " doreco_language_table.json."
+        ) from e
+
+
 def language_table():
     """Every DoReCo language, by glottocode, from doreco_language_table.json."""
     with open(LANGUAGE_TABLE, encoding="utf-8") as f:
@@ -126,7 +138,7 @@ def annotation_zip_path(glottocode):
         return ANNOTATION_ZIP
     bundles = []
     for path in sorted(glob.glob(os.path.join(TOP_DIR, glottocode, "*.zip"))):
-        with zipfile.ZipFile(path, "r") as z:
+        with open_zip(path) as z:
             if any(name.endswith(PHONEMES_SUFFIX) for name in z.namelist()):
                 bundles.append(path)
     if len(bundles) > 1:
@@ -146,7 +158,7 @@ def wav_files(glottocode):
         zips.insert(0, AUDIO_CORE_ZIP)
     found = {}
     for zip_path in zips:
-        with zipfile.ZipFile(zip_path, "r") as z:
+        with open_zip(zip_path) as z:
             for member in z.namelist():
                 if member.lower().endswith(".wav"):
                     found.setdefault(os.path.basename(member)[:-4], (zip_path, member))
@@ -317,7 +329,7 @@ class DoReCoDataset(BaseDataset):
         path = annotation_zip_path(glottocode)
         if path is None:
             raise missing_annotations(glottocode, entry)
-        with zipfile.ZipFile(path, "r") as annotation_zip:
+        with open_zip(path) as annotation_zip:
             with annotation_zip.open(find_member(annotation_zip, METADATA_SUFFIX)) as f:
                 metadata_df = pd.read_csv(f)
                 # columns = ['id', 'name', 'spk_code', 'spk_age', 'spk_age_c', 'spk_sex', 'rec_date', 'rec_date_c', 'genre', 'genre_stim', 'gloss', 'transl', 'sound_quality', 'background_noise', 'word_tokens', 'word_tokens_core', 'extended']
@@ -516,9 +528,13 @@ class DoReCoDataset(BaseDataset):
             with open(path, "rb") as f:
                 data = f.read()
         else:
-            with zipfile.ZipFile(zip_path, "r") as z, z.open(path) as f:
+            with open_zip(zip_path) as z, z.open(path) as f:
                 data = f.read()
-        audio = decode_wav(data)
+        try:
+            audio = decode_wav(data)
+        except soundfile.SoundFileError as e:
+            where = path if zip_path is None else f"{path} in {zip_path}"
+            raise ValueError(f"Cannot decode the WAV file {where}: {e}") from e
         self.audio_cache[key] = audio
         if len(self.audio_cache) > AUDIO_CACHE_SIZE:
             self.audio_cache.popitem(last=False)  # drop the least recently used one
