@@ -442,6 +442,12 @@ class DoReCoDataset(BaseDataset):
             )
         # a copy, so that changing a returned clip can never change the cached recording
         audio = audio[start:end].copy()
+        # Times are counted from the start of the returned clip, so they index into `audio`.
+        # Before, they were counted from the start of the whole recording.
+        timestamped_phonemes = [
+            (phone, phone_start - start, phone_end - start)
+            for phone, phone_start, phone_end in timestamped_phonemes
+        ]
 
         result = [ipa, audio]
         if self.include_timestamps:
