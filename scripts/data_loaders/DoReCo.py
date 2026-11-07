@@ -215,18 +215,37 @@ def xsampa_tokens(unit):
     return unit.split() if " " in unit else string2symbols(unit, XSAMPA2IPA.keys())[0]
 
 
+def marks_before_length(tokens):
+    """The X-SAMPA symbols of a unit, with each mark of XSAMPA_MARKS moved in front of the length
+    marks right before it. So `a:~` gives a, the tilde and then the length mark. In Unicode a
+    combining mark belongs to the character before it, so after the length mark the tilde would
+    mark the length and not the vowel."""
+    out = []
+    for t in tokens:
+        if t in XSAMPA_MARKS:
+            i = len(out)
+            while i and out[i - 1] in (":", ":\\"):
+                i -= 1
+            out.insert(i, t)
+        else:
+            out.append(t)
+    return out
+
+
 def unit_to_ipa(unit):
     """(IPA, None) for a phone unit the loader can use, or (None, reason) for one it cannot.
 
     Units without the three marks in XSAMPA_MARKS go through core/codes.py unchanged. A unit cannot
     be used if a symbol is missing from the table, if its IPA has a space or an angle bracket, or if
-    it has `_` on its own, which XSAMPA2IPA maps to a tie bar that joins the wrong symbols.
+    it has `_` on its own, which XSAMPA2IPA maps to a tie bar that joins the wrong symbols. A mark
+    after a length mark goes before it, see marks_before_length.
     """
     tokens = xsampa_tokens(unit)
     try:
         if any(t in XSAMPA_MARKS for t in tokens):
             ipa = "".join(
-                XSAMPA_MARKS[t] if t in XSAMPA_MARKS else XSAMPA2IPA[t] for t in tokens
+                XSAMPA_MARKS[t] if t in XSAMPA_MARKS else XSAMPA2IPA[t]
+                for t in marks_before_length(tokens)
             )
         else:
             ipa = xsampa2ipa(unit)
