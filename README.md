@@ -42,13 +42,13 @@ We retain all rights to the Koel Labs brand, logos, blog posts and website conte
 If you use any of our models, datasets, or code for a publication, please cite our paper:
 
 ```bibtex
-@inproceedings{metzger2026scaling,
-  title={Scaling Human and G2P Supervision for Robust Phonetic Transcription},
-  author={Metzger, Alexander and Srivastava, Aruna and Mukhamedvaleev, Ruslan},
-  booktitle={Proceedings of Interspeech},
-  year={2026},
-  eprint={2606.16019},
-  archivePrefix={arXiv},
-  primaryClass={cs.CL}
+@inproceedings{metzger26_interspeech,
+  title     = {{Scaling Human and G2P Supervision for Robust Phonetic Transcription}},
+  author    = {Alexander Metzger and Aruna Srivastava and Ruslan Mukhamedvaleev},
+  year      = {2026},
+  booktitle = {{Interspeech 2026}},
+  pages     = {575--580},
+  doi       = {10.21437/Interspeech.2026-3271},
+  issn      = {2958-1796},
 }
 ```
