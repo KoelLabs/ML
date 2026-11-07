@@ -16,9 +16,9 @@
 # English (sout3282) also works in the older flat layout this loader first used:
 #   ./.data/DoReCo/sout3282_annotations_v2.zip and ./.data/DoReCo/sout3282_audio_core_v2.zip
 #
-# Tested on Nov 5, 2026, on the real DoReCo files: English, all 577 items with their audio, in both
-# layouts. Nǁng (nngg1234) and Sümi (sumi1235): every utterance, from the annotations alone. No item
-# of another language has been read with its real audio yet.
+# Tested on Nov 7, 2026, on the real DoReCo files with their audio. English, all 577 items, in both
+# layouts. Nǁng, nngg1234, all 1,007 items, and Sümi, sumi1235, all 1,207 items, each with the clip
+# length its annotation times give. No other language has been read with its real audio yet.
 # TODO: manual verification
 
 import collections
