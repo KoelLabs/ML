@@ -1,29 +1,68 @@
 # 100 hours from 53 languages with time aligned phoneme transcriptions and translations: https://doreco.huma-num.fr/UsingDoReCo
 # Paper: https://aclanthology.org/2025.fieldmatters-1.5.pdf
+# How the labels were made: Paschen et al. 2020, https://aclanthology.org/2020.lrec-1.324.pdf
+#
+# Languages: pass a glottocode, a list of glottocodes, or "all" as `language`. Every DoReCo language,
+# with its name, licenses and download links, is in doreco_language_table.json next to this file.
+# Licenses differ by language, and some have NC, ND or SA terms. English (sout3282) is under CC BY 4.0,
+# annotations and audio. Every dataset that is used must be cited on its own, with its creators, as
+# the dataset-info file in each bundle says.
+#
+# Download instructions, for a language with glottocode <g> (links in doreco_language_table.json):
+#   1. Annotations: save the core bundle from https://doreco.huma-num.fr/languages/<g> as
+#      ./.data/DoReCo/<g>/doreco_<g>_core_v2.zip, without unzipping it.
+#   2. Audio: save the core WAV files from the audio link on the same page in ./.data/DoReCo/<g>/,
+#      either as loose files, in any subfolder, or as one zip of them.
+# English (sout3282) also works in the older flat layout this loader first used:
+#   ./.data/DoReCo/sout3282_annotations_v2.zip and ./.data/DoReCo/sout3282_audio_core_v2.zip
+#
+# Tested on Nov 7, 2026, on the real DoReCo files with their audio. English, all 577 items, in both
+# layouts. Nǁng, nngg1234, all 1,007 items, and Sümi, sumi1235, all 1,207 items, each with the clip
+# length its annotation times give. No other language has been read with its real audio yet.
+# TODO: manual verification
 
+import collections
+import glob
+import io
+import json
+import math
 import os
 import sys
 
 import zipfile
+import numpy as np
 import pandas as pd
+import soundfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
-from core.codes import xsampa2ipa
+from core.audio import audio_resample, TARGET_SAMPLE_RATE
+from core.codes import XSAMPA2IPA, string2symbols, xsampa2ipa
 
 TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
+LANGUAGE_TABLE = os.path.join(os.path.dirname(__file__), "doreco_language_table.json")
+DEFAULT_LANGUAGE = "sout3282"
 
-# We use specifically the Southern British English data for now: https://doreco.huma-num.fr/languages/sout3282, https://multicast.aspra.uni-bamberg.de/#english
-AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
+# English in the flat layout this loader first used, which is looked for first, from
+# https://doreco.huma-num.fr/languages/sout3282
 AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
-SOURCE_SAMPLE_RATE = None  # auto detect
 
 ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
-METADATA_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_metadata.csv"
-PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_ph.csv"
-# PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_wd.csv"
-INSTRUCTIONS_PATH = "doreco_sout3282_extended_v1.3/doreco_CONVENTIONS.txt"
+# Files inside an annotation zip are found by the end of their name, because DoReCo names them in two
+# ways: doreco_sout3282_ph.csv in version 1.3 bundles, and doreco_<glottocode>_#6_ph.csv in version
+# 2.0, where #6 is the file's number in the bundle.
+METADATA_SUFFIX = "_metadata.csv"
+PHONEMES_SUFFIX = "_ph.csv"
+# Whole recordings kept decoded in memory, so items of the same recording do not decode it again.
+AUDIO_CACHE_SIZE = 4
+# Rows of samples whose channels are averaged at a time, so that averaging needs little memory.
+AVERAGE_BLOCK = 2**20
+# XSAMPA2IPA in core/codes.py maps these three X-SAMPA marks to a space, and DoReCo uses them, for
+# example ~ (nasalized) and _v (voiced) in Nǁng and _t (breathy voice) in Sümi. Until shared code is
+# fixed, the loader converts them itself, to the IPA that the X-SAMPA chart gives
+# (https://en.wikipedia.org/wiki/X-SAMPA), and counts every use. Any other unit that does not
+# convert cleanly makes its utterance skipped and counted, in self.skipped.
+XSAMPA_MARKS = {"~": "\u0303", "_v": "\u032c", "_t": "\u0324"}
 
 SPECIAL_SYMBOLS = {
     "<<fp>>": "Filled pause",
@@ -58,6 +97,206 @@ def is_special_symbol(ph: str):
 #   mc-zero: Only present in MultiCAST corpora; units contain two kinds of information which could not be assigned to a phone: 1) clause boundaries and 2) zero words; the contents of the mb/gl/ps tiers are separated by spaces ' ', and multiple adjacent units are further separated by pipes '|'
 #   refind and isnref: Only present in MultiCAST corpora; identification of referents following Schiborr, Nils N. & Schnell, Stefan & Thiele, Hanna. 2018. RefIND — Referent Indexing in Natural-language Discourse: Annotation guidelines. Version 1.1. (https://multicast.aspra.uni-bamberg.de/data/pubs/refind/Schiborr+etal2018_RefIND-guidelines_v1.1.pdf)
 
+# The phone table columns that items are built from, one tuple per row of the table
+Row = collections.namedtuple(
+    "Row", ["ph", "start", "end", "wd_ID", "wd", "file", "speaker"]
+)
+
+
+def find_member(zip_file, suffix):
+    """The one file in an open zip whose name ends with `suffix`. Raises if there is not exactly one."""
+    matches = [name for name in zip_file.namelist() if name.endswith(suffix)]
+    if len(matches) != 1:
+        raise FileNotFoundError(
+            f"Expected one file ending in {suffix!r} in {zip_file.filename}, found {matches}"
+        )
+    return matches[0]
+
+
+# What the loader keeps for each language it reads
+Language = collections.namedtuple("Language", ["entry", "metadata_df"])
+
+
+def open_zip(path):
+    """The zip at `path`, opened for reading. A file that is not a zip, such as a download that was
+    cut short or an error page saved under a .zip name, gets an error that names it."""
+    try:
+        return zipfile.ZipFile(path, "r")
+    except zipfile.BadZipFile as e:
+        raise zipfile.BadZipFile(
+            f"{path} is not a valid zip file. Download it again, from the links in"
+            " doreco_language_table.json."
+        ) from e
+
+
+def language_table():
+    """Every DoReCo language, by glottocode, from doreco_language_table.json."""
+    with open(LANGUAGE_TABLE, encoding="utf-8") as f:
+        return {entry["glottocode"]: entry for entry in json.load(f)["languages"]}
+
+
+def annotation_zip_path(glottocode):
+    """The language's annotation bundle on disk: the one zip in its folder with a phone table.
+    None if there is none. English in the older flat layout comes first."""
+    if glottocode == DEFAULT_LANGUAGE and os.path.exists(ANNOTATION_ZIP):
+        return ANNOTATION_ZIP
+    bundles = []
+    folder = glob.escape(os.path.join(TOP_DIR, glottocode))
+    for path in sorted(glob.glob(os.path.join(folder, "*.zip"))):
+        with open_zip(path) as z:
+            if any(name.endswith(PHONEMES_SUFFIX) for name in z.namelist()):
+                bundles.append(path)
+    if len(bundles) > 1:
+        raise ValueError(
+            f"More than one DoReCo annotation bundle for {glottocode}: {bundles}"
+        )
+    return bundles[0] if bundles else None
+
+
+def wav_files(glottocode):
+    """Every WAV on disk for a language, by file name without .wav, as (zip path, member) for a WAV
+    inside a zip or (None, file path) for a loose one. The first one found wins: English in the older
+    flat layout, then zips, then loose files, each in sorted order."""
+    folder = glob.escape(os.path.join(TOP_DIR, glottocode))
+    zips = sorted(glob.glob(os.path.join(folder, "**", "*.zip"), recursive=True))
+    if glottocode == DEFAULT_LANGUAGE and os.path.exists(AUDIO_CORE_ZIP):
+        zips.insert(0, AUDIO_CORE_ZIP)
+    found = {}
+    for zip_path in zips:
+        with open_zip(zip_path) as z:
+            for member in z.namelist():
+                if member.lower().endswith(".wav"):
+                    found.setdefault(os.path.basename(member)[:-4], (zip_path, member))
+    # any case of .wav, as for the zip members above
+    for path in sorted(glob.glob(os.path.join(folder, "**", "*"), recursive=True)):
+        if path.lower().endswith(".wav"):
+            found.setdefault(os.path.basename(path)[:-4], (None, path))
+    return found
+
+
+def available_languages():
+    """The glottocodes whose annotation bundle and audio are both on disk, sorted. These are what
+    language="all" reads."""
+    return [
+        g for g in sorted(language_table()) if annotation_zip_path(g) and wav_files(g)
+    ]
+
+
+def missing_annotations(glottocode, entry):
+    folder = os.path.normpath(os.path.join(TOP_DIR, glottocode))
+    english = (
+        f" For English, {os.path.normpath(ANNOTATION_ZIP)} also works."
+        if glottocode == DEFAULT_LANGUAGE
+        else ""
+    )
+    return FileNotFoundError(
+        f"No DoReCo annotation bundle for {entry['name']} ({glottocode}) in {folder}."
+        f" Download the core bundle from {entry['core_annotation_download_url']}"
+        f" (language page: {entry['language_page']}) and save it there as"
+        f" doreco_{glottocode}_core_v2.zip, without unzipping it.{english}"
+    )
+
+
+def missing_audio(glottocode, entry, name):
+    folder = os.path.normpath(os.path.join(TOP_DIR, glottocode))
+    where = (
+        f"Download the core WAV files from {entry['audio_list_url']} into that folder."
+        if entry["audio_list_url"] != "na"
+        else f"DoReCo links to this audio elsewhere: see {entry['language_page']}."
+    )
+    return FileNotFoundError(
+        f"No audio file {name}.wav for {entry['name']} ({glottocode}) in {folder}. {where}"
+    )
+
+
+def xsampa_tokens(unit):
+    """A phone unit split into X-SAMPA symbols, exactly as xsampa2ipa in core/codes.py splits it
+    (lines 100 to 105 there)."""
+    return unit.split() if " " in unit else string2symbols(unit, XSAMPA2IPA.keys())[0]
+
+
+def marks_before_length(tokens):
+    """The X-SAMPA symbols of a unit, with each mark of XSAMPA_MARKS moved in front of the length
+    marks right before it. So `a:~` gives a, the tilde and then the length mark. In Unicode a
+    combining mark belongs to the character before it, so after the length mark the tilde would
+    mark the length and not the vowel."""
+    out = []
+    for t in tokens:
+        if t in XSAMPA_MARKS:
+            i = len(out)
+            while i and out[i - 1] in (":", ":\\"):
+                i -= 1
+            out.insert(i, t)
+        else:
+            out.append(t)
+    return out
+
+
+def unit_to_ipa(unit):
+    """(IPA, None) for a phone unit the loader can use, or (None, reason) for one it cannot.
+
+    Units without the three marks in XSAMPA_MARKS go through core/codes.py unchanged. A unit cannot
+    be used if a symbol is missing from the table, if its IPA has a space or an angle bracket, or if
+    it has `_` on its own, which XSAMPA2IPA maps to a tie bar that joins the wrong symbols. A mark
+    after a length mark goes before it, see marks_before_length.
+    """
+    tokens = xsampa_tokens(unit)
+    try:
+        if any(t in XSAMPA_MARKS for t in tokens):
+            ipa = "".join(
+                XSAMPA_MARKS[t] if t in XSAMPA_MARKS else XSAMPA2IPA[t]
+                for t in marks_before_length(tokens)
+            )
+        else:
+            ipa = xsampa2ipa(unit)
+    except KeyError:
+        return None, "unknown_symbol"
+    if " " in ipa:
+        return None, "space"
+    if "⟨" in ipa or "⟩" in ipa:
+        return None, "angle_bracket"
+    if "_" in tokens:
+        return None, "lone_underscore"
+    return ipa, None
+
+
+def decode_wav(zip_path, path):
+    """A WAV file's audio as int16 at 16 kHz. `path` is a member of the zip at `zip_path`, or a file
+    on disk when `zip_path` is None.
+
+    Read with soundfile, which reads the WAV header, where core/audio.py assumes 16-bit samples after
+    a 44-byte header. For such files, like the four English ones, the result is the same, byte for
+    byte, because the channels are averaged as core/audio.py averages them and the same resampler
+    is used.
+
+    The resampler makes 64-bit arrays as long as the whole recording, so it needs the most memory.
+    The file's bytes and the samples of every channel are freed before it runs, and the channels are
+    averaged a block of rows at a time, without a float64 copy of the whole recording.
+    """
+    if zip_path is None:
+        with open(path, "rb") as f:
+            data = f.read()
+    else:
+        with open_zip(zip_path) as z, z.open(path) as f:
+            data = f.read()
+    try:
+        samples, rate = soundfile.read(io.BytesIO(data), dtype="int16", always_2d=True)
+    except soundfile.SoundFileError as e:
+        where = path if zip_path is None else f"{path} in {zip_path}"
+        raise ValueError(f"Cannot decode the WAV file {where}: {e}") from e
+    del data
+    if samples.shape[1] > 1:
+        mono = np.empty(len(samples), dtype=np.int16)
+        for i in range(0, len(samples), AVERAGE_BLOCK):
+            # the same values as np.mean(samples, axis=1).astype(np.int16), row by row
+            mono[i : i + AVERAGE_BLOCK] = np.mean(
+                samples[i : i + AVERAGE_BLOCK], axis=1
+            ).astype(np.int16)
+        del samples
+    else:
+        mono = samples[:, 0]
+    return audio_resample(mono, rate, TARGET_SAMPLE_RATE)
+
 
 class DoReCoDataset(BaseDataset):
     def __init__(
@@ -66,122 +305,229 @@ class DoReCoDataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        language=DEFAULT_LANGUAGE,
     ):
         """
-        Valid splits are "all" to include all the utterances, T001-T010 for each of the recording sessions, or EN01-EN04 for each of the speakers.
+        `language` is a DoReCo glottocode, such as "sout3282" for English (Southern England), a list
+        of glottocodes, or "all" for every language whose annotations and audio are on disk, sorted
+        by glottocode. doreco_language_table.json lists every code.
+
+        For English alone, split can be "all", or "EN01" or "EN03", the two speakers with phone
+        transcriptions. For other languages, split must be "all".
+
+        A missing WAV fails at the first item using it, with name and URL, so annotations load alone.
+
+        The speaker info dict is the recording's metadata row plus `language` (the
+        glottocode), `language_name`, `annotation_license` and `audio_license` (DoReCo's short
+        names, from doreco_language_table.json), and `utt_spk_code`, the speaker of the utterance.
         """
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
-        self.audio_zip = zipfile.ZipFile(AUDIO_ZIP, "r")
-        self.audio_core_zip = zipfile.ZipFile(AUDIO_CORE_ZIP, "r")
+        self.audio_cache = collections.OrderedDict()  # decoded recordings, oldest first
+        self.wav_index = {}  # glottocode -> its WAV files, found when first needed
+        self.languages = {}  # glottocode -> Language
+        self.utterance_rows = {}  # utterance id (ref) -> its rows of the phone table
+        self.utterance_language = {}  # utterance id (ref) -> glottocode
+        # X-SAMPA unit -> its IPA, for every unit of a kept utterance
+        self.phone_ipa = {}
+        self.skipped = {}  # glottocode -> {reason: utterances skipped}
+        self.mark_uses = {}  # glottocode -> {mark: uses in kept utterances}
 
-        with zipfile.ZipFile(ANNOTATION_ZIP, "r") as annotation_zip:
-            with annotation_zip.open(METADATA_PATH) as f:
-                self.metadata_df = pd.read_csv(f)
+        glottocodes = self._glottocodes(language)
+        if split != "all" and glottocodes != [DEFAULT_LANGUAGE]:
+            raise ValueError(
+                f'split must be "all" when reading {glottocodes}. Speaker splits exist for'
+                " English (sout3282) only."
+            )
+        for glottocode in glottocodes:
+            tables = self._read_language(glottocode, split)
+        self.utterances = list(self.utterance_rows)
+        self.vocab = set(self.phone_ipa.values())
+        # The tables of a single language stay available as attributes. For several languages they
+        # are not kept, to save memory: see self.languages and self.utterance_rows instead.
+        single = len(glottocodes) == 1
+        self.metadata_df, self.phoneme_df = tables if single else (None, None)
+
+    @staticmethod
+    def _glottocodes(language):
+        """The glottocodes to read, in order, from a glottocode, a list of them, or "all"."""
+        if language == "all":
+            glottocodes = available_languages()
+            if not glottocodes:
+                raise FileNotFoundError(
+                    "No DoReCo language has both its annotation bundle and its audio in"
+                    f" {os.path.normpath(TOP_DIR)}. See the download steps at the top of DoReCo.py."
+                )
+            return glottocodes
+        if isinstance(language, str):
+            glottocodes = [language]
+        elif isinstance(language, (set, frozenset)):
+            # a set has no order, so its languages are read in sorted order
+            glottocodes = sorted(language)
+        else:
+            glottocodes = list(language or [])
+        if not glottocodes:
+            raise ValueError(
+                'No language given. Pass a glottocode, a list of them, or "all".'
+            )
+        table = language_table()
+        unknown = [g for g in glottocodes if g not in table]
+        if unknown:
+            raise ValueError(
+                f"Unknown DoReCo glottocode(s) {unknown}. Valid codes: {', '.join(sorted(table))}"
+            )
+        # each language once, in the order given
+        return list(dict.fromkeys(glottocodes))
+
+    def _read_language(self, glottocode, split):
+        """Read one language's tables and add its kept utterances. Returns its two tables."""
+        entry = language_table()[glottocode]
+        path = annotation_zip_path(glottocode)
+        if path is None:
+            raise missing_annotations(glottocode, entry)
+        with open_zip(path) as annotation_zip:
+            with annotation_zip.open(find_member(annotation_zip, METADATA_SUFFIX)) as f:
+                metadata_df = pd.read_csv(f)
                 # columns = ['id', 'name', 'spk_code', 'spk_age', 'spk_age_c', 'spk_sex', 'rec_date', 'rec_date_c', 'genre', 'genre_stim', 'gloss', 'transl', 'sound_quality', 'background_noise', 'word_tokens', 'word_tokens_core', 'extended']
-                # prepend "doreco_sout3282_" to all names in metadata_df to match the phonemes
-                self.metadata_df["name"] = "doreco_sout3282_" + self.metadata_df["name"]
+                # prepend "doreco_<glottocode>_" to all names in metadata_df to match the phonemes
+                metadata_df["name"] = "doreco_" + glottocode + "_" + metadata_df["name"]
 
-            with annotation_zip.open(PHONEMES_PATH) as f:
-                self.phoneme_df = pd.read_csv(f)
+            with annotation_zip.open(find_member(annotation_zip, PHONEMES_SUFFIX)) as f:
+                phoneme_df = pd.read_csv(f)
                 # columns = ['lang', 'file', 'core_extended', 'speaker', 'ph_ID', 'ph', 'start', 'end', 'ref', 'tx', 'ft', 'wd_ID', 'wd', 'mc-zero', 'mb_ID', 'mb', 'doreco-mb-algn', 'ps', 'gl', 'refind', 'isnref']
 
-        filter_by_session = split.startswith("T")
-        filter_by_speaker = split.startswith("EN")
-        if filter_by_session:
-            self.metadata_df = self.metadata_df[self.metadata_df["id"] == split]
-            self.phoneme_df = self.phoneme_df[
-                self.phoneme_df["file"].isin(self.metadata_df["name"].unique())
-            ]
-        elif filter_by_speaker:
-            self.metadata_df = self.metadata_df[self.metadata_df["spk_code"] == split]
-            self.phoneme_df = self.phoneme_df[self.phoneme_df["speaker"] == split]
+        if glottocode == DEFAULT_LANGUAGE:
+            filter_by_session = split.startswith("T")
+            filter_by_speaker = split.startswith("EN")
+            if filter_by_session:
+                metadata_df = metadata_df[metadata_df["id"] == split]
+                phoneme_df = phoneme_df[
+                    phoneme_df["file"].isin(metadata_df["name"].unique())
+                ]
+            elif filter_by_speaker:
+                metadata_df = metadata_df[metadata_df["spk_code"] == split]
+                phoneme_df = phoneme_df[phoneme_df["speaker"] == split]
 
-        # only speakers EN01 and EN03 actually have phonemic transcriptions
-        self.phoneme_df = self.phoneme_df[
-            self.phoneme_df["speaker"].isin(["EN01", "EN03"])
-        ]
-        assert split in [
-            "all",
-            "EN01",
-            "EN03",
-        ], f"There are no phonemic transcriptions for {split}, only words"
+            # only speakers EN01 and EN03 actually have phonemic transcriptions
+            phoneme_df = phoneme_df[phoneme_df["speaker"].isin(["EN01", "EN03"])]
+            assert split in [
+                "all",
+                "EN01",
+                "EN03",
+            ], f"There are no phonemic transcriptions for {split}, only words"
 
-        self.utterances = [
-            x
-            for x in self.phoneme_df["ref"].unique()
-            if not is_special_symbol(x)
-            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 10
-        ]
+        # Split the phone table into one list of rows per utterance, in a single pass, so that no item
+        # has to scan the whole table. The rule for keeping an utterance is unchanged: each ref in
+        # order of first appearance, without pause refs such as <p:>, and only with more than 10
+        # rows (pause and label rows count).
+        rows_by_ref = collections.defaultdict(list)
+        columns = [phoneme_df[column].tolist() for column in Row._fields]
+        for ref, row in zip(phoneme_df["ref"].tolist(), zip(*columns)):
+            rows_by_ref[ref].append(Row._make(row))
+        # each distinct phone unit is converted, and split into symbols, only once
+        units, unit_marks = {}, {}
+        skipped, marks, kept = collections.Counter(), collections.Counter(), 0
+        for x in phoneme_df["ref"].unique():
+            if is_special_symbol(x) or len(rows_by_ref[x]) <= 10:
+                continue
+            reason = self._unusable(rows_by_ref[x], units)
+            if reason:
+                skipped[reason] += 1
+                continue
+            # Items are found by utterance id, so an id may come from one language only.
+            if x in self.utterance_rows:
+                raise ValueError(
+                    f"Utterance id {x!r} is in both {self.utterance_language[x]} and"
+                    f" {glottocode}, so these languages cannot be read together."
+                )
+            for row in rows_by_ref[x]:
+                if not is_special_symbol(row.ph):
+                    self.phone_ipa[row.ph] = units[row.ph][0]
+                    if row.ph not in unit_marks:
+                        unit_marks[row.ph] = [
+                            t for t in xsampa_tokens(row.ph) if t in XSAMPA_MARKS
+                        ]
+                    marks.update(unit_marks[row.ph])
+            self.utterance_rows[x] = rows_by_ref[x]
+            self.utterance_language[x] = glottocode
+            kept += 1
+        self.languages[glottocode] = Language(entry, metadata_df)
+        self.skipped[glottocode] = dict(skipped)
+        self.mark_uses[glottocode] = dict(marks)
+        summary = f"DoReCo {glottocode} ({entry['name']}): {kept} utterances,"
+        summary += f" {sum(skipped.values())} skipped"
+        if skipped:
+            summary += f" {dict(skipped)}"
+        if marks:
+            summary += f", marks converted by this loader {dict(marks)}"
+        print(summary)
+        return metadata_df, phoneme_df
 
-    def __del__(self):
-        self.audio_zip.close()
-        self.audio_core_zip.close()
+    @staticmethod
+    def _unusable(rows, units):
+        """Why an utterance cannot be used, or None. Only the first reason found is given.
+        `units` caches unit_to_ipa for each unit."""
+        phones = [row.ph for row in rows if not is_special_symbol(row.ph)]
+        if not phones:
+            return "no_real_phone"  # only labels and pauses, so there is no IPA and no clip start
+        if any(isinstance(row.wd_ID, float) and math.isnan(row.wd_ID) for row in rows):
+            return "missing_word_id"
+        for ph in phones:
+            if ph not in units:
+                units[ph] = unit_to_ipa(ph)
+            if units[ph][1]:
+                return units[ph][1]
+        return None
 
     def __len__(self):
-        return len(self.utterances)
+        # 0, not an error, after a failed constructor
+        return len(getattr(self, "utterances", []))
 
     def _get_ix(self, ix):
         utterance: str = self.utterances[ix]
+        rows = self.utterance_rows[utterance]
+        glottocode = self.utterance_language[utterance]
 
         # parse annotations
-        phoneme_units = self.phoneme_df[self.phoneme_df["ref"] == utterance]
-        timestamped_phonemes = [
-            (
-                xsampa2ipa(unit["ph"]),
-                int(float(unit["start"]) * TARGET_SAMPLE_RATE),
-                int(float(unit["end"]) * TARGET_SAMPLE_RATE),
-            )
-            for _, unit in phoneme_units.iterrows()
-            if not is_special_symbol(unit["ph"])
-        ]
+        timestamped_phonemes, text = self._parse_rows(rows)
         ipa = "".join(x[0] for x in timestamped_phonemes)
 
-        word_ids = phoneme_units["wd_ID"].unique()
-        timestamped_words = [
-            (
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"],
-                int(
-                    float(
-                        phoneme_units[phoneme_units["wd_ID"] == word_id]["start"].min()
-                    )
-                    * TARGET_SAMPLE_RATE
-                ),
-                int(
-                    float(phoneme_units[phoneme_units["wd_ID"] == word_id]["end"].max())
-                    * TARGET_SAMPLE_RATE
-                ),
-            )
-            for word_id in word_ids
-            if not is_special_symbol(
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"]
-            )
-        ]
-        text = " ".join(x[0] for x in timestamped_words)
-
         # parse metadata
-        name = phoneme_units["file"].iloc[0]
-        metadata_dict = (
-            self.metadata_df[self.metadata_df["name"] == name].iloc[0].to_dict()
+        name = rows[0].file
+        metadata_df = self.languages[glottocode].metadata_df
+        metadata_dict = metadata_df[metadata_df["name"] == name].iloc[0].to_dict()
+        # New keys only; every key above stays as it was. The metadata row describes the whole
+        # recording, which can have several speakers (spk_code "AA1/RZ1" in Sümi), so utt_spk_code
+        # gives the one speaker of this utterance, from the phone table.
+        entry = self.languages[glottocode].entry
+        metadata_dict.update(
+            language=glottocode,
+            language_name=entry["name"],
+            annotation_license=entry["annotation_license"],
+            audio_license=entry["audio_license"],
+            utt_spk_code=rows[0].speaker,
         )
-        is_core = metadata_dict["extended"] == "no"
 
         # parse audio
         start = timestamped_phonemes[0][1]
         end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
-        if is_core:
-            filename = "doreco_sout3282_audiofiles_v2.0/" + name + ".wav"
-            with self.audio_core_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
-        else:
-            filename = name[len("doreco_sout3282_") :] + ".wav"
-            with self.audio_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
-        audio = audio[start:end]
+        audio = self._recording(*self._wav_location(glottocode, name))
+        # An annotation that runs past the end of the recording means a cut or wrong WAV file. 10 ms
+        # are allowed, so that rounding of the annotation times or of the resampled length cannot
+        # make a good item fail.
+        if timestamped_phonemes[-1][2] > len(audio) + TARGET_SAMPLE_RATE // 100:
+            raise ValueError(
+                f"{utterance} ends at sample {timestamped_phonemes[-1][2]}, after the end of"
+                f" {name}.wav ({len(audio)} samples at {TARGET_SAMPLE_RATE} Hz). Is the WAV file"
+                " cut short or the wrong file?"
+            )
+        # a copy, so that changing a returned clip can never change the cached recording
+        audio = audio[start:end].copy()
+        # Times are counted from the start of the returned clip, so they index into `audio`.
+        timestamped_phonemes = [
+            (phone, phone_start - start, phone_end - start)
+            for phone, phone_start, phone_end in timestamped_phonemes
+        ]
 
         result = [ipa, audio]
         if self.include_timestamps:
@@ -191,6 +537,55 @@ class DoReCoDataset(BaseDataset):
         if self.include_text:
             result.append(text)
         return tuple(result)
+
+    def _wav_location(self, glottocode, name):
+        """Where the WAV of recording `name` is, as (zip path or None, path)."""
+        if glottocode not in self.wav_index:
+            self.wav_index[glottocode] = wav_files(glottocode)
+        location = self.wav_index[glottocode].get(name)
+        if location is None:
+            raise missing_audio(glottocode, self.languages[glottocode].entry, name)
+        return location
+
+    def _parse_rows(self, rows):
+        """The phones with their start and end samples, and the text, of one utterance.
+
+        Pause and label rows are left out of both. The text has each word once, in order of first
+        appearance, taken from the word's first row.
+        """
+        timestamped_phonemes = [
+            (
+                self.phone_ipa[row.ph],
+                int(float(row.start) * TARGET_SAMPLE_RATE),
+                int(float(row.end) * TARGET_SAMPLE_RATE),
+            )
+            for row in rows
+            if not is_special_symbol(row.ph)
+        ]
+        words = [
+            [row.wd for row in rows if row.wd_ID == word_id][0]
+            for word_id in dict.fromkeys(row.wd_ID for row in rows)
+        ]
+        text = " ".join(word for word in words if not is_special_symbol(word))
+        return timestamped_phonemes, text
+
+    def _recording(self, zip_path, path):
+        """A whole recording at 16 kHz, decoded once and then served from a small cache. `path` is
+        a member of the zip at `zip_path`, or a file on disk when `zip_path` is None.
+
+        The zip is open only while the recording is read. A file handle kept open would be shared
+        by worker processes forked from this one, such as a DataLoader's, and would stop the
+        dataset from being pickled for workers that are started fresh.
+        """
+        key = (zip_path, path)
+        if key in self.audio_cache:
+            self.audio_cache.move_to_end(key)
+            return self.audio_cache[key]
+        audio = decode_wav(zip_path, path)
+        self.audio_cache[key] = audio
+        if len(self.audio_cache) > AUDIO_CACHE_SIZE:
+            self.audio_cache.popitem(last=False)  # drop the least recently used one
+        return audio
 
 
 if __name__ == "__main__":
