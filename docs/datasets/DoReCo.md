@@ -33,7 +33,7 @@ Annotation units are set during transcription, mostly for practical purposes, an
 
 PR 1 lets the loader read any DoReCo language. It also brings the fixes the loader needed and a safe way to handle symbols that do not convert. It adds the language and its licenses to the speaker info, and `utt_spk_code`, the speaker of each utterance. Recordings with several speakers need `utt_spk_code`, because their metadata row lists all of them. These notes are part of PR 1, as `docs/datasets/DoReCo.md`. The repo had no `docs` folder, so this place is only a proposal, and the file is easy to move.
 
-PR 1 is eighteen commits on the branch `doreco-multilingual`. The first seventeen change the code, and each one was tested on its own. Commits 7 to 12 fix points that an independent review of the code found. Commits 13 to 15 follow decisions taken after that review. Commit 16 says in the header what was tested with the audio. Commit 17 fixes the order of a mark and a length mark, which we found while checking the evaluation code. Commit 18 adds these notes.
+PR 1 is nineteen commits on the branch `doreco-multilingual`. The first seventeen change the code. Each one went through the full test suite on its own, on all 577 English items, with the Nǁng and Sümi annotations from commit 2 on and their audio from commit 16 on. Commits 7 to 12 fix points that an independent review of the code found. Commits 13 to 15 follow decisions taken after that review. Commit 16 says in the header what was tested with the audio. Commit 17 fixes the order of a mark and a length mark, which we found while checking the evaluation code. Commit 18 adds these notes, and commit 19 fixes points in them that a review found.
 
 * `653e2e3` splits the phone table once and decodes each recording once. The output does not change.
 * `3be7054` reads any DoReCo language, with the list of languages in `doreco_language_table.json`. The default call does not change.
@@ -49,10 +49,11 @@ PR 1 is eighteen commits on the branch `doreco-multilingual`. The first seventee
 * `0ca99c2` changes only comments, to say what was tested and where facts come from.
 * `655e74f` removes the code for English extended recordings. They have no phone rows, so no item could come from it.
 * `f86f211` says in the docstring that a missing WAV file fails at the first item that needs it.
-* `9ea88c2` frees the WAV bytes and the samples of each channel before resampling, so it needs less memory. The output does not change.
+* `9ea88c2` frees the WAV bytes and the samples of each channel before resampling, so Python and numpy allocate less. The output does not change.
 * `bba5da8` changes only comments, to say in the header what was tested with the audio.
 * `b051100` puts a mark in front of a length mark right before it, so the tilde of `a:~` marks the vowel and not the length mark. This changes 1,668 phones in 1,043 utterances of Anal, Hoocąk and Texistepec Popoluca. No other kept label in the 53 bundles changes, and no other unit in any row of their phone tables.
-* The last commit adds these notes, and changes no code.
+* `722baa5` adds these notes, and changes no code.
+* The last commit fixes points in these notes that a review found, and changes no code.
 
 For English, only the phone times and the new speaker info keys differ from `main`. We compared all 577 items, and the IPA, audio and text are the same.
 
@@ -121,7 +122,7 @@ The phone table also uses the id `<p:>` for pauses between utterances. It is not
 
 The clip lengths in the table come from the annotation times. On the real audio, every clip, with its extra 0.3 seconds, ends inside its recording, 577 in English, 1,007 in Nǁng and 1,207 in Sümi. So each clip has exactly the length its times give. In Nǁng, two of the files hold the same audio, as described under Known issues, so the total for Nǁng counts that audio twice.
 
-The speed numbers and the Linux memory row come from a Linux virtual machine on Raunak's Mac, `Linux-6.8.0-138-generic-aarch64-with-glibc2.35`. It used a small fake version of the `sounddevice` package, made only for tests. The timing script prints both facts. The timing run builds the dataset 3 times, reads items 0 to 9 twice and then reads every item once. All the Linux rows come from one session, on Nov 7, 2026, at commit `9ea88c2`. Speeds change from run to run, so they are a rough guide. The Mac row comes from the same timing run on the Mac itself, with macOS 26.7.2 on arm64 and the real `sounddevice` package, at commit `b051100`, also on Nov 7, 2026. With `language` set to `all`, PR 1 read the three languages together, 2,791 items. Setup took 0.96 s, one pass over every item took 19.7 s, and the peak memory was 3,473 MB on Linux and 4,165 MB on the Mac.
+The speed numbers and the Linux memory row come from a Linux virtual machine on Raunak's Mac, `Linux-6.8.0-138-generic-aarch64-with-glibc2.35`. It used a small fake version of the `sounddevice` package, made only for tests. The timing script prints both facts. The timing run builds the dataset 3 times, reads items 0 to 9 twice and then reads every item once. All the Linux rows come from one session, on Nov 7, 2026. The rows with PR 1 ran its code at commit `9ea88c2`, and the rows on `main` ran the loader of `main`, at commit `8be4053`. Speeds change from run to run, so they are a rough guide. The Mac row comes from the same timing run on the Mac itself, with macOS 26.7.2 on arm64 and the real `sounddevice` package, at commit `b051100`, also on Nov 7, 2026. With `language` set to `all`, PR 1 read the three languages together, 2,791 items. On Linux, setup took 0.96 s and one pass over every item took 19.7 s. The peak memory was 3,473 MB on Linux and 4,165 MB on the Mac.
 
 On `main`, the loader decodes the whole recording again for every item. PR 1 decodes each recording once and keeps the last 4 in memory, 115 MB for the 4 English ones. So the speed gain holds when items are read in order, as `gen_doreco` in `scripts/data_loaders/huggingface.py` reads them. In a shuffled order, as a training loop often reads, a recording that has left the memory is decoded again. Over 5 shuffled orders, PR 1 decoded 698 times on average for Nǁng and 1,015 times for Sümi, against 17 and 28 in order. English, with 4 recordings, decodes 4 times in any order. These counts come from the annotations, with a counter in place of the decoding. Memory on `main` and with PR 1, on Linux and on the Mac, is in the next section.
 
@@ -131,7 +132,7 @@ The sources are the phone, metadata and spelling tables of each bundle, the WAV 
 
 ### Memory, English, on `main` and with PR 1
 
-We measured peak memory for the same work on `main` and with PR 1, at commit `9ea88c2`, on the Linux virtual machine and on Raunak's Mac, with macOS 26.7.2 on arm64. Commit `bba5da8` changes only comments, commit `b051100` changes no label of English, Nǁng or Sümi and no audio code, and the last commit only adds these notes. So these numbers hold for all three. Each case ran in a process of its own, once as it is and once with Python's `tracemalloc`. MB means 2 to the power 20 bytes.
+We measured peak memory for the same work on `main` and with PR 1, at commit `9ea88c2`, on the Linux virtual machine and on Raunak's Mac, with macOS 26.7.2 on arm64. Commit `bba5da8` changes only comments, commit `b051100` changes no label of English, Nǁng or Sümi and no audio code, and the two commits after it change only these notes. So these numbers hold at the last commit too. Each case ran in a process of its own, once as it is and once with Python's `tracemalloc`. MB means 2 to the power 20 bytes.
 
 * Peak RSS is the most memory the whole process held. It also counts Python, the imports and the tables, which hold about 300 to 350 MB after setup.
 * The traced peak counts only what Python and numpy allocated. It was the same on both machines, to the MB.
@@ -160,24 +161,28 @@ What this shows, stated plainly.
 * Python and numpy allocate less with PR 1 in every case.
 * On Linux, the whole process also peaks lower with PR 1 in every case.
 * On the Mac, each recording alone peaks lower with PR 1, for all 4 recordings.
-* On the Mac, a process that decodes several recordings holds far more than Python and numpy allocated, on `main` too. There, PR 1 peaked higher than `main` for the first item of each recording, 3,196 MB against 2,879 MB, about 11% more. In the runs with `tracemalloc` it was 3,270 MB against 3,029 MB, 8% more. For items 0 to 9, PR 1 gave 1,761 MB, while `main` gave 1,603, 1,828 and 1,832 MB in three runs. Why the Mac holds this extra memory is not known.
-* On the Mac, runs that decode several recordings vary between runs of the same case, by 14% for `main` on items 0 to 9, as above. Each recording alone repeats within 8 MB. On Linux, every case repeats within 1%.
-* The cause of the high peaks is the shared resampler in `scripts/core/audio.py` lines 204 to 215, which works on a whole recording at once. For one English recording of 16 minutes, `np.interp` holds about 1.2 GB of copies at the same time. On `main`, the WAV file's bytes and a copy of them also stay in memory while it runs. Since commit `9ea88c2`, PR 1 frees the bytes and the samples of each channel first. In every case, the traced peak was within 1 MB of the sum of the array sizes.
+* On the Mac, a process that decodes several recordings holds far more than Python and numpy allocated, on `main` too. There, PR 1 peaked higher than `main` for the first item of each recording, 3,196 MB against 2,879 MB, about 11% more. In the runs with `tracemalloc` it was 3,270 MB against 3,029 MB, 8% more. Why the Mac holds this extra memory is not known.
+* On the Mac, runs that decode many times vary between runs of the same case. For items 0 to 9, where `main` decodes one recording again for each item, `main` gave 1,603, 1,828 and 1,832 MB in three runs, 14% apart, and PR 1 gave 1,761 MB. Each recording alone repeats within 8 MB. On Linux, every case repeats within 1%.
+* On Linux, most of each peak is the shared resampler in `scripts/core/audio.py` lines 204 to 215, which works on a whole recording at once. There, the peak RSS is the memory after setup plus the traced peak, within 29 MB in every case and within 8 MB with PR 1. For one English recording of 16 minutes, `np.interp` holds about 1.2 GB of copies at the same time. On `main`, the WAV file's bytes and a copy of them also stay in memory while it runs. Since commit `9ea88c2`, PR 1 frees the bytes and the samples of each channel first. In every case, the traced peak was within 1 MB of the sum of the array sizes.
 * A resampler that works on one block at a time gives the same output, byte for byte, in all 139 of our checks, 4 of them on the real English recordings and the rest on synthetic signals, with about half the peak memory. On the Mac, every item once peaked at 1,412 MB with it, against 2,832 MB. It is not in PR 1, because every loader uses the resampler in `core/audio.py`.
+
+The numbers come from the memory runs described under How we checked.
 
 ### Memory of the timing run, with PR 1
 
-We measured Nǁng and Sümi in the timing run only, as in the table above, on the Linux virtual machine and on the Mac. `main` cannot read them, so there is nothing to compare with. Each timing run ends with one pass over every item.
+Apart from one trace described below, we measured Nǁng and Sümi only in the timing run, as in the table above, on the Linux virtual machine and on the Mac. `main` cannot read them, so there is nothing to compare with. Each timing run ends with one pass over every item.
 
 * English, all 577 items, peaked at 2,480 MB on the Mac and 1,677 MB on Linux.
 * Nǁng, all 1,007 items, peaked at 4,404 MB on the Mac and 3,483 MB on Linux.
 * Sümi, all 1,207 items, peaked at 1,714 MB on the Mac and 1,021 MB on Linux.
 
-The cause of these peaks is the shared resampler in `scripts/core/audio.py` lines 204 to 215. It works on a whole recording at once, so the longest recording sets the peak. Nǁng's longest recording, `NM080903-01bE`, is 2,290 seconds long, with 2 channels at 44,100 Hz. The longest English one is 989 seconds, and the longest Sümi one is 471 seconds.
+On Linux, most of each peak is the shared resampler in `scripts/core/audio.py` lines 204 to 215. It works on a whole recording at once, so it makes copies as long as the recording, and the recording with the most samples sets the peak. In Nǁng this is `NM080903-01bE`, 2,290 seconds long, with 2 channels at 44,100 Hz. The longest English recording is 989 seconds and the longest Sümi one 471 seconds, both at 44,100 Hz.
 
 We checked this for Nǁng on Linux. We read one item of `NM080903-01bE` in a fresh process, with `tracemalloc` on. While the resampler ran, Python and numpy held 3,063 MB. The resampler itself added 2,870 MB of that. This is the same, to the MB, as the size of the arrays it makes for the 100,970,390 samples of this recording. The whole process peaked at 3,375 MB, and at 3,383 MB in a second run, against 3,483 MB for the whole timing run.
 
-Why the Mac peaks higher than Linux for the same work is not known, as for English above. On the Mac, the resampler that works on one block at a time gave about half the English peak, as shown above. It is not in PR 1, because every loader uses the resampler in `core/audio.py`.
+On the Mac, the peaks are higher. There, a process that reads several recordings peaks well above any one recording read alone, on `main` too, as shown above, and why is not known. The resampler that works on one block at a time still gave about half the English peak on the Mac, 1,412 MB against 2,832 MB. It is not in PR 1, because every loader uses the resampler in `core/audio.py`.
+
+The numbers come from the timing runs and the trace described under How we checked.
 
 ## Speakers
 
@@ -599,7 +604,7 @@ So no tone reaches the phones. Where a letter is kept, it becomes an extra phone
 
 Joined sounds like `tS`, `dZ` and `ts` are single rows in the phone tables. So are the English vowel pairs. The timestamps for each phone keep these units whole. When the loader joins phones into one IPA string, `tS` becomes `tʃ` with no tie bar, the mark `͡` that links two letters. We think the repo's issue `#15` is about joined strings that merge `t` and `ʃ` into `tʃ`, but we could not open the issue page, so this is not verified.
 
-### The three marks that `core/codes.py` turns into a space
+### Three marks that `core/codes.py` turns into a space
 
 `core/codes.py` turns `~`, `_v` and `_t` into a space, through its table in line 84. PR 1 maps these three marks to `U+0303`, `U+032C` and `U+0324` itself, in `DoReCo.py` lines 60 to 65 and 218 to 260. It also puts a mark in front of a length mark right before it, since in Unicode a combining mark belongs to the character before it. So `a:~` gives the vowel, then the tilde, then `ː`. It counts each use in `mark_uses`. Whether the fix should stay in the loader or move into `core/codes.py` is an open question for Alex.
 
@@ -862,19 +867,19 @@ We wrote small scripts to check the loader and to count everything in these note
 * Channels. For each file with 2 channels, a script compares the two channels over the whole file and in 12 stretches of 20 seconds. It finds the delay between them, and measures how averaging them changes the power at each frequency. It passes a test on synthetic audio with a known delay.
 * The WAV reader on `main`. We decoded each WAV file of up to 1,200 seconds with `core/audio.py` and with PR 1, and compared the samples.
 * All 53 bundles. A script reads every core bundle with the loader's rules and counts what it keeps and skips, and why.
-* The last commit. We read every kept label of the 53 bundles from the annotations with the loader before and after commit `b051100`, and compared them. Only the 1,668 phones it should change changed, and no time, count or list of utterances. Of all units in every row of the phone tables, only the 9 it should change got a new IPA.
+* Commit `b051100`. We read every kept label of the 53 bundles from the annotations with the loader before and after it, and compared them. Only the 1,668 phones it should change changed, and no time, count or list of utterances. Of all units in every row of the phone tables, only the 9 it should change got a new IPA.
 * Quotes. Every quoted passage from the DoReCo files and from the three PDFs under Sources is cut from its source by a script, which also finds each PDF quote on its page.
 * Speed and memory. Speed was measured on a Linux virtual machine on Raunak's Mac. Memory was measured there and on the Mac itself, with each case in a process of its own, and the timing run ran on both. For one Nǁng item, a script also traced the memory while the resampler ran.
 * Evaluation. We ran every real phone of the three languages through `preprocess_ipa` in `scripts/eval/evaluate.py`, and counted what it removes. We also scored every 10th item against itself with `evaluate`.
 
 ## Sources
 
-We read these on Nov 5, 2026, except the Nǁng and Sümi audio, which we read on Nov 7, 2026.
+We read these on Nov 5, 2026, unless an item below gives another date.
 
 * The three bundles in `.data/DoReCo/`, with their README, CONVENTIONS, dataset info, metadata, spelling, word and phone tables. Also the English core bundle `.data/DoReCo/sout3282/doreco_sout3282_core_v2.zip`, and the core bundles of 50 more languages.
-* The English core audio in `.data/DoReCo/sout3282_audio_core_v2.zip`, with its checksums in `.data/DoReCo/sout3282_audio_core_v2.SHA256.txt`.
-* The Nǁng and Sümi core audio in `.data/DoReCo/nngg1234/doreco_nngg1234_audiofiles_v2.0/` and `.data/DoReCo/sumi1235/doreco_sumi1235_audiofiles_v2.0/`.
-* `scripts/data_loaders/DoReCo.py` on `main` at commit `8be4053` and in PR 1 at commit `b051100`, with `scripts/data_loaders/doreco_language_table.json`.
+* The English core audio, the 4 WAV files that Raunak packed into `.data/DoReCo/sout3282_audio_core_v2.zip`, as described under License and how to get the data. Raunak can share the checksums taken at download.
+* The Nǁng and Sümi core audio in `.data/DoReCo/nngg1234/doreco_nngg1234_audiofiles_v2.0/` and `.data/DoReCo/sumi1235/doreco_sumi1235_audiofiles_v2.0/`, read on Nov 7, 2026.
+* `scripts/data_loaders/DoReCo.py` on `main` at commit `8be4053`, and in PR 1 at commit `b051100`, read on Nov 7, 2026, with `scripts/data_loaders/doreco_language_table.json`.
 * `scripts/data_loaders/huggingface.py`, `scripts/core/codes.py`, `scripts/core/audio.py`, `scripts/eval/evaluate.py` and `scripts/eval/metrics.py` at commit `8be4053`. PR 1 does not change them.
 * DoReCo's list of languages, https://doreco.huma-num.fr/languages.geojson, read on Nov 4, 2026. PR 1's `scripts/data_loaders/doreco_language_table.json` is a smaller copy of it.
 * Paschen et al. 2020, at https://aclanthology.org/2020.lrec-1.324.pdf. The README links it as https://www.aclweb.org/anthology/2020.lrec-1.324.
