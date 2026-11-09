@@ -40,8 +40,8 @@ Why the default is `none`. Both experiments in the paper use that form, on pages
 | Distinct panphon units | 59 with no tones, 61 with tone marks, 64 with tone letters | Loader |
 | WAV format | all 2,392 are mono, 16 bit PCM, plain 44 byte header | Data |
 | Sample rate | 2,173 files at 22,050 Hz, 219 at 16,000 Hz | Data |
-| Load time, one pass over all 2,255 items | 3.6 s, 621 items per second, on the Linux VM from the Mac's shared folder | `Tusom2021Dataset` on Nov 9 |
-| Setup time for all | 1.68 s, best of 3 | Same |
+| Load time, one pass over all 2,255 items | 3.6 s, 625 items per second, on the Linux VM from the Mac's shared folder | `Tusom2021Dataset` on Nov 9 |
+| Setup time for all | 1.70 s, best of 3 | Same |
 | Peak memory | 338 MB, the whole process with its imports | Same |
 
 Clip seconds per split.
@@ -130,7 +130,7 @@ The first transcription of a word was made before the recording, page 3662. Late
 In some cases, tokens of a type are not phonetically identical (and are not identically transcribed).
 ```
 
-In the data, 721 groups of two or more tokens share a stem and a gloss. 34 of them have more than one `tone_dias` form. In 11 of the 34, each form has three or more tokens, so those look like different words with one gloss. The others look like real differences between tokens, or errors, such as `verb17-19.wav` below.
+In the data, 721 groups of two or more tokens share a stem and a gloss. 34 of them have more than one `tone_dias` form. In 11 of the 34, each form has three or more tokens, so those look like different words with one gloss. Most of the others look like real differences between tokens, or errors, such as `verb17-19.wav` below.
 
 ## Transcription conventions
 
@@ -190,7 +190,7 @@ Each of these is left in, so that nobody's research labels change quietly.
 * The loss in `no_tones` is the 10 accented vowels listed under Cleaning still needed. `preprocess_ipa` drops a precomposed vowel whole.
 * Every tone mark is lost in the two tone forms. So FER cannot see tone today, and PER punishes a model for every tone mark it does not write.
 * In `tone_letters`, `preprocess_ipa` also loses `U+0303`, which marks a nasal vowel, 38 times, and the syllable mark `U+0329` 3 times. In `tone_dias`, it loses `U+0303` 3 times.
-* `simplify_ipa` leaves tone marks in 2,241 labels of `tone_dias` and 2,173 of `tone_letters`, although its docstring says it removes tones.
+* `simplify_ipa` leaves tone marks in 2,241 labels of `tone_dias` and 2,173 of `tone_letters`, although it calls `remove_tones_and_stress`.
 * FER divides by the code points of the cleaned label, not by phones. The cleaned `no_tones` labels have 1.166 code points per panphon unit.
 
 ## Resampling
