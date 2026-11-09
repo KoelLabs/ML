@@ -27,7 +27,8 @@ DATA_DIR = os.path.join(
 )
 WAV_DIR = os.path.join(DATA_DIR, "wav")
 SPLITS = ("train", "dev", "test", "all")
-LABEL_FIELD = "no_tones"
+# The value of `tones` and the field of mapping.yml that it picks.
+TONE_FIELDS = {"none": "no_tones", "diacritics": "tone_dias", "letters": "tone_letters"}
 
 
 def read_labels(name):
@@ -47,6 +48,10 @@ class Tusom2021Dataset(BaseDataset):
     Valid splits are "train", "dev" and "test", from the dataset's own files, or "all".
 
     The text is the English gloss, since East Tusom has no writing system.
+
+    `tones` picks the form of the label. "none" has no tones, "diacritics" writes them as
+    combining marks and "letters" as Chao tone letters. The default is "none" because the
+    paper's experiments use that form and evaluate.py drops every tone mark before FER.
     """
 
     def __init__(
@@ -55,11 +60,15 @@ class Tusom2021Dataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        tones="none",
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
 
         # The paper aligned the words by hand in Praat TextGrids, but the data has no TextGrid file.
         assert not include_timestamps, "Tusom2021 has no phone timestamps"
+
+        self.tones = tones
+        self.label_field = TONE_FIELDS[tones]
 
         labels = read_labels("mapping.yml")
         names = labels if split == "all" else read_labels(f"{split}.yml")
@@ -77,12 +86,13 @@ class Tusom2021Dataset(BaseDataset):
             for phone in feature_table.segs_safe(self._ipa(name))
         }
         print(
-            f"Tusom2021 {split}: {len(self.files)} items, {self.skipped['wav_without_label']}"
+            f"Tusom2021 {split}, tones {tones}: {len(self.files)} items,"
+            f" {self.skipped['wav_without_label']}"
             " WAV files with no label skipped"
         )
 
     def _raw_label(self, name):
-        return self.labels[name][LABEL_FIELD]
+        return self.labels[name][self.label_field]
 
     def _ipa(self, name):
         # White space separates words in some labels and is no phone. VoxAngeles removes it the
