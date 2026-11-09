@@ -47,7 +47,7 @@ def read_labels(name):
     try:
         with open(path, encoding="utf-8") as f:
             entries = yaml.safe_load(f)
-    except yaml.YAMLError as e:
+    except (yaml.YAMLError, UnicodeDecodeError) as e:
         raise ValueError(f"Cannot parse {path}. {e}. {FIX}") from e
     if not isinstance(entries, dict):
         raise ValueError(f"{path} is not a YAML mapping. {FIX}")
@@ -61,13 +61,15 @@ def read_labels(name):
 
 def read_wav(path):
     """A WAV file as int16 at 16 kHz."""
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} not found. {FIX}")
     with open(path, "rb") as f:
         header = f.read(12)
     # soundfile would return a shorter clip from a file that was cut short, without any error.
     # The size field of the RIFF header gives it away. It holds the file size minus 8 bytes.
     if int.from_bytes(header[4:8], "little") + 8 != os.path.getsize(path):
         raise ValueError(f"The WAV file {path} is cut short or is not a WAV. {FIX}")
-    # soundfile reads the header, where core/audio.py assumes that samples start at byte 44.
+    # soundfile reports the channels and the sample format, so that they can be checked here.
     try:
         with soundfile.SoundFile(path) as f:
             if f.channels != 1 or f.subtype != "PCM_16" or f.frames == 0:
