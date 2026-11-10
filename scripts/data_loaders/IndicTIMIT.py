@@ -76,8 +76,10 @@ NATIVITIES = {
 # A speaker ID is F or M and a number, as in all 80 speaker folders.
 LINE = re.compile(r"IISc_IndicTIMIT_([FM][0-9]+)_([0-9]+) (\S.*)")
 STEM = re.compile(r"IISc_IndicTIMIT_([FM][0-9]+)_([0-9]+)")
-# Marks that are not phones, which no label may hold after the clean up.
-NOT_PHONES = set("~-#0123456789")
+# Marks that are not phones, which no label may hold after the clean up. No ASCII
+# capital is an IPA symbol, and @ : ' / [ ] stand in for IPA in plain text, as in
+# X-SAMPA.
+NOT_PHONES = set("~-#0123456789@:'/[]ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 def recording_id(recording):
@@ -100,6 +102,12 @@ def read_phone_labels():
     and they have no parser yet. This is the one place the parser goes. It should give
     every label it finds, keyed by the stem of the WAV file, and the dataset keeps those
     of its split. Until then this raises, so that no item gets a label of another kind.
+
+    The parser must read the IPA files, not the ARPAbet ones the paper also names, since
+    ARPAbet in small letters looks like IPA. Every speaker read every sentence, so a
+    wrong map from the files' names to these ids passes every check of the dataset. If
+    the files name a language or a speaker, the parser must check it against the
+    nativity folders.
     """
     folder = os.path.join(DATA_DIR, "phone_labels")
     found = []
@@ -160,7 +168,7 @@ def list_wavs(code):
     root = os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{code}")
     found = set()
     for speaker in os.listdir(root):
-        if os.path.isdir(os.path.join(root, speaker)):
+        if not speaker.startswith(".") and os.path.isdir(os.path.join(root, speaker)):
             for name in os.listdir(os.path.join(root, speaker)):
                 if name.endswith(".wav") and not name.startswith("."):
                     found.add((speaker, name))
@@ -213,6 +221,9 @@ class IndicTIMITDataset(BaseDataset):
         include_text=False,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
+        # Kept with the dataset, so that a worker process started with spawn, which
+        # imports this module again, reads from the same folder.
+        self.data_dir = DATA_DIR
 
         if include_timestamps:
             raise ValueError("Indic TIMIT has no phone timestamps")
@@ -236,13 +247,13 @@ class IndicTIMITDataset(BaseDataset):
 
         # Every recording, as (nativity, speaker, sentence number, sentence). Each
         # sentence is one string object, shared by the recordings of every speaker.
-        shared, owner = {}, {}
+        shared, owner, orphans = {}, {}, set()
         self.recordings, wav_without_line = [], 0
         for code in codes:
             path, rows = read_transcripts(code)
             wavs = list_wavs(code)
             # A copy that was cut off while it was unpacked misses files, so this fails
-            # at setup. The names must be exact, as _get_ix opens them.
+            # at setup. Each name is built from its line, as _get_ix builds it.
             names = {(s, f"IISc_IndicTIMIT_{s}_{n}.wav") for s, n, _ in rows}
             missing = sorted(names - wavs)
             if missing:
@@ -252,8 +263,10 @@ class IndicTIMITDataset(BaseDataset):
                     f" not on disk, such as {s}/{name}. {FIX}"
                 )
             wav_without_line += len(wavs - names)
+            orphans |= {name[: -len(".wav")] for _, name in wavs - names}
             for s, _, _ in rows:
-                # A label's id names only the speaker, so a speaker is in one nativity.
+                # A label's id names only the speaker, so each speaker must be in one
+                # nativity.
                 if owner.setdefault(s, code) != code:
                     raise ValueError(
                         f"Speaker {s} has recordings in both {owner[s]} and {code}, so"
@@ -266,8 +279,9 @@ class IndicTIMITDataset(BaseDataset):
         # The labels of this split's speakers. A label of another speaker belongs to
         # another split, or to a speaker who is not in the release, and is counted.
         ids = {recording_id(r) for r in self.recordings}
-        self.labels, unknown, other = {}, [], 0
-        for key, label in read_phone_labels().items():
+        labels = read_phone_labels()
+        self.labels, unknown, cut, others = {}, [], [], []
+        for key, label in labels.items():
             match = STEM.fullmatch(key)
             if not match:
                 raise ValueError(
@@ -275,11 +289,20 @@ class IndicTIMITDataset(BaseDataset):
                     " WAV name such as IISc_IndicTIMIT_F30_1"
                 )
             if match.group(1) not in owner:
-                other += 1
+                others.append(key)
             elif key not in ids:
-                unknown.append(key)
+                # A WAV file of the speaker with no line: the transcript may be cut.
+                (cut if key in orphans else unknown).append(key)
             else:
                 self.labels[key] = label
+        # A transcript cut at the end of a line leaves WAV files with no line. With a
+        # label, such a file points at the transcript, not at the labels.
+        if cut:
+            raise ValueError(
+                f"{len(cut)} labeled recordings have a WAV file but no line in their"
+                f" transcript, such as {sorted(cut)[0]}, so the transcript may be cut"
+                f" short. {FIX}"
+            )
         if unknown:
             raise ValueError(
                 f"{len(unknown)} phone labels are for sentences that the transcript of"
@@ -294,20 +317,22 @@ class IndicTIMITDataset(BaseDataset):
         )
         if odd:
             raise ValueError(
-                f"{len(odd)} phone labels give no IPA or hold a mark that is not a"
-                f" phone, ~, -, # or a digit, such as {odd[0]} {self.labels[odd[0]]!r}."
-                " read_phone_labels must turn them into IPA first"
+                f"{len(odd)} phone labels give no IPA or hold a mark that is not IPA,"
+                " such as ~, -, #, a digit, @, : or an ASCII capital. One is"
+                f" {odd[0]} {self.labels[odd[0]]!r}. read_phone_labels must turn them"
+                " into IPA first"
             )
         self.items = [r for r in self.recordings if recording_id(r) in self.labels]
         if not self.items:
             raise ValueError(
                 f"None of the {len(self.recordings)} recordings of split {split} has a"
-                " human phone label"
+                f" human phone label, of the {len(labels)} that read_phone_labels gave."
+                " The paper counts its labels by group, not by nativity, so try all"
             )
         self.skipped = {
             "no_phone_label": len(self.recordings) - len(self.items),
             "wav_without_line": wav_without_line,
-            "label_for_other_speaker": other,
+            "label_for_other_speaker": len(others),
         }
 
         feature_table = panphon.FeatureTable()
@@ -320,7 +345,8 @@ class IndicTIMITDataset(BaseDataset):
             f" from {speakers} speaker{'' if speakers == 1 else 's'}. Left out are"
             f" {self.skipped['no_phone_label']} recordings with no label,"
             f" {self.skipped['wav_without_line']} WAV files with no transcript line,"
-            f" and {other} labels of speakers outside this split"
+            f" and {len(others)} labels of speakers with no folder in this split"
+            + (f", such as {min(others)}" if others else "")
         )
 
     def _ipa(self, recording):
@@ -332,7 +358,9 @@ class IndicTIMITDataset(BaseDataset):
     def _get_ix(self, ix):
         code, speaker, number, text = self.items[ix]
         stem = recording_id(self.items[ix])
-        path = os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{code}", speaker, stem + ".wav")
+        path = os.path.join(
+            self.data_dir, f"IISc_IndicTIMIT_{code}", speaker, stem + ".wav"
+        )
         outputs = [self._ipa(self.items[ix]), read_wav(path)]
         if self.include_speaker_info:
             language, region, group = NATIVITIES[code]
