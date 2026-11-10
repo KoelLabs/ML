@@ -19,6 +19,8 @@
 # are left out. The label files were not in the archives when this loader was written, so read_phone_labels has no
 # parser yet, and the loader stops with an error that says so.
 #
+# Tested on Nov 9, 2026, on the real files of all 18 nativities, with made up labels in place of the human ones.
+# Every recording was read and checked against its transcript line and its WAV file. No person has listened yet.
 # TODO: manual verification
 
 import io
@@ -37,6 +39,11 @@ SOURCE = "https://spiredatasets.ee.iisc.ac.in/indictimitcorpus"
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "IndicTIMIT")
 # Where the human phone labels go. The 18 archives of the release do not hold them.
 LABELS_DIR = os.path.join(DATA_DIR, "phone_labels")
+# Added to every error about the data files, so that the error says what fixes it.
+FIX = (
+    f"Request Indic TIMIT at {SOURCE}, then from the repo root unpack the archive of each"
+    " nativity, IISc_IndicTIMIT_<CODE>.tar.gz, into ./.data/IndicTIMIT"
+)
 # The code of each nativity, as in the archive names, and its native language, region and group,
 # as the README on the page above gives them.
 NATIVITIES = {
@@ -61,6 +68,7 @@ NATIVITIES = {
 }
 # A line of Transcripts_<CODE> is the stem of its WAV file, a space, and the sentence, which ends in a space.
 LINE = re.compile(r"IISc_IndicTIMIT_([A-Z]+[0-9]+)_([0-9]+) (\S.*)")
+WAV = re.compile(r"IISc_IndicTIMIT_([A-Z]+[0-9]+)_([0-9]+)\.wav")
 
 
 def recording_id(recording):
@@ -91,41 +99,70 @@ def read_phone_labels(codes):
 
 
 def read_transcripts(code):
-    """(speaker, sentence number, sentence) for each line of Transcripts_<CODE>."""
+    """The path of Transcripts_<CODE>, and (speaker, sentence number, sentence) for each line."""
     path = os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{code}", f"Transcripts_{code}")
-    with open(path, encoding="utf-8") as f:
-        lines = f.read().split("\n")
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"{path} not found. {FIX}")
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read().split("\n")
+    except UnicodeDecodeError as e:
+        raise ValueError(f"{path} is not UTF-8 text. {e}. {FIX}") from e
     if lines[-1] == "":
         lines.pop()
-    rows = []
-    for line in lines:
+    rows, seen = [], set()
+    for k, line in enumerate(lines, 1):
         match = LINE.fullmatch(line)
         if not match:
-            raise ValueError(f"Cannot read the line {line!r} of {path}")
+            raise ValueError(
+                f"Line {k} of {path} is not a WAV name, a space and a sentence: {line!r}. {FIX}"
+            )
         speaker, number, text = match.groups()
+        if (speaker, int(number)) in seen:
+            raise ValueError(
+                f"Line {k} of {path} repeats IISc_IndicTIMIT_{speaker}_{number}. {FIX}"
+            )
+        seen.add((speaker, int(number)))
         rows.append((speaker, int(number), text.rstrip()))
-    return rows
+    return path, rows
+
+
+def list_wavs(code):
+    """(speaker, sentence number) of each WAV file in the speaker folders of a nativity."""
+    root = os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{code}")
+    found = set()
+    for speaker in os.listdir(root):
+        if os.path.isdir(os.path.join(root, speaker)):
+            for name in os.listdir(os.path.join(root, speaker)):
+                match = WAV.fullmatch(name)
+                if match and match.group(1) == speaker:
+                    found.add((speaker, int(match.group(2))))
+    return found
 
 
 def read_wav(path):
     """A WAV file as int16 at 16 kHz."""
     # One read per file, since the files sit in a shared folder where each access costs time.
-    with open(path, "rb") as f:
-        data = f.read()
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"{path} not found. {FIX}") from e
     # soundfile would return a shorter clip from a file that was cut short, without any error.
     # The size field of the RIFF header gives it away. It holds the file size minus 8 bytes.
     if data[:4] != b"RIFF" or int.from_bytes(data[4:8], "little") + 8 != len(data):
-        raise ValueError(f"The WAV file {path} is cut short or is not a WAV")
+        raise ValueError(f"The WAV file {path} is cut short or is not a WAV. {FIX}")
     # soundfile reports the channels and the sample format, so that they can be checked here.
     try:
         with soundfile.SoundFile(io.BytesIO(data)) as f:
             if f.channels != 1 or f.subtype != "PCM_16" or f.frames == 0:
                 raise ValueError(
-                    f"The WAV file {path} is not mono 16 bit audio with samples"
+                    f"The WAV file {path} is not mono 16 bit audio with samples. {FIX}"
                 )
             audio, rate = f.read(dtype="int16"), f.samplerate
     except soundfile.SoundFileError as e:
-        raise ValueError(f"Cannot decode the WAV file {path}. {e}") from e
+        # soundfile's own message names the bytes in memory, not the file, so it stays in the cause.
+        raise ValueError(f"Cannot decode the WAV file {path}. {FIX}") from e
     return audio_resample(audio, rate, TARGET_SAMPLE_RATE)
 
 
@@ -155,19 +192,50 @@ class IndicTIMITDataset(BaseDataset):
                 f"Unknown split {split}. Valid splits are all and {list(NATIVITIES)}"
             )
         codes = list(NATIVITIES) if split == "all" else [split]
+        if not os.path.isdir(DATA_DIR):
+            raise FileNotFoundError(f"{DATA_DIR} not found. {FIX}")
+        absent = [
+            f"IISc_IndicTIMIT_{c}"
+            for c in codes
+            if not os.path.isdir(os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{c}"))
+        ]
+        if absent:
+            raise FileNotFoundError(
+                f"{len(absent)} of the {len(codes)} nativity folders of split {split} are not in"
+                f" {DATA_DIR}: {absent}. Each code is also a split. {FIX}"
+            )
 
         # Every recording, as (nativity, speaker, sentence number, sentence). Each sentence is one
         # string object, shared by the recordings of every speaker.
         shared = {}
-        self.recordings = []
+        self.recordings, wav_without_line = [], 0
         for code in codes:
-            rows = read_transcripts(code)
+            path, rows = read_transcripts(code)
+            wavs = list_wavs(code)
+            # A copy that was cut off while it was unpacked misses files, so this fails at setup.
+            missing = [(s, n) for s, n, _ in rows if (s, n) not in wavs]
+            if missing:
+                s, n = missing[0]
+                raise FileNotFoundError(
+                    f"{len(missing)} of the {len(rows)} WAV files that {path} lists are not on disk,"
+                    f" such as {s}/IISc_IndicTIMIT_{s}_{n}.wav. {FIX}"
+                )
+            wav_without_line += len(wavs - {(s, n) for s, n, _ in rows})
             self.recordings += sorted(
                 (code, s, n, shared.setdefault(text, text)) for s, n, text in rows
             )
         self.labels = read_phone_labels(codes)
+        unknown = sorted(set(self.labels) - {recording_id(r) for r in self.recordings})
+        if unknown:
+            raise ValueError(
+                f"{len(unknown)} phone labels are for recordings that the transcripts of split"
+                f" {split} do not list, such as {unknown[0]}. {FIX}"
+            )
         self.items = [r for r in self.recordings if recording_id(r) in self.labels]
-        self.skipped = {"no_phone_label": len(self.recordings) - len(self.items)}
+        self.skipped = {
+            "no_phone_label": len(self.recordings) - len(self.items),
+            "wav_without_line": wav_without_line,
+        }
 
         feature_table = panphon.FeatureTable()
         self.vocab = {
@@ -176,7 +244,8 @@ class IndicTIMITDataset(BaseDataset):
         print(
             f"Indic TIMIT {split}: {len(self.items)} items with a human phone label, from"
             f" {len({r[:2] for r in self.items})} speakers, and"
-            f" {self.skipped['no_phone_label']} recordings without one left out"
+            f" {self.skipped['no_phone_label']} recordings without one left out, and"
+            f" {self.skipped['wav_without_line']} WAV files with no line skipped"
         )
 
     def _ipa(self, recording):
