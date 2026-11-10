@@ -1,0 +1,314 @@
+{
+ "about": "Halabi's phone symbols of the Arabic Speech Corpus TextGrids, mapped to IPA, with the source of each. Read on Nov 10, 2026. Used by ArabicSpeechCorpus.py.",
+ "sources": {
+  "T47R": "Halabi 2016 thesis, Table 4-7, 'Phonemes Revisited' rows, section 4.4, about p. 46, read through a text extraction of the PDF (not checked on the rendered page). The vowel rows are not confirmed, see the note on a",
+  "LREC": "Halabi and Wald 2016, LREC, 'Phonetic inventory for an Arabic speech corpus', Table 1, section 4.1, read through a text extraction of the PDF",
+  "R5.1": "Halabi 2016 thesis, section 5.1, p. 52, phonetisation rules, read through a text extraction of the PDF",
+  "README": "README.txt inside arabic-speech-corpus.zip",
+  "BROSELOW": "Broselow, E., Arabic syllable structure, Stony Brook University, https://linguistics.stonybrook.edu/faculty/ellen.broselow/files/Broselow_ArabicSyllStrPaper_revised.pdf",
+  "SITE": "the corpus site's text on stress marks, as copied at https://dagshub.com/DagsHub/audio-datasets/src/main/Arabic-Speech-Corpus"
+ },
+ "rules": {
+  "silence": "sil is a pause (README, and rule 4 of section 5.1). It is no phone, and its timestamps carry an empty string",
+  "gemination": "a doubled consonant symbol is a geminate (thesis Table 4-7 text). It is written with the IPA length mark",
+  "stress": "an apostrophe after a vowel marks a stressed syllable (SITE). In the IPA string, ˈ goes before the one consonant that starts that syllable, since a syllable of Modern Standard Arabic starts with exactly one consonant (BROSELOW), or before the vowel after a pause. Before a geminate it goes before the whole geminate. The timestamps carry no stress"
+ },
+ "phones": {
+  "<": {
+   "ipa": "ʔ",
+   "kind": "consonant",
+   "source": "R5.1",
+   "note": "rule 7 writes the glottal stop as /</"
+  },
+  "b": {
+   "ipa": "b",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "t": {
+   "ipa": "t",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "^": {
+   "ipa": "θ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "j": {
+   "ipa": "ʒ",
+   "kind": "consonant",
+   "source": "LREC",
+   "note": "the thesis table lists both ʒ and d͡ʒ for this letter. LREC Table 1 gives j as ʒ and J as d͡ʒ"
+  },
+  "J": {
+   "ipa": "d͡ʒ",
+   "kind": "consonant",
+   "source": "LREC"
+  },
+  "H": {
+   "ipa": "ħ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "x": {
+   "ipa": "x",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "d": {
+   "ipa": "d",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "*": {
+   "ipa": "ð",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "r": {
+   "ipa": "r",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "z": {
+   "ipa": "z",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "s": {
+   "ipa": "s",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "$": {
+   "ipa": "ʃ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "S": {
+   "ipa": "sˤ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "D": {
+   "ipa": "dˤ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "T": {
+   "ipa": "tˤ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "Z": {
+   "ipa": "ðˤ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "E": {
+   "ipa": "ʕ",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "g": {
+   "ipa": "ɣ",
+   "kind": "consonant",
+   "source": "LREC R5.1",
+   "note": "the thesis table writes this letter as G. The corpus writes it as g, as LREC Table 1 and rule 8 of section 5.1 do"
+  },
+  "f": {
+   "ipa": "f",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "q": {
+   "ipa": "q",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "k": {
+   "ipa": "k",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "l": {
+   "ipa": "l",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "m": {
+   "ipa": "m",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "n": {
+   "ipa": "n",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "h": {
+   "ipa": "h",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "w": {
+   "ipa": "w",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "y": {
+   "ipa": "j",
+   "kind": "consonant",
+   "source": "T47R LREC"
+  },
+  "p": {
+   "ipa": "p",
+   "kind": "consonant",
+   "source": "T47R LREC",
+   "note": "foreign words only"
+  },
+  "v": {
+   "ipa": "v",
+   "kind": "consonant",
+   "source": "T47R LREC",
+   "note": "foreign words only"
+  },
+  "a": {
+   "ipa": "a",
+   "kind": "vowel",
+   "source": "T47R",
+   "note": "the extracted table gives a for a but æː for aa, while every other short and long pair has the same quality. The extraction may have shifted the IPA column, so a may be æ. Kept as extracted. For Alex",
+   "confirmed": false
+  },
+  "aa": {
+   "ipa": "æː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "A": {
+   "ipa": "ɑ",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "AA": {
+   "ipa": "ɑː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "i0": {
+   "ipa": "i",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "i1": {
+   "ipa": "ɪ",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "ii0": {
+   "ipa": "iː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "ii1": {
+   "ipa": "ɪː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "u0": {
+   "ipa": "u",
+   "kind": "vowel",
+   "source": "T47R",
+   "note": "the extracted table prints æ for u0, but its own Arabic column for u0 is the damma, and uu0 is uː. u is used. For Alex",
+   "confirmed": false
+  },
+  "u1": {
+   "ipa": "o̞",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "uu0": {
+   "ipa": "uː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "uu1": {
+   "ipa": "o̞ː",
+   "kind": "vowel",
+   "source": "T47R",
+   "confirmed": false
+  },
+  "I0": {
+   "ipa": "i",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "capital letter marks a vowel next to an emphatic consonant (rule 8). The thesis gives no IPA of its own, so the lower case vowel is used. For Alex",
+   "confirmed": false
+  },
+  "I1": {
+   "ipa": "ɪ",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "II0": {
+   "ipa": "iː",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "U0": {
+   "ipa": "u",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "U1": {
+   "ipa": "o̞",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "UU0": {
+   "ipa": "uː",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "UU1": {
+   "ipa": "o̞ː",
+   "kind": "vowel",
+   "source": "R5.1",
+   "note": "as I0",
+   "confirmed": false
+  },
+  "-": {
+   "ipa": "ə",
+   "kind": "vowel",
+   "source": "README",
+   "note": "the README marks the schwa as '-'"
+  }
+ },
+ "no_ipa": {
+  "dist": "the README says corrupt phonemes are marked dist. No phone",
+  "G": "the thesis table gives G as ɣ, but the corpus writes ɣ as g. G is in 3 words, such as the Yangtze river, so its sound is not known",
+  "AH": "in no table of the thesis or the LREC paper",
+  "Ah": "in no table of the thesis or the LREC paper",
+  "u": "a u with no 0 or 1. In no table of the thesis"
+ }
+}
