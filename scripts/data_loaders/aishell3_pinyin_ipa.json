@@ -416,14 +416,17 @@
   "2": "˧˥",
   "3": "˨˩˦",
   "4": "˥˩",
+  "neutral_after_1": "˨",
+  "neutral_after_2": "˧",
+  "neutral_after_3": "˦",
   "neutral_after_4": "˩",
-  "neutral_other": "˧",
-  "source": "WIKI",
-  "note": "Chao letters for the four tones. The neutral tone 5 takes ˩ after tone 4 and ˧ otherwise, and ˧ at the start of an utterance"
+  "neutral_start": "˧",
+  "source": "WIKI and LIBRE",
+  "note": "Chao letters for the four tones, from WIKI. The neutral tone 5 takes its pitch from the last full tone before it, 2 after tone 1, 3 after tone 2, 4 after tone 3 and 1 after tone 4, from LIBRE. So a run of neutral tones keeps the pitch of the full tone before the run. LIBRE does not say what a run does, or what a neutral tone at the start of an utterance does, and both of those choices are ours, with ˧ at the start. Not verified"
  },
  "skip_syllables": {
-  "jv": "nonstandard spelling, ü after j is written u",
-  "din": "not a pinyin syllable",
-  "lo": "a rare particle, once. The table has no final for it"
+  "jv": "a nonstandard spelling, since pinyin writes ü after j as u, once in the archive",
+  "din": "not a pinyin syllable, once in the archive",
+  "lo": "a particle, 3 times in the archive. The table has no final o after l, so it is skipped and counted"
  }
 }

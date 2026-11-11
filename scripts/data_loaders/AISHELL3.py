@@ -15,12 +15,14 @@
 #   mkdir -p ./.data/AISHELL3 && cd ./.data/AISHELL3
 #   curl -L -O https://www.openslr.org/resources/93/data_aishell3.tgz
 #   tar -xzf data_aishell3.tgz
-#   If tar made one folder, move what is in it up into .data/AISHELL3.
-#   The archive is 19.0 GB. Its size and SHA-256 are in the notes. Afterwards
-#   .data/AISHELL3 holds spk-info.txt, and train and test each hold content.txt and wav/.
+#   ls
+#   ls must show spk-info.txt, train and test. If it shows one folder instead, run
+#   mv FOLDER/* . with that folder's name. The archive is 19.0 GB. Its size and SHA-256
+#   are in the notes. Then train and test each hold content.txt and wav/.
 #
-# Tested on Nov 11, 2026, on every item of every split, with the real audio.
-# No person has listened to the clips yet.
+# Tested on Nov 11, 2026, with the real audio. The labels of every item of every split
+# were checked, every WAV was read with read_wav, and full items with speaker info and
+# text were checked on a sample of 88. No person has listened to the clips yet.
 # TODO: manual verification
 
 import io
@@ -49,7 +51,7 @@ SYLLABLE = re.compile(r"[a-z]+[1-5]")
 def syllable_units(base, table):
     """The IPA units of one pinyin syllable without its tone, or a reason string."""
     if base in table["skip_syllables"]:
-        return f"nonstandard:{base}"
+        return f"table_skip:{base}"
     # A final r is erhua, such as dianr. er itself is a syllable.
     if base.endswith("r") and base != "er":
         return "erhua"
@@ -83,7 +85,7 @@ def syllable_units(base, table):
 
 def pinyin_to_ipa(syllables, tones, table):
     """(IPA string, list of IPA units) of a list of pinyin syllables, or a reason."""
-    units, previous = [], None
+    units, last_full = [], None
     for syllable in syllables:
         if not SYLLABLE.fullmatch(syllable):
             return f"bad_syllable:{syllable}"
@@ -95,12 +97,12 @@ def pinyin_to_ipa(syllables, tones, table):
         if tones == "letters":
             letter = table["tones"].get(tone)
             if letter is None:
-                # The neutral tone takes its height from the tone before it.
-                letter = table["tones"][
-                    "neutral_after_4" if previous == "4" else "neutral_other"
-                ]
+                # The neutral tone takes its pitch from the last full tone before it.
+                key = f"neutral_after_{last_full}" if last_full else "neutral_start"
+                letter = table["tones"][key]
             units.append(letter)
-        previous = tone
+        if tone != "5":
+            last_full = tone
     return "".join(units), units
 
 
@@ -144,14 +146,15 @@ def read_speakers():
 
 
 def wav_is_whole(data):
-    """True if the data chunk of a WAV ends exactly at the end of the file."""
+    """True if the data chunk of a WAV ends within the file."""
     if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
         return False
     pos = 12
     while pos + 8 <= len(data):
         size = int.from_bytes(data[pos + 4 : pos + 8], "little")
         if data[pos : pos + 4] == b"data":
-            return pos + 8 + size in (len(data), len(data) - 1)
+            # Chunks after the data are allowed. A data chunk that runs past the end is not.
+            return pos + 8 + size <= len(data)
         pos += 8 + size + (size & 1)
     return False
 
@@ -219,6 +222,7 @@ class AISHELL3Dataset(BaseDataset):
         if split == "test_new_speakers":
             train = {stem[:7] for stem, _, _ in read_content("train")}
             content["test"] = [x for x in content["test"] if x[0][:7] not in train]
+        seen = set()
         for part in parts:
             on_disk = {}
             for stem, characters, syllables in sorted(content[part]):
@@ -229,7 +233,13 @@ class AISHELL3Dataset(BaseDataset):
                         raise ValueError(f"{folder} not found. {FIX}")
                     on_disk[speaker] = set(os.listdir(folder))
                 if f"{stem}.wav" not in on_disk[speaker]:
-                    raise ValueError(f"{stem}.wav of {part} not found. {FIX}")
+                    wav = os.path.join(DATA_DIR, part, "wav", speaker, f"{stem}.wav")
+                    raise ValueError(f"{wav} not found. {FIX}")
+                if (part, stem) in seen:
+                    raise ValueError(
+                        f"{stem} is twice in the content.txt of {part}. {FIX}"
+                    )
+                seen.add((part, stem))
                 if speaker not in self.speakers:
                     raise ValueError(f"Speaker {speaker} is not in spk-info.txt. {FIX}")
                 result = pinyin_to_ipa(syllables, tones, table)
@@ -275,6 +285,8 @@ class AISHELL3Dataset(BaseDataset):
                     "gender": gender,
                     "accent": accent,
                     "language": "Mandarin",
+                    "language_code": "cmn",
+                    "glottocode": "mand1415",
                     "source": SITE,
                     "raw_label": item["pinyin"],
                 }
