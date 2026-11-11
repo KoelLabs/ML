@@ -1,5 +1,5 @@
 # AISHELL-3, Mandarin read speech from 218 speakers, made for speech synthesis. 88,035
-# utterances, about 85 hours, with pinyin and tones written by professional annotators.
+# utterances, about 85 hours, with pinyin and tones that people wrote by listening.
 # Site: https://www.openslr.org/93/
 # Paper: Shi, Y., Bu, H., Xu, X., Zhang, S., Li, M. (2021). AISHELL-3: A multi-speaker
 #   Mandarin TTS corpus. Interspeech 2021. https://arxiv.org/abs/2010.11567
@@ -12,11 +12,12 @@
 # no timestamps.
 #
 # Download instructions:
-#   mkdir -p ./.data/AISHELL3
-#   curl -L -o ./.data/AISHELL3/data_aishell3.tgz https://www.openslr.org/resources/93/data_aishell3.tgz
-#   tar -xzf ./.data/AISHELL3/data_aishell3.tgz -C ./.data/AISHELL3 --strip-components=1
+#   mkdir -p ./.data/AISHELL3 && cd ./.data/AISHELL3
+#   curl -L -O https://www.openslr.org/resources/93/data_aishell3.tgz
+#   tar -xzf data_aishell3.tgz
+#   If tar made one folder, move what is in it up into .data/AISHELL3.
 #   The archive is 19.0 GB. Its size and SHA-256 are in the notes. Afterwards
-#   .data/AISHELL3/train and .data/AISHELL3/test each hold content.txt and wav/.
+#   .data/AISHELL3 holds spk-info.txt, and train and test each hold content.txt and wav/.
 #
 # Tested on Nov 11, 2026, on every item of every split, with the real audio.
 # No person has listened to the clips yet.
