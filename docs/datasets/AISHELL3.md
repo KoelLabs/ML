@@ -2,7 +2,7 @@
 
 Loader `scripts/data_loaders/AISHELL3.py`, class `AISHELL3Dataset`. Pinyin to IPA table `scripts/data_loaders/aishell3_pinyin_ipa.json`.
 
-Written Nov 11, 2026. Every number here comes from a script run on the real archive, unless it says it comes from a source. Sources are listed at the end.
+Written Nov 10, 2026, Pacific time. Every number here comes from a script run on the real archive, unless it says it comes from a source. Sources are listed at the end.
 
 ## In short
 
@@ -79,7 +79,7 @@ a e f i k kʰ l m n o p pʰ s t ts tsʰ tɕ tɕʰ tʂ tʂʰ tʰ u x y ŋ ɔ ɕ �
 * The final iong is yuŋ, as in the same table. Other broad tables write iʊŋ or jʊŋ. Also one line, for Alex.
 * An affricate is one unit, such as tʂ, written without a tie bar.
 * Tones use Chao tone letters, from Wikipedia, read in a search extract. Tone 1 is ˥, tone 2 ˧˥, tone 3 ˨˩˦, tone 4 ˥˩.
-* The neutral tone 5 takes its pitch from the full tone before it, from a LibreTexts course page read in a search extract. It is ˨ after tone 1, ˧ after tone 2, ˦ after tone 3 and ˩ after tone 4. The source does not say what a run of neutral tones does, or one at the start of an utterance. The loader keeps the pitch of the last full tone for a run, and writes ˧ at the start. Those two choices are mine, not verified.
+* The neutral tone 5 takes its pitch from the full tone before it, from a LibreTexts course page read in a search extract. It is ˨ after tone 1, ˧ after tone 2, ˦ after tone 3 and ˩ after tone 4. The source does not say what a run of neutral tones does, or one at the start of an utterance. The loader keeps the pitch of the last full tone for a run, and writes ˧ at the start. Those two choices are the loader's own, not verified.
 * Tone 3 is always written in full, though it is often spoken low only. Only the sandhi that the pinyin writes is shown.
 * Each choice and its source is in the JSON, so a different reading changes one line.
 
@@ -87,7 +87,7 @@ a e f i k kʰ l m n o p pʰ s t ts tsʰ tɕ tɕʰ tʂ tʂʰ tʰ u x y ŋ ɔ ɕ �
 
 Done in this loader.
 
-* 1,756 utterances are skipped and counted, 2.0% of the archive. 1,749 have erhua, a syllable ending in r other than er, such as `dianr3`. The vowel of an erhua syllable changes in a way that a table per syllable cannot give, so any rule would be a guess. 2 have `yo`, which the table does not know. 5 have a syllable that the table lists to skip, 3 `lo`, a particle with no final in the table, 1 `jv`, a nonstandard spelling of ju, and 1 `din`, which is not a pinyin syllable.
+* 1,756 utterances are skipped and counted, 2.0% of the archive. 1,749 have erhua, a syllable ending in r other than er, such as `dianr3`. The vowel of an erhua syllable changes in a way that a table per syllable cannot give, so any rule would be a guess. 2 have `yo`, which the table does not know. 5 have a syllable that the table lists to skip, 3 `lo`, a particle, since the table reads o as uɔ, which holds only after b, p, m and f, 1 `jv`, a nonstandard spelling of ju, and 1 `din`, which is not a pinyin syllable.
 * So 172 of the 174 train speakers and 213 of the 214 test speakers keep items. The two train speakers and the one test speaker who lose all their items, SSB1377, SSB1630 and SSB0629, have one line each in that folder.
 * The files have Windows line ends, and 11 lines end in a space. The loader reads both.
 * A line of `content.txt` that the loader cannot read, or a file name that is there twice, stops the load with an error that names it. Nothing is guessed.
@@ -96,7 +96,7 @@ Done in this loader.
 Still to do.
 
 * Erhua, 2.0% of the data, needs a rule written by someone who knows Mandarin phonology, or it stays out.
-* Nobody has listened to the clips. Raunak has 7 clips for listening on his machine, outside the PR, the quietest file among them.
+* Nobody has listened to the clips. 7 clips for listening are kept outside the PR, the quietest file among them.
 * A person who knows Mandarin should check the table, mainly r, iong, the two buzzed vowels and the neutral tone.
 * Accent is in the speaker info, but the labels do not show it.
 
@@ -140,7 +140,7 @@ On the VM, Linux with 4 CPUs, setting up took 2.50 s for `train`, 0.96 s for `te
 
 ## Sources
 
-Read on Nov 10 and 11, 2026. The paper was read through text extractions of the arXiv HTML and PDF, not on the rendered page.
+Read on Nov 10, 2026, Pacific time. The paper was read through text extractions of the arXiv HTML and PDF, not on the rendered page.
 
 * Shi, Y., Bu, H., Xu, X., Zhang, S. and Li, M., 2021. AISHELL-3, a multi speaker Mandarin TTS corpus. Interspeech 2021, pp. 2756 to 2760. https://www.isca-archive.org/interspeech_2021/shi21c_interspeech.html
 * The same paper on arXiv, 2010.11567 version 2, https://arxiv.org/abs/2010.11567, and its HTML, https://ar5iv.labs.arxiv.org/html/2010.11567
@@ -150,4 +150,5 @@ Read on Nov 10 and 11, 2026. The paper was read through text extractions of the 
 * VoxKitchen dataset catalog, https://voxkitchen.readthedocs.io/en/latest/datasets/aishell3/
 * University of Washington, Chinese 342 IPA pages, finals and consonants, the source of the table, linked in the JSON
 * Wikibooks and Wikipedia pages on Mandarin phonology and tone letters, linked in the JSON
-* Glottolog and Wikipedia, Mandarin Chinese, https://en.wikipedia.org/wiki/Mandarin_Chinese
+* Wikipedia, Mandarin Chinese, for the `ISO 639-3` code and the Glottocode, https://en.wikipedia.org/wiki/Mandarin_Chinese
+* LibreTexts, CHN 101 Beginning Mandarin, 1.2.1 Mandarin Phonology II, section Neutral Tone, the source of the neutral tone, linked in the JSON
