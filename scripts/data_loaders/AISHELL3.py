@@ -20,7 +20,7 @@
 #   mv FOLDER/* . with that folder's name. The archive is 19.0 GB. Its size and SHA-256
 #   are in the notes. Then train and test each hold content.txt and wav/.
 #
-# Tested on Nov 11, 2026, with the real audio. The labels of every item of every split
+# Tested on Nov 10, 2026, Pacific time, with the real audio. The labels of every item of every split
 # were checked, every WAV was read with read_wav, and full items with speaker info and
 # text were checked on a sample of 88. No person has listened to the clips yet.
 # TODO: manual verification
