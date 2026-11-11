@@ -28,7 +28,7 @@ Written Nov 11, 2026. Every number here comes from a script run on the real arch
 | 95th percentile, seconds | 6.32 | 5.94 | 5.98 | 6.22 |
 | Longest clip, seconds | 11.01 | 15.72 | 10.68 | 15.72 |
 
-* Every WAV is 44,100 Hz, mono, 16 bit PCM. In 80,677 files the RIFF size field is larger than the file, by one of 6 fixed amounts. In all 88,035 the data chunk ends exactly at the end of the file. So the loader checks the data chunk, and a cut file still fails.
+* Every WAV is 44,100 Hz, mono, 16 bit PCM. In 80,677 files the RIFF size field is larger than the file, by one of 6 fixed amounts. In all 88,035 the data chunk ends exactly at the end of the file. So the loader checks the data chunk instead. A cut file still fails, and a chunk after the data is allowed.
 * No two files share audio. Every WAV has a line in `content.txt`, and the other way round. 67 files have a sample at full scale, at most 747 such samples in one file.
 * Speaker SSB0987 is quiet. The median of its loudest 20 ms frames is minus 34.2 dBFS, against minus 20.45 for the median speaker. 17 files have no frame above minus 40 dBFS, 16 of them from this speaker. None is silent, since every file has a frame above minus 60 dBFS. Nobody has listened to them yet.
 * Age groups, from `spk-info.txt`, are 2 under 14, 173 from 14 to 25, 35 from 26 to 40, and 8 over 41. Accents are 165 north, 51 south and 2 others. No man has the accent others.
@@ -66,33 +66,38 @@ So the characters and the pinyin are human labels, checked by people. The IPA is
 
 ## The phone symbols
 
-The loader writes 34 phone units, and 40 with the tone letters.
+The loader writes 34 phone units, and 42 with the tone letters.
 
 ```
 a e f i k kʰ l m n o p pʰ s t ts tsʰ tɕ tɕʰ tʂ tʂʰ tʰ u x y ŋ ɔ ɕ ə ɛ ɤ ɹ ɹ̩ ɻ̩ ʂ
-˥ ˧˥ ˨˩˦ ˥˩ ˧ ˩
+˥ ˧˥ ˨˩˦ ˥˩ ˨ ˧ ˦ ˩
 ```
 
 * Initials and finals follow the IPA pages of the Chinese 342 course at the University of Washington. They are broad, and write the glides as i, u and y. The pages were read through a text extraction, and the consonant table came out flattened, so a few pairings follow the order of its cells and are not checked on the rendered page.
 * The vowel of zi, ci, si is ɹ̩, and the vowel of zhi, chi, shi, ri is ɻ̩, from a Wikibooks page read in a search extract. It gives the two symbols, but not which goes with which group, so that pairing is not verified. The usual signs ɿ and ʅ are not in the repo's symbol set, so the table uses the other spelling.
-* The initial r is ɹ, as in the University of Washington table. Other sources write ɻ or ʐ. This is one line in the JSON, for Alex.
+* The initial r is ɹ, as in the University of Washington table. Other sources write ɻ or ʐ. So ri comes out as ɹɻ̩. This is one line in the JSON, for Alex.
+* The final iong is yuŋ, as in the same table. Other broad tables write iʊŋ or jʊŋ. Also one line, for Alex.
 * An affricate is one unit, such as tʂ, written without a tie bar.
-* Tones use Chao tone letters, from Wikipedia, read in a search extract. Tone 1 is ˥, tone 2 ˧˥, tone 3 ˨˩˦, tone 4 ˥˩. The neutral tone 5 is ˩ after tone 4, and ˧ elsewhere. Tone 3 is always written in full, though it is often spoken low only. Only the sandhi that the pinyin writes is shown.
+* Tones use Chao tone letters, from Wikipedia, read in a search extract. Tone 1 is ˥, tone 2 ˧˥, tone 3 ˨˩˦, tone 4 ˥˩.
+* The neutral tone 5 takes its pitch from the full tone before it, from a LibreTexts course page read in a search extract. It is ˨ after tone 1, ˧ after tone 2, ˦ after tone 3 and ˩ after tone 4. The source does not say what a run of neutral tones does, or one at the start of an utterance. The loader keeps the pitch of the last full tone for a run, and writes ˧ at the start. Those two choices are mine, not verified.
+* Tone 3 is always written in full, though it is often spoken low only. Only the sandhi that the pinyin writes is shown.
 * Each choice and its source is in the JSON, so a different reading changes one line.
 
 ## Cleaning
 
 Done in this loader.
 
-* 1,756 utterances are skipped and counted, 2.0% of the archive. 1,749 have erhua, a syllable ending in r other than er, such as `dianr3`. The vowel of an erhua syllable changes in a way that a table per syllable cannot give, so any rule would be a guess. 2 have `yo`, which the table does not know. 5 have spellings that are not standard pinyin, 3 `lo`, 1 `jv` and 1 `din`.
+* 1,756 utterances are skipped and counted, 2.0% of the archive. 1,749 have erhua, a syllable ending in r other than er, such as `dianr3`. The vowel of an erhua syllable changes in a way that a table per syllable cannot give, so any rule would be a guess. 2 have `yo`, which the table does not know. 5 have a syllable that the table lists to skip, 3 `lo`, a particle with no final in the table, 1 `jv`, a nonstandard spelling of ju, and 1 `din`, which is not a pinyin syllable.
 * So 172 of the 174 train speakers and 213 of the 214 test speakers keep items. The two train speakers and the one test speaker who lose all their items, SSB1377, SSB1630 and SSB0629, have one line each in that folder.
 * The files have Windows line ends, and 11 lines end in a space. The loader reads both.
+* A line of `content.txt` that the loader cannot read, or a file name that is there twice, stops the load with an error that names it. Nothing is guessed.
+* The loader turns 44.1 kHz into 16 kHz with the repo's shared resampler, as every loader does. It uses linear steps with no low pass filter, so some aliasing is likely. This was not measured here.
 
 Still to do.
 
 * Erhua, 2.0% of the data, needs a rule written by someone who knows Mandarin phonology, or it stays out.
-* Nobody has listened to the clips. The suite writes 7 for listening to `tmp/listen/aishell3/`, outside the PR, the quietest file among them.
-* A person who knows Mandarin should check the table, mainly r, the two buzzed vowels and the neutral tone.
+* Nobody has listened to the clips. Raunak has 7 clips for listening on his machine, outside the PR, the quietest file among them.
+* A person who knows Mandarin should check the table, mainly r, iong, the two buzzed vowels and the neutral tone.
 * Accent is in the speaker info, but the labels do not show it.
 
 ## What evaluation drops
@@ -107,8 +112,8 @@ As a crash test, `evaluate(ipa, ipa)` ran on all 83,504 distinct labels without 
 ## Splits
 
 * `train` and `test` are the archive's own folders. `all` is train, then test. Items keep file order, so every machine gets the same order.
-* The test folder is not new speakers only. 170 of its 214 speakers are also in train, with 11,065 of its 24,773 lines. Section 4.1.2 of the paper explains this. 44 speakers were drawn at random as unseen test speakers, and part of each train speaker's lines were kept back for checking on seen speakers.
-* `test_new_speakers` is the test lines of the speakers who are not in train. It is the paper's unseen speakers test set, 44 speakers and 13,404 items. Use it for a leaderboard.
+* The test folder is not new speakers only. 170 of its 214 speakers are also in train, with 11,066 of its 24,773 lines. Section 4.1.2 of the paper explains this. 44 speakers were drawn at random as unseen test speakers, and part of each train speaker's lines were kept back for checking on seen speakers.
+* `test_new_speakers` is the test lines of the speakers who are not in train. These are the paper's unseen speakers, 44 speakers with 13,707 lines, of which the loader gives 13,404 items. Use it for a leaderboard.
 * The default split is `train`.
 
 ## License
