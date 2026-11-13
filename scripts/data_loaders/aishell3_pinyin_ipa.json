@@ -1,0 +1,433 @@
+{
+ "about": "Pinyin to IPA for AISHELL-3, with the source of each choice. Read on Nov 10, 2026, Pacific time. Used by AISHELL3.py. This is a phonemic table. It gives one fixed IPA string for each initial and final, so it shows no allophones, no coarticulation and no speaker accent beyond what the pinyin writes.",
+ "sources": {
+  "UW": "Handel and Tahmoresi, University of Washington, Chinese 342, IPA pages: finals https://courses.washington.edu/chin342/ipa/finals.html and consonants https://courses.washington.edu/chin342/ipa/consonants.html. Read on Nov 10, 2026 through a text extraction of the pages. The site says its transcription is broad and writes the glides as i, u and y. The consonant table came out flattened, so a few pairings follow the cell order and are not checked on the rendered page",
+  "WB": "Wikibooks, Chinese (Mandarin), Pronunciation of Finals, section on the final i, https://en.wikibooks.org/wiki/Chinese/Pronunciation_of_Finals. Read on Nov 10, 2026 in a search extract. It lists the buzzed vowel of i after z c s zh ch sh r as [ɻ̩], [ɹ̩] without saying which goes where",
+  "WIKI": "Wikipedia, Standard Chinese phonology and Help:IPA/Mandarin, for the Chao tone letters of the four full tones, read on Nov 10, 2026 in a search extract",
+  "LIBRE": "LibreTexts, CHN 101 Beginning Mandarin, 1.2.1 Mandarin Phonology (Sound System) II, section Neutral Tone, https://human.libretexts.org/Workbench/CHN_101%3A_Beginning_Mandarin/01%3A_Introduction/1.02%3A_Pre-Unit_2/1.2.01%3A_Mandarin_Phonology_(Sound_System)_II, read on Nov 10, 2026 in a search extract. It gives the pitch of a neutral tone as 2 after tone 1, 3 after tone 2, 4 after tone 3 and 1 after tone 4",
+  "PINYIN": "Hanyu Pinyin spelling rules for y, w, u after j q x, and the written forms ui, un and iu, as listed on the Wikipedia pinyin table https://en.wikipedia.org/wiki/Pinyin_table, read on Nov 10, 2026 in a search extract. AISHELL-3 writes the letter ü as v (ReadMe.txt and content.txt)"
+ },
+ "initials": {
+  "b": {
+   "ipa": "p",
+   "source": "UW"
+  },
+  "p": {
+   "ipa": "pʰ",
+   "source": "UW"
+  },
+  "m": {
+   "ipa": "m",
+   "source": "UW"
+  },
+  "f": {
+   "ipa": "f",
+   "source": "UW"
+  },
+  "d": {
+   "ipa": "t",
+   "source": "UW"
+  },
+  "t": {
+   "ipa": "tʰ",
+   "source": "UW"
+  },
+  "n": {
+   "ipa": "n",
+   "source": "UW"
+  },
+  "l": {
+   "ipa": "l",
+   "source": "UW"
+  },
+  "g": {
+   "ipa": "k",
+   "source": "UW"
+  },
+  "k": {
+   "ipa": "kʰ",
+   "source": "UW"
+  },
+  "h": {
+   "ipa": "x",
+   "source": "UW"
+  },
+  "j": {
+   "ipa": "tɕ",
+   "source": "UW"
+  },
+  "q": {
+   "ipa": "tɕʰ",
+   "source": "UW"
+  },
+  "x": {
+   "ipa": "ɕ",
+   "source": "UW"
+  },
+  "zh": {
+   "ipa": "tʂ",
+   "source": "UW"
+  },
+  "ch": {
+   "ipa": "tʂʰ",
+   "source": "UW"
+  },
+  "sh": {
+   "ipa": "ʂ",
+   "source": "UW"
+  },
+  "r": {
+   "ipa": "ɹ",
+   "source": "UW",
+   "note": "UW lists r as ɹ. Other sources write ɻ or ʐ. Flagged for Alex"
+  },
+  "z": {
+   "ipa": "ts",
+   "source": "UW"
+  },
+  "c": {
+   "ipa": "tsʰ",
+   "source": "UW"
+  },
+  "s": {
+   "ipa": "s",
+   "source": "UW"
+  }
+ },
+ "finals": {
+  "a": {
+   "units": [
+    "a"
+   ],
+   "source": "UW"
+  },
+  "o": {
+   "units": [
+    "u",
+    "ɔ"
+   ],
+   "source": "UW"
+  },
+  "e": {
+   "units": [
+    "ɤ"
+   ],
+   "source": "UW"
+  },
+  "ai": {
+   "units": [
+    "a",
+    "i"
+   ],
+   "source": "UW"
+  },
+  "ei": {
+   "units": [
+    "e",
+    "i"
+   ],
+   "source": "UW"
+  },
+  "ao": {
+   "units": [
+    "a",
+    "u"
+   ],
+   "source": "UW"
+  },
+  "ou": {
+   "units": [
+    "o",
+    "u"
+   ],
+   "source": "UW"
+  },
+  "an": {
+   "units": [
+    "a",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "en": {
+   "units": [
+    "ə",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "ang": {
+   "units": [
+    "a",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "eng": {
+   "units": [
+    "ə",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "er": {
+   "units": [
+    "ə",
+    "ɹ"
+   ],
+   "source": "UW"
+  },
+  "i": {
+   "units": [
+    "i"
+   ],
+   "source": "UW"
+  },
+  "ia": {
+   "units": [
+    "i",
+    "a"
+   ],
+   "source": "UW"
+  },
+  "ie": {
+   "units": [
+    "i",
+    "ɛ"
+   ],
+   "source": "UW"
+  },
+  "iao": {
+   "units": [
+    "i",
+    "a",
+    "u"
+   ],
+   "source": "UW"
+  },
+  "iu": {
+   "units": [
+    "i",
+    "o",
+    "u"
+   ],
+   "source": "UW"
+  },
+  "iou": {
+   "units": [
+    "i",
+    "o",
+    "u"
+   ],
+   "source": "UW"
+  },
+  "ian": {
+   "units": [
+    "i",
+    "ɛ",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "in": {
+   "units": [
+    "i",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "iang": {
+   "units": [
+    "i",
+    "a",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "ing": {
+   "units": [
+    "i",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "iong": {
+   "units": [
+    "y",
+    "u",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "u": {
+   "units": [
+    "u"
+   ],
+   "source": "UW"
+  },
+  "ua": {
+   "units": [
+    "u",
+    "a"
+   ],
+   "source": "UW"
+  },
+  "uo": {
+   "units": [
+    "u",
+    "ɔ"
+   ],
+   "source": "UW"
+  },
+  "uai": {
+   "units": [
+    "u",
+    "a",
+    "i"
+   ],
+   "source": "UW"
+  },
+  "ui": {
+   "units": [
+    "u",
+    "e",
+    "i"
+   ],
+   "source": "UW"
+  },
+  "uei": {
+   "units": [
+    "u",
+    "e",
+    "i"
+   ],
+   "source": "UW"
+  },
+  "uan": {
+   "units": [
+    "u",
+    "a",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "un": {
+   "units": [
+    "u",
+    "ə",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "uen": {
+   "units": [
+    "u",
+    "ə",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "uang": {
+   "units": [
+    "u",
+    "a",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "ong": {
+   "units": [
+    "u",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "ueng": {
+   "units": [
+    "u",
+    "ə",
+    "ŋ"
+   ],
+   "source": "UW"
+  },
+  "v": {
+   "units": [
+    "y"
+   ],
+   "source": "UW"
+  },
+  "ve": {
+   "units": [
+    "y",
+    "ɛ"
+   ],
+   "source": "UW"
+  },
+  "van": {
+   "units": [
+    "y",
+    "ɛ",
+    "n"
+   ],
+   "source": "UW"
+  },
+  "vn": {
+   "units": [
+    "y",
+    "n"
+   ],
+   "source": "UW"
+  }
+ },
+ "finals_notes": {
+  "o": "UW gives o and uo one final, uɔ. Pinyin writes o for uo after b p m f (PINYIN), and o alone is the syllable o",
+  "iou uei uen": "the base forms of iu, ui and un, which pinyin writes short after an initial (PINYIN). The no-initial spellings you and wei and wen reach them",
+  "ueng": "weng. It is not in the UW table, which has no row for it. Built as uen with ŋ (derived, not in the source)",
+  "iong": "UW writes it yuŋ. The units are y u ŋ",
+  "er": "UW writes əɹ"
+ },
+ "apical": {
+  "dental": {
+   "initials": [
+    "z",
+    "c",
+    "s"
+   ],
+   "units": [
+    "ɹ̩"
+   ],
+   "source": "WB"
+  },
+  "retroflex": {
+   "initials": [
+    "zh",
+    "ch",
+    "sh",
+    "r"
+   ],
+   "units": [
+    "ɻ̩"
+   ],
+   "source": "WB",
+   "note": "WB lists the pair [ɻ̩], [ɹ̩] for the letter i after these initials. Which symbol goes after the dental and which after the retroflex initials is the usual reading and is not stated in the extract. Not verified"
+  }
+ },
+ "tones": {
+  "1": "˥",
+  "2": "˧˥",
+  "3": "˨˩˦",
+  "4": "˥˩",
+  "neutral_after_1": "˨",
+  "neutral_after_2": "˧",
+  "neutral_after_3": "˦",
+  "neutral_after_4": "˩",
+  "neutral_start": "˧",
+  "source": "WIKI and LIBRE",
+  "note": "Chao letters for the four tones, from WIKI. The neutral tone 5 takes its pitch from the last full tone before it, 2 after tone 1, 3 after tone 2, 4 after tone 3 and 1 after tone 4, from LIBRE. So a run of neutral tones keeps the pitch of the full tone before the run. LIBRE does not say what a run does, or what a neutral tone at the start of an utterance does, and both of those choices are the loader's own, with ˧ at the start. Not verified"
+ },
+ "skip_syllables": {
+  "jv": "a nonstandard spelling, since pinyin writes ü after j as u, once in the archive",
+  "din": "not a pinyin syllable, once in the archive",
+  "lo": "a particle, 3 times in the archive. The table reads the final o as uɔ, which holds after b, p, m and f only, not for this particle, so lo is skipped and counted"
+ }
+}
