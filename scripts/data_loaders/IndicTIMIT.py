@@ -17,18 +17,26 @@
 #   The human phone labels go in ./.data/IndicTIMIT/phone_labels. They are not in the
 #   18 archives.
 #
-# The IPA comes only from the human phone labels. The 2019 paper says two linguists
-# transcribed 2,342 recordings by hand, one of each sentence, and that the corpus
-# provides those transcriptions. Recordings without such a label are left out. The label
-# files were not in the archives when this loader was written, so read_phone_labels has
-# no parser yet, and the loader stops with an error that says so.
+# Two kinds of labels, chosen with labels=.
+# labels="g2p", the default for now: G2P labels, machine made. The IPA is the repo's
+#   english2ipa_espeak run on the sentence each speaker was asked to read, built once at
+#   commit ba64ac4 with eSpeak 1.48 and stored in indic_timit_g2p.json next to this
+#   file. It is not what the speaker said. Every recording is an item, and its speaker
+#   info says label_source "g2p".
+# labels="human": the human phone labels only. The 2019 paper says two linguists
+#   transcribed 2,342 recordings by hand, one of each sentence, and that the corpus
+#   provides those transcriptions. Recordings without such a label are left out. The
+#   label files were not in the archives when this loader was written, so
+#   read_phone_labels has no parser yet, and this kind stops with an error that says so.
+# The loader never mixes the two kinds and never falls back from one to the other.
 #
 # Tested on Nov 9, 2026, on the real files of all 18 nativities, with made up labels in
-# place of the human ones. Every recording was read and checked against its transcript
-# line and its WAV file. No person has listened yet.
+# place of the human ones, and on Nov 14 with the G2P labels. Every recording was read
+# and checked against its transcript line and its WAV file. No person has listened yet.
 # TODO: manual verification
 
 import io
+import json
 import os
 import re
 import sys
@@ -44,6 +52,11 @@ SOURCE = "https://spiredatasets.ee.iisc.ac.in/indictimitcorpus"
 DATA_DIR = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", ".data", "IndicTIMIT")
 )
+# The G2P labels, one per sentence text. Machine made, see the header above.
+G2P_TABLE = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "indic_timit_g2p.json"
+)
+LABEL_KINDS = ("g2p", "human")
 # Added to every error about the data files, so that the error says what fixes it.
 FIX = (
     f"Request Indic TIMIT at {SOURCE}, then from the repo root unpack the archive of"
@@ -129,6 +142,12 @@ def read_phone_labels():
     )
 
 
+def read_g2p_table():
+    """{sentence text: G2P IPA} from indic_timit_g2p.json. Machine labels of the text."""
+    with open(G2P_TABLE, encoding="utf-8") as f:
+        return json.load(f)["ipa"]
+
+
 def read_transcripts(code):
     """The path of Transcripts_<CODE>, and (speaker, number, sentence) for each line."""
     path = os.path.join(DATA_DIR, f"IISc_IndicTIMIT_{code}", f"Transcripts_{code}")
@@ -208,9 +227,12 @@ class IndicTIMITDataset(BaseDataset):
     Valid splits are "all" or a nativity code from NATIVITIES, such as "BEN" for the
     Bengali speakers. Each speaker is in one nativity. "all" needs all 18 folders.
 
-    Only the recordings with a human phone label are items, and their IPA is that label
-    without its spaces and word marks. self.recordings lists every recording, labeled or
-    not. The text is the sentence the speaker was asked to read.
+    labels="g2p", the default for now, gives every recording, and its IPA is G2P of the
+    sentence text from indic_timit_g2p.json, machine made, not what the speaker said.
+    labels="human" gives only the recordings with a human phone label, and their IPA is
+    that label without its spaces and word marks. It stops until the label files are
+    found. self.recordings lists every recording. The text is the sentence the speaker
+    was asked to read.
     """
 
     def __init__(
@@ -219,8 +241,14 @@ class IndicTIMITDataset(BaseDataset):
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        labels="g2p",
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
+        if labels not in LABEL_KINDS:
+            raise ValueError(
+                f"Unknown labels {labels!r}. Valid kinds are {LABEL_KINDS}"
+            )
+        self.labels_kind = labels
         # Kept with the dataset, so that a worker process started with spawn, which
         # imports this module again, reads from the same folder.
         self.data_dir = DATA_DIR
@@ -275,6 +303,10 @@ class IndicTIMITDataset(BaseDataset):
             self.recordings += sorted(
                 (code, s, n, shared.setdefault(text, text)) for s, n, text in rows
             )
+
+        if labels == "g2p":
+            self._setup_g2p(split, wav_without_line)
+            return
 
         # The labels of this split's speakers. A label of another speaker belongs to
         # another split, or to a speaker who is not in the release, and is counted.
@@ -349,7 +381,46 @@ class IndicTIMITDataset(BaseDataset):
             + (f", such as {min(others)}" if others else "")
         )
 
+    def _setup_g2p(self, split, wav_without_line):
+        """Every recording is an item, with the G2P label of its sentence text. The
+        human labels are not read."""
+        table = read_g2p_table()
+        texts = {r[3] for r in self.recordings}
+        missing = sorted(texts - table.keys())
+        if missing:
+            raise ValueError(
+                f"{len(missing)} sentences have no entry in {G2P_TABLE}, such as"
+                f" {missing[0]!r}. The table holds the 2,342 sentences of the release"
+            )
+        # The same guard as for the human labels, and no white space at all.
+        odd = sorted(
+            t
+            for t in texts
+            if not table[t]
+            or NOT_PHONES & set(table[t])
+            or any(c.isspace() for c in table[t])
+        )
+        if odd:
+            raise ValueError(
+                f"{len(odd)} G2P labels in {G2P_TABLE} are empty or not IPA, such as"
+                f" {table[odd[0]]!r} for {odd[0]!r}"
+            )
+        self.g2p = {t: table[t] for t in texts}
+        self.items = self.recordings
+        self.skipped = {"wav_without_line": wav_without_line}
+        feature_table = panphon.FeatureTable()
+        self.vocab = {p for t in texts for p in feature_table.segs_safe(self.g2p[t])}
+        speakers = len({r[1] for r in self.items})
+        print(
+            f"Indic TIMIT {split}: {len(self.items)} items with G2P labels of the"
+            f" sentence text, machine made, not of what was said, from {speakers}"
+            f" speaker{'' if speakers == 1 else 's'}. Left out are"
+            f" {wav_without_line} WAV files with no transcript line"
+        )
+
     def _ipa(self, recording):
+        if self.labels_kind == "g2p":
+            return self.g2p[recording[3]]
         return label_to_ipa(self.labels[recording_id(recording)])
 
     def __len__(self):
@@ -364,20 +435,24 @@ class IndicTIMITDataset(BaseDataset):
         outputs = [self._ipa(self.items[ix]), read_wav(path)]
         if self.include_speaker_info:
             language, region, group = NATIVITIES[code]
-            outputs.append(
-                {
-                    "id": stem,
-                    "speaker": speaker,
-                    "sex": speaker[0],
-                    "nativity": code,
-                    "native_language": language,
-                    "region": region,
-                    "group": group,
-                    "sentence": number,
-                    "raw_label": self.labels[stem],
-                    "source": SOURCE,
-                }
-            )
+            g2p = self.labels_kind == "g2p"
+            info = {
+                "id": stem,
+                "speaker": speaker,
+                "sex": speaker[0],
+                "nativity": code,
+                "native_language": language,
+                "region": region,
+                "group": group,
+                "sentence": number,
+                # For G2P, the table entry as stored.
+                "raw_label": self.g2p[text] if g2p else self.labels[stem],
+                "source": SOURCE,
+            }
+            if g2p:
+                # A mark on every G2P item that its label is machine made.
+                info["label_source"] = "g2p"
+            outputs.append(info)
         if self.include_text:
             outputs.append(text)
         return tuple(outputs)
