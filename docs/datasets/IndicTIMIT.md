@@ -1,13 +1,14 @@
 # Indic TIMIT
 
-These notes are from Nov 9, 2026. Every number comes from the 18 archives of the SPIRE Lab in `.data/IndicTIMIT`, unless a line says otherwise. Facts from the 2019 paper give its section, since its PDF text has no page numbers. The papers were read through a web reader, which cuts long sentences, so a quote may stop mid sentence. Each was checked twice. What we could not check says not verified.
+These notes are from Nov 9, 2026, and the G2P labels were added on Nov 14. Every number comes from the 18 archives of the SPIRE Lab in `.data/IndicTIMIT`, unless a line says otherwise. Facts from the 2019 paper give its section, since its PDF text has no page numbers. The papers were read through a web reader, which cuts long sentences, so a quote may stop mid sentence. Each was checked twice. What we could not check says not verified.
 
 ## The labels, in short
 
-* This loader is for human phone labels. The 2019 paper says two linguists wrote them by hand for 2,342 recordings, one of each sentence, and that the data comes with them. The SPIRE README also says linguists labeled a subset.
-* They are not in the 18 archives as we downloaded them. Each archive holds only WAV files, their text and a list of the sentences.
-* So until the label files are found, the loader stops at setup with an error that says this. It never puts machine made labels in their place.
-* When they are found, one function, `read_phone_labels`, gets a parser, and the loader returns only the recordings that have a label, at most 2,342 of the 187,360. The others are left out by design.
+* The loader has two kinds of labels, chosen with `labels`. The default for now is `g2p`. The two kinds are never mixed, and the loader never falls back from one to the other.
+* `labels="g2p"` gives G2P labels, made by a program, not by a person. The IPA is the repo's `english2ipa_espeak` run on the sentence each speaker was asked to read, so it is not what the speaker said. Every one of the 187,360 recordings is an item, and its speaker info says `label_source` `g2p`.
+* `labels="human"` is for the human phone labels. The 2019 paper says two linguists wrote them by hand for 2,342 recordings, one of each sentence, and that the data comes with them. The SPIRE README also says linguists labeled a subset.
+* The human labels are not in the 18 archives as we downloaded them. Each archive holds only WAV files, their text and a list of the sentences. So until the label files are found, `labels="human"` stops at setup with an error that says this.
+* When they are found, one function, `read_phone_labels`, gets a parser, and `labels="human"` returns only the recordings that have a label, at most 2,342 of the 187,360. If the default then becomes `human`, the items of a call with no `labels` drop from 187,360 to at most 2,342.
 
 ## Words used below
 
@@ -20,21 +21,24 @@ These notes are from Nov 9, 2026. Every number comes from the 18 archives of the
 `scripts/data_loaders/IndicTIMIT.py`, class `IndicTIMITDataset`.
 
 * `split` is `all` or a nativity code, such as `BEN`. No speaker is in two nativities. The release has no train or test split, and the 2019 paper's, from 63 speakers it does not name, cannot be rebuilt. The paper counts the labeled recordings by group, not by nativity, so a nativity split may get few or none, and one with none stops with an error.
+* `labels` is `g2p`, the default, or `human`. See the two sections on how the labels were made.
 * The human labels are read from `.data/IndicTIMIT/phone_labels`, a name of ours. Setup stops if the folder is missing or empty, and also if it holds files, since the loader does not guess a format we have not seen.
 * `read_phone_labels` must give every label it finds, and the loader keeps those of the split.
-* `self.recordings` lists every recording. `self.items` holds the ones with a human label, and `self.skipped` counts the rest.
-* The IPA will be the human label without its spaces and its word marks, `∼`. The label as given is `raw_label`.
+* `self.recordings` lists every recording. With `g2p`, `self.items` is every recording. With `human`, it holds the ones with a human label, and `self.skipped` counts the rest.
+* With `g2p`, the IPA is the table entry of the sentence, unchanged, and `raw_label` is that entry too. With `human`, the IPA will be the human label without its spaces and its word marks, `∼`, and the label as given is `raw_label`.
 * `include_timestamps=True` fails, since the data has no phone times.
-* `include_speaker_info=True` gives `id`, `speaker`, `sex`, `nativity`, `native_language`, `region`, `group`, `sentence`, `raw_label` and `source`.
+* `include_speaker_info=True` gives `id`, `speaker`, `sex`, `nativity`, `native_language`, `region`, `group`, `sentence`, `raw_label` and `source`. With `g2p` it also gives `label_source`, which is `g2p`.
 * `include_text=True` gives the sentence, as `Transcripts_<CODE>` writes it, without its last space.
-* Setup stops with an error that says what to do when a folder, a transcript or a WAV file is missing, a transcript is cut inside a line, or a line is broken or repeated. It also stops on a label that does not fit its recordings or is not IPA. A WAV file with no line is skipped and counted.
+* `interactive_flag_samples` keeps its place by class name and split, so the two kinds of labels share one record.
+* Setup stops with an error that says what to do when a folder, a transcript or a WAV file is missing, a transcript is cut inside a line, or a line is broken or repeated. It also stops on a label that does not fit its recordings or is not IPA, and on a sentence the G2P table lacks. A WAV file with no line is skipped and counted.
 
 ## Report
 
 | Item | Value | Source |
 |---|---|---|
-| Items today | none, setup stops with no human label on disk | Loader |
-| Items with the labels | up to 2,342, one per sentence, 512, 512, 295, 511 and 512 from groups 1 to 5 | Paper, section III.A |
+| Items with `g2p` | 187,360, every recording | Loader |
+| Items with `human` today | none, setup stops with no human label on disk | Loader |
+| Items with the human labels | up to 2,342, one per sentence, 512, 512, 295, 511 and 512 from groups 1 to 5 | Paper, section III.A |
 | Clip seconds, all recordings | shortest 1.194, median 4.267, longest 15.786 | Data |
 | Setup time | 1.12 s for `BEN`, 4.83 s for `all`, best of 3 | Loader with made up labels, on a Linux VM, Nov 9 |
 | Peak memory | 506 MB for `all` | Same |
@@ -163,11 +167,37 @@ We found no word in the paper on training for this task, or on how the two lingu
 
 The 2019 paper reports no agreement between the two linguists. Its Table II, 51.77 percent of phones the same as TIMIT's own, is not agreement. The SPECOM 2023 paper says one of them wrote 13,632 more labels, 15,974 in all, and labeled 200 files per group twice, with a mean Cohen's Kappa of 0.827 between the passes. It does not say where those labels are.
 
+## How the G2P labels were made
+
+### Human or machine
+
+Machine. No person wrote or checked them. The table `scripts/data_loaders/indic_timit_g2p.json` holds one entry for each of the 2,342 sentence texts, and its header says how it was made.
+
+* The function is `english2ipa_espeak` in `scripts/core/text.py`, as it is at commit `ba64ac4`, with its default filter `letters_rmv_tie`.
+* It runs phonemizer 3.3.0 with the `en-us` voice of eSpeak. The library is Homebrew's espeak 1.48.04, which phonemizer reports as version 1.48.3.
+* It was built on a Mac on Nov 9, 2026, twice in separate processes. Both builds gave the same file, `SHA-256` `4cce256e63633ca8dbd7870c0dfc617551e54a86246243006774b5dc7888e1fb`, and the table's entries are that file's, unchanged.
+* The loader does not run eSpeak. It reads the table, so the labels do not change with the eSpeak on another machine.
+* Its keys are the 2,342 sentence texts of all 18 transcripts, no more and no fewer.
+
+### What the labels hold
+
+* The pronunciation eSpeak's `en-us` voice gives the text, so a label does not show the speaker's accent, a misread word or a repeat.
+* No spaces, no stress marks, no length marks and no tie bars. The 2,342 labels use 42 panphon units.
+* `preprocess_ipa` in `scripts/eval/evaluate.py` drops no symbol of theirs, and `evaluate` of a label against itself gives 0. It changes 1,596 of the 2,342 labels as it reads them.
+* `raw_label` is the table entry, the same as the IPA.
+* `label_source` is `g2p`. The DoReCo notes propose five values for this field, and none fits labels made from text with no time alignment, so `g2p` is a new value.
+
+### What this means
+
+* For training, they teach a model the dictionary sound of the prompt, not what these speakers said.
+* For a leaderboard, a score against them is a distance from American dictionary English. For accented speech that is not the same as an error.
+* `huggingface.py` fills its `g2p` field with `english2ipa`, which uses g2p_en, and no code in the repo calls `english2ipa_espeak`. Which one Koel wants is open. The table is cheap to build again with either.
+
 ## Cleaning done and still needed
 
 Section II.B says an operator listened as each sentence was read, and asked for it again after an error.
 
-The loader does no cleaning. It trims no audio and drops no recording for how it sounds. Our checks found no problem in the 187,360 WAV files.
+The loader does no cleaning. It trims no audio, drops no recording for how it sounds, and keeps each G2P label as the table holds it. Our checks found no problem in the 187,360 WAV files.
 
 * Each has a plain 44 byte header with the right size, and gives the same samples with `soundfile` as with Python's own `wave` module.
 * None is silent, and no two hold the same audio.
@@ -175,6 +205,7 @@ The loader does no cleaning. It trims no audio and drops no recording for how it
 
 Still needed.
 
+* A choice between the G2P labels and the human ones, for training and for a leaderboard.
 * The human labels, and maybe the 13,632 of the 2023 paper. Then a check of their symbols, of their count in each group against the paper's, and of each label against its recording.
 * Listening. Nobody has listened to a recording yet.
 * 16 recordings are very quiet. Their loudest 20 ms is more than 40 dB below full scale, and 60.45 dB below in `MLY` `F27` sentence 26. Seven of them are from `MAR` `F22`. They may hold little or no speech.
@@ -194,6 +225,7 @@ The loader resamples to 16,000 Hz with `audio_resample` in `scripts/core/audio.p
 
 ## What it is good for
 
+* With the G2P labels, training with care, since they are the prompt, not the speech. Not a test of how well a model hears an accent.
 * With the human labels, a test of phone recognition on Indian English, up to 2,342 recordings, one per sentence, from all five groups.
 * All speakers read the same sentences, so they can be compared word for word.
 
@@ -204,7 +236,7 @@ The loader resamples to 16,000 Hz with `audio_resample` in `scripts/core/audio.p
 
 ## How we checked
 
-Scripts are kept outside this PR. With no human label on disk, the tests gave every recording a made up label through `read_phone_labels`. Then they read all 187,360 items, audio included, and checked each against its transcript line and WAV file, under two hash seeds. The tests ran on each commit's code before it was made, and every item stayed the same. A few made up labels tested the filter, and broken copies of the data tested each error.
+Scripts are kept outside this PR. With no human label on disk, the tests gave every recording a made up label through `read_phone_labels`. Then they read all 187,360 items, audio included, and checked each against its transcript line and WAV file, under two hash seeds. The tests ran on each commit's code before it was made, and every item stayed the same. A few made up labels tested the filter, and broken copies of the data tested each error. On Nov 14 the tests read every recording again with the G2P labels, checked each label against the table as built, and read the audio of every 50th sentence of every speaker.
 
 ## Sources
 
