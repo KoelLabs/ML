@@ -1,16 +1,37 @@
-"""Phone-aligned speech from DoReCo 2.0. See docs/datasets/DoReCo.md for setup."""
+# DoReCo 2.0 contains over 100 hours across 53 languages and varieties, mostly fieldwork
+# narratives and conversations. The Hub export has about 34 hours across 29 languages.
+# Its English split has 47 minutes of Southern England speech from two Kent speakers.
+# Corpus descriptions and dialect coverage are at https://doreco.huma-num.fr/languages.
+#
+# Language experts transcribed the recordings. Pronunciations are derived from the
+# transcripts. Annotators corrected word boundaries and checked pauses, then MAUS
+# aligned the X-SAMPA phones within each word. Four annotators checked 4,125 words
+# from six Anal, Resígaro and Vera’a files in a word-level agreement study. The paper
+# reports neither a corpus-wide annotator count nor phone-level agreement.
+# Alignment and quality control are described at https://aclanthology.org/2020.lrec-1.324/.
+#
+# Recording conditions vary by corpus. Clips can contain noise, overlapping speakers,
+# or speech without phone labels, including disfluencies and code-switching. Audio is
+# downmixed to mono and resampled to 16 kHz. Phone offsets index into the returned clip.
+#
+# Download each language's core annotation ZIP and core WAVs from its DoReCo page.
+# Store the ZIP as .data/DoReCo/<glottocode>/doreco_<glottocode>_core_v2.zip and put the
+# WAVs (loose or zipped, with their original names) in the same directory.
+# The commercial split requires CC BY 4.0 for audio and annotations. Each source
+# corpus must be cited separately. Its citation and license are in the bundle's
+# dataset-info file and at https://huggingface.co/datasets/KoelLabs/DoReCo.
 
-import json
 import logging
 import math
 import os
 import re
 import sys
-from collections import Counter, defaultdict
+from collections import Counter
 from contextlib import ExitStack
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
+from typing import NamedTuple
 from zipfile import ZipFile
 
 import numpy as np
@@ -23,7 +44,6 @@ from core.codes import xsampa2ipa
 from data_loaders.common import BaseDataset, interactive_flag_samples
 
 TOP_DIR = Path(__file__).resolve().parents[2] / ".data" / "DoReCo"
-LANGUAGE_TABLE = Path(__file__).with_name("doreco_language_table.json")
 DEFAULT_LANGUAGE = "sout3282"
 DEFAULT_SPLIT = "commercial"
 CC_BY_4 = "https://creativecommons.org/licenses/by/4.0/"
@@ -36,13 +56,76 @@ AUDIO_END_TOLERANCE = TARGET_SAMPLE_RATE // 100
 LOGGER = logging.getLogger(__name__)
 
 
-def language_table():
-    with LANGUAGE_TABLE.open(encoding="utf-8") as f:
-        return {entry["glottocode"]: entry for entry in json.load(f)["languages"]}
+class Corpus(NamedTuple):
+    name: str
+    doi: str
+    annotation_license: str
+    audio_license: str
 
 
-def is_commercial(entry):
-    return entry["annotation_license"] == entry["audio_license"] == "CC BY"
+# DoReCo 2.0 catalog. "audio linked" means the source archive sets its own terms.
+# fmt: off
+CORPORA = {
+    "anal1239": Corpus("Anal", "10.34847/nkl.0dbazp8m", "CC BY", "CC BY-NC"),
+    "apah1238": Corpus("Yali (Apahapsili)", "10.34847/nkl.9d91nkq2", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "arap1274": Corpus("Arapaho", "10.34847/nkl.36f5r1b6", "CC BY", "CC BY"),
+    "bain1259": Corpus("Baïnounk Gubëeher", "10.34847/nkl.a332abw8", "CC BY", "CC BY"),
+    "beja1238": Corpus("Beja", "10.34847/nkl.edd011t1", "CC BY-NC", "CC BY-NC"),
+    "bora1263": Corpus("Bora", "10.34847/nkl.6eaf5laq", "CC BY", "CC BY"),
+    "cabe1245": Corpus("Cabécar", "10.34847/nkl.ebc4ra22", "CC BY-NC", "CC BY-NC-ND"),
+    "cash1254": Corpus("Cashinahua", "10.34847/nkl.a8f9q2f1", "CC BY", "CC BY"),
+    "dolg1241": Corpus("Dolgan", "10.34847/nkl.f09eikq3", "CC BY", "CC BY-NC"),
+    "even1259": Corpus("Evenki", "10.34847/nkl.5e0d27cu", "CC BY", "CC BY"),
+    "goem1240": Corpus("Goemai", "10.34847/nkl.b93664ml", "CC BY", "audio linked"),
+    "goro1270": Corpus("Gorwaa", "10.34847/nkl.a4b4ijj2", "CC BY", "CC BY"),
+    "guri1247": Corpus("Gurindji", "10.34847/nkl.ab2d89mx", "CC BY-NC-ND", "audio linked"),
+    "hoch1243": Corpus("Hoocąk", "10.34847/nkl.b57f5065", "CC BY-NC-ND", "audio linked"),
+    "jeha1242": Corpus("Jahai", "10.34847/nkl.6a71xp0p", "CC BY-NC-SA", "CC BY-NC-ND"),
+    "jeju1234": Corpus("Jejuan", "10.34847/nkl.06ebrk38", "CC BY", "CC BY"),
+    "kaka1265": Corpus("Kakabe", "10.34847/nkl.d5aeu9t6", "CC BY", "CC BY"),
+    "kama1351": Corpus("Kamas", "10.34847/nkl.cdd8177b", "CC BY", "CC BY"),
+    "kark1256": Corpus("Tabaq (Karko)", "10.34847/nkl.eea8144j", "CC BY", "audio linked"),
+    "komn1238": Corpus("Komnzo", "10.34847/nkl.c5e6dudv", "CC BY", "CC BY"),
+    "ligh1234": Corpus("Light Warlpiri", "10.34847/nkl.7452803q", "CC BY-NC", "CC BY-NC"),
+    "lowe1385": Corpus("Lower Sorbian", "10.34847/nkl.6c6e4e9k", "CC BY-NC-SA", "audio linked"),
+    "movi1243": Corpus("Movima", "10.34847/nkl.da42xf67", "CC BY", "audio linked"),
+    "ngal1292": Corpus("Dalabon", "10.34847/nkl.fae299ug", "CC BY", "CC BY"),
+    "nisv1234": Corpus("Nisvai", "10.34847/nkl.2801565f", "CC BY-NC-ND", "CC BY-NC-ND"),
+    "nngg1234": Corpus("Nǁng", "10.34847/nkl.f6c37fi0", "CC BY", "CC BY"),
+    "nort2641": Corpus("Northern Kurdish (Kurmanji)", "10.34847/nkl.ca10ez5t", "CC BY", "CC BY"),
+    "nort2875": Corpus("Northern Alta", "10.34847/nkl.efea0b36", "CC BY-NC", "CC BY-NC-ND"),
+    "orko1234": Corpus("Fanbyak", "10.34847/nkl.02084446", "CC BY", "CC BY"),
+    "pnar1238": Corpus("Pnar", "10.34847/nkl.5ba1062k", "CC BY-NC", "CC BY-NC"),
+    "port1286": Corpus("Daakie", "10.34847/nkl.efeav5l9", "CC BY", "CC BY"),
+    "resi1247": Corpus("Resígaro", "10.34847/nkl.ffb96lo8", "CC BY", "CC BY"),
+    "ruul1235": Corpus("Ruuli", "10.34847/nkl.fde4pp1u", "CC BY", "CC BY"),
+    "sadu1234": Corpus("Sadu", "10.34847/nkl.3db4u59d", "CC BY", "CC BY"),
+    "sanz1248": Corpus("Sanzhi Dargwa", "10.34847/nkl.81934177", "CC BY", "CC BY"),
+    "savo1255": Corpus("Savosavo", "10.34847/nkl.b74d1b33", "CC BY", "CC BY"),
+    "sout2856": Corpus("Nafsan (South Efate)", "10.34847/nkl.ba4f760l", "CC BY", "CC BY-NC-SA"),
+    "sout3282": Corpus("English (Southern England)", "10.34847/nkl.9c271u5g", "CC BY", "CC BY"),
+    "stan1290": Corpus("French (Swiss)", "10.34847/nkl.3520l685", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "sumi1235": Corpus("Sümi", "10.34847/nkl.5ad4t01p", "CC BY", "CC BY"),
+    "svan1243": Corpus("Svan", "10.34847/nkl.9ba054c3", "CC BY", "CC BY"),
+    "taba1259": Corpus("Tabasaran", "10.34847/nkl.ad7f97xr", "CC BY", "CC BY"),
+    "teop1238": Corpus("Teop", "10.34847/nkl.9322sdf2", "CC BY", "CC BY"),
+    "texi1237": Corpus("Texistepec Popoluca", "10.34847/nkl.c50ck58f", "CC BY", "CC BY"),
+    "toto1304": Corpus("Totoli", "10.34847/nkl.c8b6ei29", "CC BY-NC-SA", "audio linked"),
+    "trin1278": Corpus("Mojeño Trinitario", "10.34847/nkl.cbc3b4xr", "CC BY", "CC BY"),
+    "tsim1256": Corpus("Asimjeeg Datooga", "10.34847/nkl.f77c7m72", "CC BY", "CC BY"),
+    "urum1249": Corpus("Urum", "10.34847/nkl.ac166n10", "CC BY-NC", "CC BY-NC-ND"),
+    "vera1241": Corpus("Vera'a", "10.34847/nkl.3e2cu8c4", "CC BY", "CC BY"),
+    "warl1254": Corpus("Warlpiri", "10.34847/nkl.042dv614", "CC BY-NC", "CC BY-NC"),
+    "yong1270": Corpus("Yongning Na", "10.34847/nkl.abe65p95", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "yuca1254": Corpus("Yucatec Maya", "10.34847/nkl.9cbb3619", "CC BY-NC", "CC BY-NC-ND"),
+    "yura1255": Corpus("Yurakaré", "10.34847/nkl.7ca412wg", "CC BY-NC-ND", "audio linked"),
+}
+# fmt: on
+COMMERCIAL_LANGUAGES = tuple(
+    code
+    for code, corpus in CORPORA.items()
+    if corpus.annotation_license == corpus.audio_license == "CC BY"
+)
 
 
 def is_label(value):
@@ -81,29 +164,27 @@ def bundle_member(bundle, suffix):
 
 def wav_files(root, code, annotations):
     folder = root / code
-    found = {}
-    zips = sorted(folder.rglob("*.zip"))
+    prefix = f"doreco_{code}_"
+    found = {
+        path.stem: (None, path)
+        for path in sorted(folder.rglob("*"))
+        if path.suffix.lower() == ".wav"
+        and path.stem.startswith(prefix)
+        and path.is_file()
+    }
+    archives = sorted(folder.rglob("*.zip"))
     if code == DEFAULT_LANGUAGE:
         legacy = root / "sout3282_audio_core_v2.zip"
         if legacy.is_file():
-            zips.append(legacy)
-    for path in zips:
+            archives.append(legacy)
+    for path in archives:
         if path == annotations:
             continue
         with ZipFile(path) as bundle:
             for name in bundle.namelist():
                 member = Path(name)
-                if member.suffix.lower() == ".wav" and member.stem.startswith(
-                    f"doreco_{code}_"
-                ):
+                if member.suffix.lower() == ".wav" and member.stem.startswith(prefix):
                     found.setdefault(member.stem, (path, name))
-    for path in sorted(folder.rglob("*")):
-        if (
-            path.suffix.lower() == ".wav"
-            and path.stem.startswith(f"doreco_{code}_")
-            and path.is_file()
-        ):
-            found[path.stem] = (None, path)
     return found
 
 
@@ -186,70 +267,61 @@ class DoReCoDataset(BaseDataset):
         self.citations = {}
         self._metadata = {}
         self._audio = {}
-        self._annotation_paths = {}
         self._recording_key = None
         self._recording_audio = None
-        table = language_table()
 
-        if language == "all":
-            codes = []
-            for code, entry in sorted(table.items()):
-                if split != "all" and not is_commercial(entry):
-                    continue
-                path = annotation_path(self.root, code)
-                if path is not None and (files := wav_files(self.root, code, path)):
-                    self._audio[code] = files
-                    self._annotation_paths[code] = path
-                    codes.append(code)
-            if not codes:
-                raise FileNotFoundError(f"No DoReCo corpora with audio in {self.root}")
+        discover = language == "all"
+        if discover:
+            codes = CORPORA if split == "all" else COMMERCIAL_LANGUAGES
         elif isinstance(language, str):
             codes = [language]
         else:
             codes = list(dict.fromkeys(language))
         if not codes:
             raise ValueError("Specify at least one DoReCo language")
-        if split in ("EN01", "EN03") and codes != [DEFAULT_LANGUAGE]:
-            raise ValueError(
-                f"DoReCo split {split!r} is only available for {DEFAULT_LANGUAGE}"
-            )
 
         for code in codes:
-            if code not in table:
+            if code not in CORPORA:
                 raise ValueError(f"Unknown DoReCo glottocode {code!r}")
-            entry = table[code]
-            if split != "all" and not is_commercial(entry):
+            corpus = CORPORA[code]
+            if split != "all" and code not in COMMERCIAL_LANGUAGES:
                 raise ValueError(
                     f"DoReCo {code} is outside the commercial split "
-                    f"(audio: {entry['audio_license']}; annotations: "
-                    f"{entry['annotation_license']}). Use split='all' for separately "
-                    "authorized use."
+                    f"(audio {corpus.audio_license}, annotations {corpus.annotation_license}). "
+                    "Use split='all' for separately authorized use."
                 )
-            self._read_language(code, entry)
+            path = annotation_path(self.root, code)
+            if path is None:
+                if discover:
+                    continue
+                raise FileNotFoundError(
+                    f"Missing DoReCo annotations for {code} in {self.root}. "
+                    f"Download from https://doreco.huma-num.fr/languages/{code}"
+                )
+            files = wav_files(self.root, code, path)
+            if discover and not files:
+                continue
+            if split in ("EN01", "EN03") and code != DEFAULT_LANGUAGE:
+                raise ValueError(
+                    f"DoReCo split {split!r} is only available for {DEFAULT_LANGUAGE}"
+                )
+            self._audio[code] = files
+            self._read_language(code, corpus, path)
+        if discover and not self._audio:
+            raise FileNotFoundError(f"No DoReCo corpora with audio in {self.root}")
 
-    def _read_language(self, code, entry):
-        path = self._annotation_paths.get(code) or annotation_path(self.root, code)
-        if path is None:
-            raise FileNotFoundError(
-                f"No DoReCo annotations for {code} in {self.root}. "
-                f"Source: {entry['language_page']}"
-            )
-        self._annotation_paths[code] = path
+    def _read_language(self, code, corpus, path):
         with ZipFile(path) as bundle:
             info = bundle.read(bundle_member(bundle, "_dataset-info.txt")).decode(
                 "utf-8-sig"
             )
-            if self.split != "all":
-                licenses = defaultdict(set)
-                for material, license_slug in LICENSE_STATEMENT.findall(info):
-                    licenses[material].add(license_slug)
-                if any(
-                    licenses[material] != {"by/4.0/"}
-                    for material in ("annotation", "audio")
-                ):
-                    raise ValueError(
-                        f"{path} must declare CC BY 4.0 for both annotations and audio"
-                    )
+            if self.split != "all" and set(LICENSE_STATEMENT.findall(info)) != {
+                ("annotation", "by/4.0/"),
+                ("audio", "by/4.0/"),
+            }:
+                raise ValueError(
+                    f"{path} must declare CC BY 4.0 for both annotations and audio"
+                )
             _, _, citation = info.partition("should be cited as follows:")
             self.citations[code] = citation.strip().split("\n", 1)[0]
             with bundle.open(bundle_member(bundle, "_metadata.csv")) as f:
@@ -257,25 +329,12 @@ class DoReCoDataset(BaseDataset):
             with bundle.open(bundle_member(bundle, "_ph.csv")) as f:
                 phones = pd.read_csv(
                     f,
-                    usecols=[
-                        "file",
-                        "speaker",
-                        "ref",
-                        "ph",
-                        "start",
-                        "end",
-                        "wd_ID",
-                        "wd",
-                    ],
+                    usecols="file speaker ref ph start end wd_ID wd".split(),
                     keep_default_na=False,
-                    dtype={
-                        "speaker": str,
-                        "ref": str,
-                        "ph": str,
-                        "wd_ID": str,
-                        "wd": str,
-                    },
+                    dtype=dict.fromkeys("speaker ref ph wd_ID wd".split(), str),
                 )
+        for column in ("start", "end"):
+            phones[column] = pd.to_numeric(phones[column], errors="coerce")
         metadata["name"] = f"doreco_{code}_" + metadata["name"]
         names = set(metadata["name"])
         if not set(phones["file"]).issubset(names):
@@ -286,10 +345,10 @@ class DoReCoDataset(BaseDataset):
                 row["name"]: dict(
                     row,
                     language=code,
-                    language_name=entry["name"],
-                    annotation_license=entry["annotation_license"],
-                    audio_license=entry["audio_license"],
-                    dataset_doi=entry["doi"],
+                    language_name=corpus.name,
+                    annotation_license=corpus.annotation_license,
+                    audio_license=corpus.audio_license,
+                    dataset_doi=corpus.doi,
                 )
                 for row in metadata.to_dict("records")
             }
@@ -311,12 +370,8 @@ class DoReCoDataset(BaseDataset):
                 if ipa is None:
                     skipped[f"unsupported X-SAMPA {row.ph!r}"] += 1
                     break
-                try:
-                    start = float(row.start) * TARGET_SAMPLE_RATE
-                    end = float(row.end) * TARGET_SAMPLE_RATE
-                except (ValueError, TypeError):
-                    skipped["invalid phone timing"] += 1
-                    break
+                start = row.start * TARGET_SAMPLE_RATE
+                end = row.end * TARGET_SAMPLE_RATE
                 if not (
                     math.isfinite(start) and math.isfinite(end) and 0 <= start < end
                 ):
@@ -359,13 +414,8 @@ class DoReCoDataset(BaseDataset):
         return sorted(
             (code, recording)
             for code, recording in self.recordings
-            if recording not in self._wav_index(code)
+            if recording not in self._audio[code]
         )
-
-    def _wav_index(self, code):
-        if code not in self._audio:
-            self._audio[code] = wav_files(self.root, code, self._annotation_paths[code])
-        return self._audio[code]
 
     def __len__(self):
         return len(self.utterances)
@@ -375,7 +425,7 @@ class DoReCoDataset(BaseDataset):
         start, end = item.bounds
         key = (item.language, item.recording)
         if key != self._recording_key:
-            location = self._wav_index(item.language).get(item.recording)
+            location = self._audio[item.language].get(item.recording)
             if location is None:
                 raise FileNotFoundError(
                     f"Missing DoReCo recording {item.recording}.wav in {self.root}. "

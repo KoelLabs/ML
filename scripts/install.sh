@@ -172,7 +172,7 @@ echo "Downloading CMU ARCTIC dataset..."
 mkdir -p .data/CMU_ARCTIC && for spk in aew ahw aup awb axb bdl clb eey fem gka jmk ksp ljm lnh rms rxr slp slt; do wget -q --show-progress "http://festvox.org/cmu_arctic/packed/cmu_us_${spk}_arctic.tar.bz2" -O - | tar -xj -C .data/CMU_ARCTIC; done
 
 # Download the Southern England DoReCo core bundles.
-# See docs/datasets/DoReCo.md for additional languages and individual WAV downloads.
+# See scripts/data_loaders/DoReCo.py for the corpus layout and download instructions.
 mkdir -p .data/DoReCo/sout3282
 curl --fail --location --retry 3 --remove-on-error \
     "https://sharedocs.huma-num.fr/wl/?id=KYyWz1grSs4UZhbdT9K8gV54a2FSU9q6&fmode=download" \
