@@ -1,5 +1,51 @@
 # DoReCo
 
+## Loader and Hugging Face export
+
+[DoReCo 2.0](https://doreco.huma-num.fr/) supplies phone-aligned core recordings.
+The [language catalog](../../scripts/data_loaders/doreco_language_table.json)
+lists the sources and licenses. The default `commercial` split requires CC BY
+4.0 for both the audio and the annotations. It checks the catalog and the
+license statements in the annotation bundle. There are 29 eligible corpora.
+Cite each corpus you use and indicate modifications under its
+[CC BY 4.0 terms](https://creativecommons.org/licenses/by/4.0/).
+
+1. Download the **core annotation ZIP** for each language from the catalog.
+   Save it as `.data/DoReCo/<glottocode>/doreco_<glottocode>_core_v2.zip`.
+2. Download the matching **core WAVs** from the language page. Keep the
+   published recording filenames and put the WAVs or their ZIP in the same
+   folder. The loader also accepts the original flat English archives.
+   Some language pages point to external archives with their own access terms.
+
+```python
+from data_loaders.DoReCo import DoReCoDataset
+
+english = DoReCoDataset()
+sumi = DoReCoDataset(language="sumi1235", include_timestamps=True, include_text=True)
+installed = DoReCoDataset(language="all")
+```
+
+Run examples with `PYTHONPATH=scripts` from the repository root. Pass
+`split="all"` only for separately authorized use of other licenses.
+Southern England English also has `EN01` and `EN03` speaker splits.
+The normal sample begins with IPA and mono 16 kHz int16 audio. Optional
+fields are clip-relative phone sample offsets, recording and utterance
+metadata, and orthographic text. The loader logs unsupported annotations
+with their reason.
+
+Run `python scripts/data_loaders/huggingface.py DoReCo` with a write token
+and the 29 complete CC BY corpora installed. The export checks for missing
+recordings before staging the data and commits the Parquet splits and
+their card together to [KoelLabs/DoReCo](https://huggingface.co/datasets/KoelLabs/DoReCo).
+Read a glottocode with `load_dataset("KoelLabs/DoReCo", "multilingual", split="sumi1235")`.
+English remains available as `default/train` for the existing training code.
+
+## Original PR audit notes
+
+The sections below record the results for the original PR implementation
+from November 7, 2026. Counts, line numbers, internal attributes and
+proposals there refer to that revision.
+
 These notes are from Nov 7, 2026. They cover three DoReCo languages in detail, English, Nǁng and Sümi, and 50 more on their annotations only. For the three, we read the phone, metadata and spelling tables and the text files of each bundle, and the Sümi word table. We did not read the `.eaf`, `.TextGrid` and `.xml` files. We also loaded every item of the three with its real audio, 577 in English, 1,007 in Nǁng and 1,207 in Sümi, on a Linux virtual machine and on Raunak's Mac. Nobody has listened to the audio yet.
 
 Unless a line says otherwise, every number comes from the real DoReCo files. Each section names its sources. They are the DoReCo files and web pages, the papers listed under Sources, and the repo's code with line numbers. How we checked the numbers is described under How we checked, near the end. Anything we could not check says not verified. A fact we read on a web page and did not save says so.

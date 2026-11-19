@@ -14,6 +14,7 @@ boto3==1.41.2
 azure-cognitiveservices-speech==1.47.0
 transformers==4.57.1
 datasets==4.4.1
+pyarrow==22.0.0
 faster_whisper==1.2.1
 ipapy==0.0.9.0
 g2p-en==2.1.0

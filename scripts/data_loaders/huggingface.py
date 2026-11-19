@@ -11,7 +11,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE
 from data_loaders.common import split_utterance_into_multiple
 
-from data_loaders.DoReCo import DoReCoDataset
 from data_loaders.EpaDB import EpaDBDataset
 from data_loaders.L2ARCTIC import L2ArcticDataset, all_arctic_speaker_splits
 from data_loaders.OSUBuckeye import all_buckeye_speaker_splits
@@ -27,31 +26,6 @@ from forced_alignment.needleman_wunsch import needleman_wunsch
 
 # ==================================================
 # =================== Generators ===================
-def gen_doreco():
-    dataset = DoReCoDataset(
-        split="all",
-        include_speaker_info=True,
-        include_text=True,
-    )
-    for sample in dataset:
-        assert sample[1].dtype == np.int16  # type: ignore
-        metadata = sample[2]  # type: ignore
-        yield {
-            "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
-            "ipa": sample[0],  # type: ignore
-            "text": sample[3],  # type: ignore
-            "g2p": english2ipa(sample[3]),  # type: ignore
-            "id": metadata["id"],  # type: ignore
-            "speaker_code": metadata["spk_code"],  # type: ignore
-            "speaker_age": metadata["spk_age"],  # type: ignore
-            "speaker_gender": metadata["spk_sex"],  # type: ignore
-            "recording_year": metadata["rec_date"],  # type: ignore
-            "recoding_topic": metadata["genre"],  # type: ignore
-            "sound_quality": metadata["sound_quality"],  # type: ignore
-            "background_noise": metadata["background_noise"],  # type: ignore
-        }
-
-
 def gen_epadb(split):
     def generator():
         dataset = EpaDBDataset(
@@ -334,9 +308,9 @@ def gen_speech_accent_archive():
 
 if __name__ == "__main__":
     if "DoReCo" in sys.argv:
-        print("Pushing DoReCo to the hub...")
-        doreco_ds: Dataset = Dataset.from_generator(gen_doreco).cast_column("audio", Audio())  # type: ignore
-        doreco_ds.push_to_hub("KoelLabs/DoReCo", private=True)
+        from data_loaders.doreco_hub import export_doreco
+
+        print(export_doreco().commit_url)
     if "EpaDB" in sys.argv:
         print("Pushing EpaDB to the hub...")
         epadb_dict = DatasetDict(
