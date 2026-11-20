@@ -1,201 +1,502 @@
-# 100 hours from 53 languages with time aligned phoneme transcriptions and translations: https://doreco.huma-num.fr/UsingDoReCo
-# Paper: https://aclanthology.org/2025.fieldmatters-1.5.pdf
+# DoReCo contains over 100 hours across 53 languages and varieties, mostly fieldwork
+# narratives and conversations. The Hub export has about 34 hours across 29 languages.
+# Its English split has 47 minutes of Southern England speech from two Kent speakers.
+# Corpus descriptions and dialect coverage are at https://doreco.huma-num.fr/languages.
+#
+# Language experts transcribed the recordings. Pronunciations are derived from the
+# transcripts. Annotators corrected word boundaries and checked pauses, then MAUS
+# aligned the X-SAMPA phones within each word. Four annotators checked 4,125 words
+# from six Anal, Resígaro and Vera’a files in a word-level agreement study. The paper
+# reports neither a corpus-wide annotator count nor phone-level agreement.
+# Alignment and quality control are described at https://aclanthology.org/2020.lrec-1.324/.
+#
+# Recording conditions vary by corpus. Clips can contain noise, overlapping speakers,
+# or speech without phone labels, including disfluencies and code-switching. Audio is
+# downmixed to mono and resampled to 16 kHz. Phone offsets index into the returned clip.
+#
+# Download each language's core annotation ZIP and core WAVs from its DoReCo page.
+# Store the ZIP as .data/DoReCo/<glottocode>/doreco_<glottocode>_core_v2.zip and put the
+# WAVs (loose or zipped, with their original names) in the same directory.
+# The commercial split requires CC BY 4.0 for audio and annotations. Each source
+# corpus must be cited separately. Its citation and license are in the bundle's
+# dataset-info file and at https://huggingface.co/datasets/KoelLabs/DoReCo.
 
+import logging
+import math
 import os
+import re
 import sys
+from collections import Counter
+from contextlib import ExitStack
+from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
+from typing import NamedTuple
+from unicodedata import combining
+from zipfile import ZipFile
 
-import zipfile
+import numpy as np
 import pandas as pd
+import soundfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from core.audio import TARGET_SAMPLE_RATE, audio_resample
+from core.codes import XSAMPA2IPA, xsampa2ipa
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_bytes_to_array, TARGET_SAMPLE_RATE
-from core.codes import xsampa2ipa
 
-TOP_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "DoReCo")
+TOP_DIR = Path(__file__).resolve().parents[2] / ".data" / "DoReCo"
+DEFAULT_LANGUAGE = "sout3282"
+DEFAULT_SPLIT = "commercial"
+LICENSE_STATEMENT = re.compile(
+    r"\b(annotation|audio) files are distributed under [^\n]+?\("
+    r"https?://creativecommons\.org/licenses/([\w-]+/\d\.\d/)"
+)
+AUDIO_PADDING = round(0.3 * TARGET_SAMPLE_RATE)
+AUDIO_END_TOLERANCE = TARGET_SAMPLE_RATE // 100
+LOGGER = logging.getLogger(__name__)
 
-# We use specifically the Southern British English data for now: https://doreco.huma-num.fr/languages/sout3282, https://multicast.aspra.uni-bamberg.de/#english
-AUDIO_ZIP = os.path.join(TOP_DIR, "sout3282_audio_v2.zip")
-AUDIO_CORE_ZIP = os.path.join(TOP_DIR, "sout3282_audio_core_v2.zip")
-SOURCE_SAMPLE_RATE = None  # auto detect
 
-ANNOTATION_ZIP = os.path.join(TOP_DIR, "sout3282_annotations_v2.zip")
-METADATA_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_metadata.csv"
-PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_ph.csv"
-# PHONEMES_PATH = "doreco_sout3282_extended_v1.3/doreco_sout3282_wd.csv"
-INSTRUCTIONS_PATH = "doreco_sout3282_extended_v1.3/doreco_CONVENTIONS.txt"
+class Corpus(NamedTuple):
+    name: str
+    doi: str
+    annotation_license: str
+    audio_license: str
 
-SPECIAL_SYMBOLS = {
-    "<<fp>>": "Filled pause",
-    "<<fs>>": "False start",
-    "<<pr>>": "Prolongation",
-    "<<fm>>": "Foreign material",
-    "<<sg>>": "Singing",
-    "<<bc>>": "Backchannel",
-    "<<id>>": "Ideophone",
-    "<<on>>": "Onomatopoeic",
-    "<<wip>": "Word-internal pause",
-    "<<ui>>": "Unidentifiable",
-    "<p:>": "Silent pause",
+
+# DoReCo language catalog. "audio linked" means the source archive sets its own terms.
+# fmt: off
+CORPORA = {
+    "anal1239": Corpus("Anal", "10.34847/nkl.0dbazp8m", "CC BY", "CC BY-NC"),
+    "apah1238": Corpus("Yali (Apahapsili)", "10.34847/nkl.9d91nkq2", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "arap1274": Corpus("Arapaho", "10.34847/nkl.36f5r1b6", "CC BY", "CC BY"),
+    "bain1259": Corpus("Baïnounk Gubëeher", "10.34847/nkl.a332abw8", "CC BY", "CC BY"),
+    "beja1238": Corpus("Beja", "10.34847/nkl.edd011t1", "CC BY-NC", "CC BY-NC"),
+    "bora1263": Corpus("Bora", "10.34847/nkl.6eaf5laq", "CC BY", "CC BY"),
+    "cabe1245": Corpus("Cabécar", "10.34847/nkl.ebc4ra22", "CC BY-NC", "CC BY-NC-ND"),
+    "cash1254": Corpus("Cashinahua", "10.34847/nkl.a8f9q2f1", "CC BY", "CC BY"),
+    "dolg1241": Corpus("Dolgan", "10.34847/nkl.f09eikq3", "CC BY", "CC BY-NC"),
+    "even1259": Corpus("Evenki", "10.34847/nkl.5e0d27cu", "CC BY", "CC BY"),
+    "goem1240": Corpus("Goemai", "10.34847/nkl.b93664ml", "CC BY", "audio linked"),
+    "goro1270": Corpus("Gorwaa", "10.34847/nkl.a4b4ijj2", "CC BY", "CC BY"),
+    "guri1247": Corpus("Gurindji", "10.34847/nkl.ab2d89mx", "CC BY-NC-ND", "audio linked"),
+    "hoch1243": Corpus("Hoocąk", "10.34847/nkl.b57f5065", "CC BY-NC-ND", "audio linked"),
+    "jeha1242": Corpus("Jahai", "10.34847/nkl.6a71xp0p", "CC BY-NC-SA", "CC BY-NC-ND"),
+    "jeju1234": Corpus("Jejuan", "10.34847/nkl.06ebrk38", "CC BY", "CC BY"),
+    "kaka1265": Corpus("Kakabe", "10.34847/nkl.d5aeu9t6", "CC BY", "CC BY"),
+    "kama1351": Corpus("Kamas", "10.34847/nkl.cdd8177b", "CC BY", "CC BY"),
+    "kark1256": Corpus("Tabaq (Karko)", "10.34847/nkl.eea8144j", "CC BY", "audio linked"),
+    "komn1238": Corpus("Komnzo", "10.34847/nkl.c5e6dudv", "CC BY", "CC BY"),
+    "ligh1234": Corpus("Light Warlpiri", "10.34847/nkl.7452803q", "CC BY-NC", "CC BY-NC"),
+    "lowe1385": Corpus("Lower Sorbian", "10.34847/nkl.6c6e4e9k", "CC BY-NC-SA", "audio linked"),
+    "movi1243": Corpus("Movima", "10.34847/nkl.da42xf67", "CC BY", "audio linked"),
+    "ngal1292": Corpus("Dalabon", "10.34847/nkl.fae299ug", "CC BY", "CC BY"),
+    "nisv1234": Corpus("Nisvai", "10.34847/nkl.2801565f", "CC BY-NC-ND", "CC BY-NC-ND"),
+    "nngg1234": Corpus("Nǁng", "10.34847/nkl.f6c37fi0", "CC BY", "CC BY"),
+    "nort2641": Corpus("Northern Kurdish (Kurmanji)", "10.34847/nkl.ca10ez5t", "CC BY", "CC BY"),
+    "nort2875": Corpus("Northern Alta", "10.34847/nkl.efea0b36", "CC BY-NC", "CC BY-NC-ND"),
+    "orko1234": Corpus("Fanbyak", "10.34847/nkl.02084446", "CC BY", "CC BY"),
+    "pnar1238": Corpus("Pnar", "10.34847/nkl.5ba1062k", "CC BY-NC", "CC BY-NC"),
+    "port1286": Corpus("Daakie", "10.34847/nkl.efeav5l9", "CC BY", "CC BY"),
+    "resi1247": Corpus("Resígaro", "10.34847/nkl.ffb96lo8", "CC BY", "CC BY"),
+    "ruul1235": Corpus("Ruuli", "10.34847/nkl.fde4pp1u", "CC BY", "CC BY"),
+    "sadu1234": Corpus("Sadu", "10.34847/nkl.3db4u59d", "CC BY", "CC BY"),
+    "sanz1248": Corpus("Sanzhi Dargwa", "10.34847/nkl.81934177", "CC BY", "CC BY"),
+    "savo1255": Corpus("Savosavo", "10.34847/nkl.b74d1b33", "CC BY", "CC BY"),
+    "sout2856": Corpus("Nafsan (South Efate)", "10.34847/nkl.ba4f760l", "CC BY", "CC BY-NC-SA"),
+    "sout3282": Corpus("English (Southern England)", "10.34847/nkl.9c271u5g", "CC BY", "CC BY"),
+    "stan1290": Corpus("French (Swiss)", "10.34847/nkl.3520l685", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "sumi1235": Corpus("Sümi", "10.34847/nkl.5ad4t01p", "CC BY", "CC BY"),
+    "svan1243": Corpus("Svan", "10.34847/nkl.9ba054c3", "CC BY", "CC BY"),
+    "taba1259": Corpus("Tabasaran", "10.34847/nkl.ad7f97xr", "CC BY", "CC BY"),
+    "teop1238": Corpus("Teop", "10.34847/nkl.9322sdf2", "CC BY", "CC BY"),
+    "texi1237": Corpus("Texistepec Popoluca", "10.34847/nkl.c50ck58f", "CC BY", "CC BY"),
+    "toto1304": Corpus("Totoli", "10.34847/nkl.c8b6ei29", "CC BY-NC-SA", "audio linked"),
+    "trin1278": Corpus("Mojeño Trinitario", "10.34847/nkl.cbc3b4xr", "CC BY", "CC BY"),
+    "tsim1256": Corpus("Asimjeeg Datooga", "10.34847/nkl.f77c7m72", "CC BY", "CC BY"),
+    "urum1249": Corpus("Urum", "10.34847/nkl.ac166n10", "CC BY-NC", "CC BY-NC-ND"),
+    "vera1241": Corpus("Vera'a", "10.34847/nkl.3e2cu8c4", "CC BY", "CC BY"),
+    "warl1254": Corpus("Warlpiri", "10.34847/nkl.042dv614", "CC BY-NC", "CC BY-NC"),
+    "yong1270": Corpus("Yongning Na", "10.34847/nkl.abe65p95", "CC BY-NC-SA", "CC BY-NC-SA"),
+    "yuca1254": Corpus("Yucatec Maya", "10.34847/nkl.9cbb3619", "CC BY-NC", "CC BY-NC-ND"),
+    "yura1255": Corpus("Yurakaré", "10.34847/nkl.7ca412wg", "CC BY-NC-ND", "audio linked"),
+}
+# fmt: on
+COMMERCIAL_LANGUAGES = tuple(
+    code
+    for code, corpus in CORPORA.items()
+    if corpus.annotation_license == corpus.audio_license == "CC BY"
+)
+
+
+def is_label(value):
+    return not value or value.startswith("<<") or value in ("<p:>", "[INT]")
+
+
+def annotation_path(root, code):
+    folder = root / code
+    canonical = folder / f"doreco_{code}_core_v2.zip"
+    if canonical.is_file():
+        return canonical
+    candidates = []
+    for path in sorted(folder.glob("*.zip")):
+        with ZipFile(path) as bundle:
+            if any(name.endswith("_ph.csv") for name in bundle.namelist()):
+                candidates.append(path)
+    if len(candidates) > 1:
+        raise ValueError(f"Multiple DoReCo annotation bundles for {code}: {candidates}")
+    if candidates:
+        return candidates[0]
+    if code == DEFAULT_LANGUAGE:
+        # Also read the flat layout used by the original English loader.
+        for name in ("sout3282_annotations_core_v2.zip", "sout3282_annotations_v2.zip"):
+            path = root / name
+            if path.is_file():
+                return path
+    return None
+
+
+def bundle_member(bundle, suffix):
+    matches = [name for name in bundle.namelist() if name.endswith(suffix)]
+    if len(matches) != 1:
+        raise ValueError(f"Expected one *{suffix} in {bundle.filename}, got {matches}")
+    return matches[0]
+
+
+def wav_files(root, code, annotations):
+    folder = root / code
+    prefix = f"doreco_{code}_"
+    found = {
+        path.stem: (None, path)
+        for path in sorted(folder.rglob("*"))
+        if path.suffix.lower() == ".wav"
+        and path.stem.startswith(prefix)
+        and path.is_file()
+    }
+    archives = sorted(folder.rglob("*.zip"))
+    if code == DEFAULT_LANGUAGE:
+        legacy = root / "sout3282_audio_core_v2.zip"
+        if legacy.is_file():
+            archives.append(legacy)
+    for path in archives:
+        if path == annotations:
+            continue
+        with ZipFile(path) as bundle:
+            for name in bundle.namelist():
+                member = Path(name)
+                if member.suffix.lower() == ".wav" and member.stem.startswith(prefix):
+                    found.setdefault(member.stem, (path, name))
+    return found
+
+
+def decode_wav(archive, path):
+    """Decode WAV chunks using the container header and the repo's resampler."""
+    with ExitStack() as stack:
+        source = path
+        if archive is not None:
+            bundle = stack.enter_context(ZipFile(archive))
+            source = stack.enter_context(bundle.open(path))
+        with soundfile.SoundFile(source) as wav:
+            rate = wav.samplerate
+            floating_point = wav.subtype in {"FLOAT", "DOUBLE"}
+            dtype = "float32" if floating_point else "int16"
+            mono = np.empty(wav.frames, dtype=np.int16)
+            offset = 0
+            for block in wav.blocks(blocksize=2**20, dtype=dtype, always_2d=True):
+                samples = block[:, 0] if wav.channels == 1 else block.mean(axis=1)
+                if floating_point:
+                    samples = np.clip(samples * 32768, -32768, 32767)
+                mono[offset : offset + len(block)] = samples
+                offset += len(block)
+            if offset != len(mono):
+                raise ValueError(f"Truncated DoReCo recording {path}")
+    return audio_resample(mono, rate, TARGET_SAMPLE_RATE)
+
+
+# Strip padding from combining marks while preserving the space used for unsupported symbols.
+DORECO_XSAMPA = {symbol: ipa.lstrip() or ipa for symbol, ipa in XSAMPA2IPA.items()} | {
+    "_+": "̟",
+    "_-": "̠",
+    "_0": "̥",
+    "=": "̩",
+    "_=": "̩",
+    "~": "̃",
+    "_~": "̃",
+    "_o": "̞",
+    "_r": "̝",
+    "_t": "̤",
+    "_v": "̬",
+    # Goemai annotations place the implosive marker after secondary articulation.
+    "b_j_<": "ɓʲ",
+    "d_j_<": "ɗʲ",
+    "d_w_<": "ɗʷ",
 }
 
 
-def is_special_symbol(ph: str):
-    return type(ph) == float or ph.startswith("<<") or ph == "<p:>" or ph == "[INT]"
+@lru_cache(maxsize=4096)
+def phone_to_ipa(phone):
+    try:
+        ipa = xsampa2ipa(phone, mapping=DORECO_XSAMPA)
+    except KeyError:
+        return None
+    # The shared converter still has placeholders for unsupported symbols.
+    if (
+        not ipa
+        or any(c in ipa for c in " ⟨⟩")
+        or ipa.startswith("͡")
+        or ipa.endswith("͡")
+    ):
+        return None
+    # DoReCo can put length before a combining diacritic, as in a:~.
+    # Move the diacritic onto the phone itself so that a:~ becomes ãː.
+    phones, lengths = [], []
+    for symbol in ipa:
+        if symbol in ("ː", "ˑ"):
+            lengths.append(symbol)
+            continue
+        if not combining(symbol) or symbol == "͡":
+            phones.extend(lengths)
+            lengths.clear()
+        phones.append(symbol)
+    return "".join(phones + lengths)
 
 
-# Core tiers:
-#   ref: Reference ID for tx units; generated by DoReCo
-#   tx: Transcription of chunks of speech, separated by corpus creators based on a variety of criteria (syntactic, prosodic, semantic, or pragmatic)
-#   ft: Free translation of the tx tier into a widely spoken language
-#   wd: Word unit
-#   mb: Morph unit
-#   gl: Morphematic gloss of morph unit
-#   ps: Part of speech category; can be of the word unit or the morph unit, depending on the dataset
-#   ph: phone unit (in X-SAMPA format)
-# Supplementary tiers
-#   doreco-mb-algn: Units indicate a morpheme boundary which the alignment algorithm was not able to confidently assign to a phoneme boundary; helpful for filtering out such cases
-#   mc-zero: Only present in MultiCAST corpora; units contain two kinds of information which could not be assigned to a phone: 1) clause boundaries and 2) zero words; the contents of the mb/gl/ps tiers are separated by spaces ' ', and multiple adjacent units are further separated by pipes '|'
-#   refind and isnref: Only present in MultiCAST corpora; identification of referents following Schiborr, Nils N. & Schnell, Stefan & Thiele, Hanna. 2018. RefIND — Referent Indexing in Natural-language Discourse: Annotation guidelines. Version 1.1. (https://multicast.aspra.uni-bamberg.de/data/pubs/refind/Schiborr+etal2018_RefIND-guidelines_v1.1.pdf)
+@dataclass(frozen=True)
+class Utterance:
+    language: str
+    recording: str
+    speaker: str
+    ref: str
+    bounds: tuple[int, int]
+    phones: tuple[tuple[str, int, int], ...]
+    text: str
 
 
 class DoReCoDataset(BaseDataset):
     def __init__(
         self,
-        split="all",
+        split=DEFAULT_SPLIT,
         include_timestamps=False,
         include_speaker_info=False,
         include_text=False,
+        language=DEFAULT_LANGUAGE,
+        *,
+        root=TOP_DIR,
     ):
-        """
-        Valid splits are "all" to include all the utterances, T001-T010 for each of the recording sessions, or EN01-EN04 for each of the speakers.
+        """Load one glottocode, a list, or locally available languages with language="all".
+
+        The commercial split requires CC BY 4.0 audio and annotations. Use split="all"
+        for explicit access to other license terms. EN01/EN03 are the English speaker
+        splits. Timestamps are sample offsets in the returned mono 16 kHz int16 clip.
         """
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
+        if split not in (DEFAULT_SPLIT, "all", "EN01", "EN03"):
+            raise ValueError(f"Unknown DoReCo split {split!r}")
+        self.root = Path(root)
+        self.utterances = []
+        self.vocab = set()
+        self.skipped = {}
+        self._metadata = {}
+        self._audio = {}
+        self._recording_key = None
+        self._recording_audio = None
 
-        self.audio_zip = zipfile.ZipFile(AUDIO_ZIP, "r")
-        self.audio_core_zip = zipfile.ZipFile(AUDIO_CORE_ZIP, "r")
+        discover = language == "all"
+        if discover:
+            codes = CORPORA if split == "all" else COMMERCIAL_LANGUAGES
+        elif isinstance(language, str):
+            codes = [language]
+        else:
+            codes = list(dict.fromkeys(language))
+        if not codes:
+            raise ValueError("Specify at least one DoReCo language")
 
-        with zipfile.ZipFile(ANNOTATION_ZIP, "r") as annotation_zip:
-            with annotation_zip.open(METADATA_PATH) as f:
-                self.metadata_df = pd.read_csv(f)
-                # columns = ['id', 'name', 'spk_code', 'spk_age', 'spk_age_c', 'spk_sex', 'rec_date', 'rec_date_c', 'genre', 'genre_stim', 'gloss', 'transl', 'sound_quality', 'background_noise', 'word_tokens', 'word_tokens_core', 'extended']
-                # prepend "doreco_sout3282_" to all names in metadata_df to match the phonemes
-                self.metadata_df["name"] = "doreco_sout3282_" + self.metadata_df["name"]
+        for code in codes:
+            if code not in CORPORA:
+                raise ValueError(f"Unknown DoReCo glottocode {code!r}")
+            corpus = CORPORA[code]
+            if split != "all" and code not in COMMERCIAL_LANGUAGES:
+                raise ValueError(
+                    f"DoReCo {code} is outside the commercial split "
+                    f"(audio {corpus.audio_license}, annotations {corpus.annotation_license}). "
+                    "Use split='all' for separately authorized use."
+                )
+            path = annotation_path(self.root, code)
+            if path is None:
+                if discover:
+                    continue
+                raise FileNotFoundError(
+                    f"Missing DoReCo annotations for {code} in {self.root}. "
+                    f"Download from https://doreco.huma-num.fr/languages/{code}"
+                )
+            files = wav_files(self.root, code, path)
+            if discover and not files:
+                continue
+            if split in ("EN01", "EN03") and code != DEFAULT_LANGUAGE:
+                raise ValueError(
+                    f"DoReCo split {split!r} is only available for {DEFAULT_LANGUAGE}"
+                )
+            self._audio[code] = files
+            self._read_language(code, corpus, path)
+        if discover and not self._audio:
+            raise FileNotFoundError(f"No DoReCo corpora with audio in {self.root}")
 
-            with annotation_zip.open(PHONEMES_PATH) as f:
-                self.phoneme_df = pd.read_csv(f)
-                # columns = ['lang', 'file', 'core_extended', 'speaker', 'ph_ID', 'ph', 'start', 'end', 'ref', 'tx', 'ft', 'wd_ID', 'wd', 'mc-zero', 'mb_ID', 'mb', 'doreco-mb-algn', 'ps', 'gl', 'refind', 'isnref']
+    def _read_language(self, code, corpus, path):
+        with ZipFile(path) as bundle:
+            if self.split != "all":
+                info = bundle.read(bundle_member(bundle, "_dataset-info.txt")).decode(
+                    "utf-8-sig"
+                )
+                if set(LICENSE_STATEMENT.findall(info)) != {
+                    ("annotation", "by/4.0/"),
+                    ("audio", "by/4.0/"),
+                }:
+                    raise ValueError(
+                        f"{path} must declare CC BY 4.0 for both annotations and audio"
+                    )
+            with bundle.open(bundle_member(bundle, "_metadata.csv")) as f:
+                metadata = pd.read_csv(f)
+            with bundle.open(bundle_member(bundle, "_ph.csv")) as f:
+                phones = pd.read_csv(
+                    f,
+                    usecols="file speaker ref ph start end wd_ID wd".split(),
+                    keep_default_na=False,
+                    dtype=dict.fromkeys("speaker ref ph wd_ID wd".split(), str),
+                )
+        for column in ("start", "end"):
+            phones[column] = pd.to_numeric(phones[column], errors="coerce")
+        metadata["name"] = f"doreco_{code}_" + metadata["name"]
+        names = set(metadata["name"])
+        if not set(phones["file"]).issubset(names):
+            missing = sorted(set(phones["file"]) - names)
+            raise ValueError(f"Missing metadata in {path} for {missing}")
+        if self.include_speaker_info:
+            self._metadata[code] = {
+                row["name"]: dict(
+                    row,
+                    language=code,
+                    language_name=corpus.name,
+                    annotation_license=corpus.annotation_license,
+                    audio_license=corpus.audio_license,
+                    dataset_doi=corpus.doi,
+                )
+                for row in metadata.to_dict("records")
+            }
+        if self.split in ("EN01", "EN03"):
+            phones = phones[phones["speaker"] == self.split]
 
-        filter_by_session = split.startswith("T")
-        filter_by_speaker = split.startswith("EN")
-        if filter_by_session:
-            self.metadata_df = self.metadata_df[self.metadata_df["id"] == split]
-            self.phoneme_df = self.phoneme_df[
-                self.phoneme_df["file"].isin(self.metadata_df["name"].unique())
-            ]
-        elif filter_by_speaker:
-            self.metadata_df = self.metadata_df[self.metadata_df["spk_code"] == split]
-            self.phoneme_df = self.phoneme_df[self.phoneme_df["speaker"] == split]
+        skipped = Counter()
+        groups = phones.groupby(["file", "speaker", "ref"], sort=False)
+        for (recording, speaker, ref), rows in groups:
+            if is_label(ref) or len(rows) <= 10:
+                continue
+            words, timed = {}, []
+            for row in rows.itertuples(index=False):
+                if row.wd_ID and not is_label(row.wd):
+                    words.setdefault(row.wd_ID, row.wd)
+                if is_label(row.ph):
+                    continue
+                ipa = phone_to_ipa(row.ph)
+                if ipa is None:
+                    skipped[f"unsupported X-SAMPA {row.ph!r}"] += 1
+                    break
+                start = row.start * TARGET_SAMPLE_RATE
+                end = row.end * TARGET_SAMPLE_RATE
+                if not (
+                    math.isfinite(start) and math.isfinite(end) and 0 <= start < end
+                ):
+                    skipped["invalid phone timing"] += 1
+                    break
+                timed.append((ipa, int(start), int(end)))
+            else:
+                if not timed:
+                    skipped["no phones"] += 1
+                    continue
+                timed.sort(key=lambda phone: phone[1])
+                bounds = timed[0][1], max(phone[2] for phone in timed)
+                self.utterances.append(
+                    Utterance(
+                        code,
+                        recording,
+                        speaker,
+                        ref,
+                        bounds,
+                        tuple(timed),
+                        " ".join(words.values()),
+                    )
+                )
+                self.vocab.update(phone[0] for phone in timed)
+        self.skipped[code] = dict(skipped)
+        if skipped:
+            LOGGER.warning(
+                "DoReCo %s skipped %d utterances: %s",
+                code,
+                sum(skipped.values()),
+                dict(skipped),
+            )
 
-        # only speakers EN01 and EN03 actually have phonemic transcriptions
-        self.phoneme_df = self.phoneme_df[
-            self.phoneme_df["speaker"].isin(["EN01", "EN03"])
-        ]
-        assert split in [
-            "all",
-            "EN01",
-            "EN03",
-        ], f"There are no phonemic transcriptions for {split}, only words"
+    @property
+    def recordings(self):
+        """The source recordings required by the selected utterances."""
+        return {(item.language, item.recording) for item in self.utterances}
 
-        self.utterances = [
-            x
-            for x in self.phoneme_df["ref"].unique()
-            if not is_special_symbol(x)
-            if len(self.phoneme_df[self.phoneme_df["ref"] == x]) > 10
-        ]
-
-    def __del__(self):
-        self.audio_zip.close()
-        self.audio_core_zip.close()
+    def missing_recordings(self):
+        return sorted(
+            (code, recording)
+            for code, recording in self.recordings
+            if recording not in self._audio[code]
+        )
 
     def __len__(self):
         return len(self.utterances)
 
     def _get_ix(self, ix):
-        utterance: str = self.utterances[ix]
-
-        # parse annotations
-        phoneme_units = self.phoneme_df[self.phoneme_df["ref"] == utterance]
-        timestamped_phonemes = [
-            (
-                xsampa2ipa(unit["ph"]),
-                int(float(unit["start"]) * TARGET_SAMPLE_RATE),
-                int(float(unit["end"]) * TARGET_SAMPLE_RATE),
-            )
-            for _, unit in phoneme_units.iterrows()
-            if not is_special_symbol(unit["ph"])
-        ]
-        ipa = "".join(x[0] for x in timestamped_phonemes)
-
-        word_ids = phoneme_units["wd_ID"].unique()
-        timestamped_words = [
-            (
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"],
-                int(
-                    float(
-                        phoneme_units[phoneme_units["wd_ID"] == word_id]["start"].min()
-                    )
-                    * TARGET_SAMPLE_RATE
-                ),
-                int(
-                    float(phoneme_units[phoneme_units["wd_ID"] == word_id]["end"].max())
-                    * TARGET_SAMPLE_RATE
-                ),
-            )
-            for word_id in word_ids
-            if not is_special_symbol(
-                phoneme_units[phoneme_units["wd_ID"] == word_id].iloc[0]["wd"]
-            )
-        ]
-        text = " ".join(x[0] for x in timestamped_words)
-
-        # parse metadata
-        name = phoneme_units["file"].iloc[0]
-        metadata_dict = (
-            self.metadata_df[self.metadata_df["name"] == name].iloc[0].to_dict()
-        )
-        is_core = metadata_dict["extended"] == "no"
-
-        # parse audio
-        start = timestamped_phonemes[0][1]
-        end = timestamped_phonemes[-1][2] + int(TARGET_SAMPLE_RATE * 0.3)
-        if is_core:
-            filename = "doreco_sout3282_audiofiles_v2.0/" + name + ".wav"
-            with self.audio_core_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
+        item = self.utterances[ix]
+        start, end = item.bounds
+        key = (item.language, item.recording)
+        if key != self._recording_key:
+            location = self._audio[item.language].get(item.recording)
+            if location is None:
+                raise FileNotFoundError(
+                    f"Missing DoReCo recording {item.recording}.wav in {self.root}. "
+                    f"Source: https://doreco.huma-num.fr/languages/{item.language}"
                 )
-        else:
-            filename = name[len("doreco_sout3282_") :] + ".wav"
-            with self.audio_zip.open(filename) as f:
-                audio = audio_bytes_to_array(
-                    f.read(), SOURCE_SAMPLE_RATE, TARGET_SAMPLE_RATE
-                )
-        audio = audio[start:end]
+            self._recording_audio = decode_wav(*location)
+            self._recording_key = key
+        recording = self._recording_audio
 
+        if (
+            item.phones[-1][1] >= len(recording)
+            or end > len(recording) + AUDIO_END_TOLERANCE
+        ):
+            raise ValueError(
+                f"DoReCo {item.ref} ends at {end}, outside "
+                f"{item.recording}.wav ({len(recording)} samples)"
+            )
+        audio = recording[start : end + AUDIO_PADDING].copy()
+        ipa = "".join(phone for phone, _, _ in item.phones)
         result = [ipa, audio]
         if self.include_timestamps:
-            result.append(timestamped_phonemes)
+            result.append(
+                [
+                    (phone, pos - start, min(stop, len(recording)) - start)
+                    for phone, pos, stop in item.phones
+                ]
+            )
         if self.include_speaker_info:
-            result.append(metadata_dict)
+            result.append(
+                dict(
+                    self._metadata[item.language][item.recording],
+                    utt_spk_code=item.speaker,
+                    utterance_ref=item.ref,
+                )
+            )
         if self.include_text:
-            result.append(text)
+            result.append(item.text)
         return tuple(result)
 
 
 if __name__ == "__main__":
     dataset = DoReCoDataset(
-        split="all",
         include_timestamps=True,
         include_speaker_info=True,
         include_text=True,

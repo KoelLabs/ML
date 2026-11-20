@@ -97,12 +97,14 @@ def ipa2xsampa(ipa_string, lang="eng"):
     return " ".join(xsampa_symbols)
 
 
-def xsampa2ipa(xsampa_string, lang="eng"):
+def xsampa2ipa(xsampa_string, lang="eng", *, mapping=None):
+    """Convert X-SAMPA to IPA with an optional corpus-specific symbol table."""
+    mapping = XSAMPA2IPA if mapping is None else mapping
     if " " in xsampa_string:
         xsampa_symbols = xsampa_string.split()
     else:
-        xsampa_symbols = string2symbols(xsampa_string, XSAMPA2IPA.keys())[0]
-    return "".join([XSAMPA2IPA[x] for x in xsampa_symbols])
+        xsampa_symbols = string2symbols(xsampa_string, mapping.keys())[0]
+    return "".join([mapping[x] for x in xsampa_symbols])
 
 
 #####################################################################

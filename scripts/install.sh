@@ -171,12 +171,15 @@ curl -L -o ./.data/CORAAL/transcripts/VLD.tar.gz http://lingtools.uoregon.edu/co
 echo "Downloading CMU ARCTIC dataset..."
 mkdir -p .data/CMU_ARCTIC && for spk in aew ahw aup awb axb bdl clb eey fem gka jmk ksp ljm lnh rms rxr slp slt; do wget -q --show-progress "http://festvox.org/cmu_arctic/packed/cmu_us_${spk}_arctic.tar.bz2" -O - | tar -xj -C .data/CMU_ARCTIC; done
 
-# Download DoReCo Southern British English data
-mkdir -p .data/DoReCo
-curl -L "https://sharedocs.huma-num.fr/?module=weblinks&section=public&multidownload=1&id=eGPAXNlp1L6E2aP9efkr4YCXiXFlDLI3" > ./.data/DoReCo/sout3282_audio_core_v2.zip
-curl -L "https://multicast.aspra.uni-bamberg.de/data/audio/english/wav/mc_english__wav.zip" > ./.data/DoReCo/sout3282_audio_v2.zip
-# curl -L https://sharedocs.huma-num.fr/wl/?id=JHfkc54sOLrj1zgkihIf9qKkrcfuQbsr&fmode=download > ./.data/DoReCo/sout3282_annotations_v2.zip
-curl -L "https://sharedocs.huma-num.fr/wl/?id=7XBW8mmwQkeZeYN18EnEiNpoeLFirrvi&fmode=download" > ./.data/DoReCo/sout3282_annotations_v2.zip
+# Download the Southern England DoReCo core bundles.
+# See scripts/data_loaders/DoReCo.py for the corpus layout and download instructions.
+mkdir -p .data/DoReCo/sout3282
+curl --fail --location --retry 3 --remove-on-error \
+    "https://sharedocs.huma-num.fr/wl/?id=KYyWz1grSs4UZhbdT9K8gV54a2FSU9q6&fmode=download" \
+    --output .data/DoReCo/sout3282/doreco_sout3282_core_v2.zip
+curl --fail --location --retry 3 --remove-on-error \
+    "https://sharedocs.huma-num.fr/?module=weblinks&section=public&multidownload=1&id=eGPAXNlp1L6E2aP9efkr4YCXiXFlDLI3" \
+    --output .data/DoReCo/sout3282/doreco_sout3282_audio.zip
 
 # Download EpaDB
 curl -L https://github.com/JazminVidal/EpaDB/archive/refs/heads/master.zip > ./.data/EpaDB-master.zip

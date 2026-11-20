@@ -3,57 +3,116 @@
 
 import os
 import sys
+from itertools import islice
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import numpy as np
-from datasets import DatasetDict, Dataset, Audio
+import pyarrow as pa
+import pyarrow.parquet as pq
+from datasets import DatasetDict, Dataset, Audio, Features, Value
+from huggingface_hub import CommitOperationAdd, HfApi
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-from core.audio import TARGET_SAMPLE_RATE
-from data_loaders.common import split_utterance_into_multiple
+from core.audio import TARGET_SAMPLE_RATE, audio_array_to_bytes
 
-from data_loaders.DoReCo import DoReCoDataset
-from data_loaders.EpaDB import EpaDBDataset
-from data_loaders.L2ARCTIC import L2ArcticDataset, all_arctic_speaker_splits
-from data_loaders.OSUBuckeye import all_buckeye_speaker_splits
-from data_loaders.PSST import PSSTDataset
-from data_loaders.SpeechOcean import SpeechOceanDataset
-from data_loaders.TIMIT import TIMITDataset
-from data_loaders.ISLE import ISLEDataset
-from data_loaders.SpeechAccent import SpeechAccentDataset
-
-from core.text import english2ipa
-from forced_alignment.needleman_wunsch import needleman_wunsch
+from data_loaders.DoReCo import (
+    COMMERCIAL_LANGUAGES,
+    TOP_DIR as DORECO_DIR,
+    DoReCoDataset,
+)
 
 
 # ==================================================
 # =================== Generators ===================
-def gen_doreco():
-    dataset = DoReCoDataset(
-        split="all",
-        include_speaker_info=True,
-        include_text=True,
-    )
-    for sample in dataset:
-        assert sample[1].dtype == np.int16  # type: ignore
-        metadata = sample[2]  # type: ignore
+def gen_doreco(dataset):
+    for ipa, audio, phones, metadata, text in dataset:
         yield {
-            "audio": {"array": sample[1].astype(np.float32) / np.iinfo(np.int16).max, "sampling_rate": TARGET_SAMPLE_RATE},  # type: ignore
-            "ipa": sample[0],  # type: ignore
-            "text": sample[3],  # type: ignore
-            "g2p": english2ipa(sample[3]),  # type: ignore
-            "id": metadata["id"],  # type: ignore
-            "speaker_code": metadata["spk_code"],  # type: ignore
-            "speaker_age": metadata["spk_age"],  # type: ignore
-            "speaker_gender": metadata["spk_sex"],  # type: ignore
-            "recording_year": metadata["rec_date"],  # type: ignore
-            "recoding_topic": metadata["genre"],  # type: ignore
-            "sound_quality": metadata["sound_quality"],  # type: ignore
-            "background_noise": metadata["background_noise"],  # type: ignore
+            "audio": {"bytes": audio_array_to_bytes(audio), "path": None},
+            "ipa": ipa,
+            "text": text,
+            "language": metadata["language"],
+            "recording": metadata["name"],
+            "speaker_code": metadata["utt_spk_code"],
+            "utterance_ref": metadata["utterance_ref"],
+            "phones": [
+                {"ipa": phone, "start_sample": start, "end_sample": end}
+                for phone, start, end in phones
+            ],
         }
+
+
+def export_doreco(root=DORECO_DIR):
+    """Upload the Parquet splits listed in the existing dataset card."""
+    repo_id = "KoelLabs/DoReCo"
+    api = HfApi()
+    repo = api.dataset_info(repo_id)
+    if not repo.gated:
+        raise ValueError(f"Expected the gated dataset {repo_id}")
+
+    schema = Features(
+        {
+            "audio": Audio(sampling_rate=TARGET_SAMPLE_RATE),
+            **dict.fromkeys(
+                (
+                    "ipa",
+                    "text",
+                    "language",
+                    "recording",
+                    "speaker_code",
+                    "utterance_ref",
+                ),
+                Value("string"),
+            ),
+            "phones": [
+                {
+                    "ipa": Value("string"),
+                    "start_sample": Value("int32"),
+                    "end_sample": Value("int32"),
+                }
+            ],
+        }
+    ).arrow_schema
+    operations = []
+    with TemporaryDirectory() as staging:
+        for code in COMMERCIAL_LANGUAGES:
+            dataset = DoReCoDataset(
+                language=code,
+                root=root,
+                include_timestamps=True,
+                include_speaker_info=True,
+                include_text=True,
+            )
+            missing = dataset.missing_recordings()
+            if missing:
+                raise FileNotFoundError(
+                    f"Missing DoReCo recordings for {code}: {missing}"
+                )
+            if not len(dataset):
+                raise ValueError(f"No DoReCo utterances for {code}")
+            filename = f"{code}.parquet"
+            path = Path(staging) / filename
+            print(f"Preparing DoReCo {code}", flush=True)
+            with pq.ParquetWriter(path, schema, compression="zstd") as writer:
+                rows = gen_doreco(dataset)
+                while batch := list(islice(rows, 64)):
+                    writer.write_table(pa.Table.from_pylist(batch, schema=schema))
+            operations.append(CommitOperationAdd(f"multilingual/{filename}", path))
+
+        return api.create_commit(
+            repo_id,
+            operations=operations,
+            repo_type="dataset",
+            commit_message="Upload DoReCo multilingual splits",
+            parent_commit=repo.sha,
+        )
 
 
 def gen_epadb(split):
     def generator():
+        from core.text import english2ipa
+        from data_loaders.EpaDB import EpaDBDataset
+
         dataset = EpaDBDataset(
             split=split,
             include_speaker_info=True,
@@ -75,6 +134,9 @@ def gen_epadb(split):
 
 def gen_l2arctic(split):
     def generator():
+        from core.text import english2ipa
+        from data_loaders.L2ARCTIC import L2ArcticDataset, all_arctic_speaker_splits
+
         dataset = (
             L2ArcticDataset(
                 split="suitcase_corpus",
@@ -104,6 +166,11 @@ def gen_l2arctic(split):
 
 
 def gen_l2arctic_suitcase_split():
+    from core.text import english2ipa
+    from data_loaders.common import split_utterance_into_multiple
+    from data_loaders.L2ARCTIC import L2ArcticDataset
+    from forced_alignment.needleman_wunsch import needleman_wunsch
+
     # suitcase
     dataset = L2ArcticDataset(
         split="suitcase_corpus",
@@ -140,6 +207,9 @@ def gen_l2arctic_suitcase_split():
 
 
 def gen_buckeye():
+    from core.text import english2ipa
+    from data_loaders.OSUBuckeye import all_buckeye_speaker_splits
+
     dataset = all_buckeye_speaker_splits(include_speaker_info=True, include_text=True)
     for sample in dataset:
         assert sample[1].dtype == np.int16  # type: ignore
@@ -157,6 +227,11 @@ def gen_buckeye():
 
 
 def gen_buckeye_split():
+    from core.text import english2ipa
+    from data_loaders.common import split_utterance_into_multiple
+    from data_loaders.OSUBuckeye import all_buckeye_speaker_splits
+    from forced_alignment.needleman_wunsch import needleman_wunsch
+
     dataset = all_buckeye_speaker_splits(
         include_timestamps=True,
         include_speaker_info=True,
@@ -193,6 +268,9 @@ def gen_buckeye_split():
 
 def gen_psst(split):
     def generator():
+        from core.text import english2ipa
+        from data_loaders.PSST import PSSTDataset
+
         dataset = PSSTDataset(
             split=split,
             include_speaker_info=True,
@@ -220,6 +298,9 @@ def gen_psst(split):
 
 def gen_speech_ocean(split):
     def generator():
+        from core.text import english2ipa
+        from data_loaders.SpeechOcean import SpeechOceanDataset
+
         dataset = SpeechOceanDataset(
             split=split, include_speaker_info=True, include_text=True
         )
@@ -256,6 +337,9 @@ def gen_speech_ocean_no_th(split):
 
 def gen_timit(split):
     def generator():
+        from core.text import english2ipa
+        from data_loaders.TIMIT import TIMITDataset
+
         dataset = TIMITDataset(
             split=split, include_speaker_info=True, include_text=True
         )
@@ -281,6 +365,9 @@ def gen_timit(split):
 
 
 def gen_isle():
+    from core.text import english2ipa
+    from data_loaders.ISLE import ISLEDataset
+
     dataset = ISLEDataset(
         split="all",
         include_speaker_info=True,
@@ -303,6 +390,9 @@ def gen_isle():
 
 
 def gen_speech_accent_archive():
+    from core.text import english2ipa
+    from data_loaders.SpeechAccent import SpeechAccentDataset
+
     dataset = SpeechAccentDataset(include_speaker_info=True, include_text=True)
     for sample in dataset:
         assert sample[1].dtype == np.int16  # type: ignore
@@ -334,9 +424,7 @@ def gen_speech_accent_archive():
 
 if __name__ == "__main__":
     if "DoReCo" in sys.argv:
-        print("Pushing DoReCo to the hub...")
-        doreco_ds: Dataset = Dataset.from_generator(gen_doreco).cast_column("audio", Audio())  # type: ignore
-        doreco_ds.push_to_hub("KoelLabs/DoReCo", private=True)
+        print(export_doreco().commit_url)
     if "EpaDB" in sys.argv:
         print("Pushing EpaDB to the hub...")
         epadb_dict = DatasetDict(
