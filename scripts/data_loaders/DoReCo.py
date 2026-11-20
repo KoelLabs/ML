@@ -47,7 +47,6 @@ from data_loaders.common import BaseDataset, interactive_flag_samples
 TOP_DIR = Path(__file__).resolve().parents[2] / ".data" / "DoReCo"
 DEFAULT_LANGUAGE = "sout3282"
 DEFAULT_SPLIT = "commercial"
-CC_BY_4 = "https://creativecommons.org/licenses/by/4.0/"
 LICENSE_STATEMENT = re.compile(
     r"\b(annotation|audio) files are distributed under [^\n]+?\("
     r"https?://creativecommons\.org/licenses/([\w-]+/\d\.\d/)"
@@ -296,7 +295,6 @@ class DoReCoDataset(BaseDataset):
         self.utterances = []
         self.vocab = set()
         self.skipped = {}
-        self.citations = {}
         self._metadata = {}
         self._audio = {}
         self._recording_key = None
@@ -344,18 +342,17 @@ class DoReCoDataset(BaseDataset):
 
     def _read_language(self, code, corpus, path):
         with ZipFile(path) as bundle:
-            info = bundle.read(bundle_member(bundle, "_dataset-info.txt")).decode(
-                "utf-8-sig"
-            )
-            if self.split != "all" and set(LICENSE_STATEMENT.findall(info)) != {
-                ("annotation", "by/4.0/"),
-                ("audio", "by/4.0/"),
-            }:
-                raise ValueError(
-                    f"{path} must declare CC BY 4.0 for both annotations and audio"
+            if self.split != "all":
+                info = bundle.read(bundle_member(bundle, "_dataset-info.txt")).decode(
+                    "utf-8-sig"
                 )
-            _, _, citation = info.partition("should be cited as follows:")
-            self.citations[code] = citation.strip().split("\n", 1)[0]
+                if set(LICENSE_STATEMENT.findall(info)) != {
+                    ("annotation", "by/4.0/"),
+                    ("audio", "by/4.0/"),
+                }:
+                    raise ValueError(
+                        f"{path} must declare CC BY 4.0 for both annotations and audio"
+                    )
             with bundle.open(bundle_member(bundle, "_metadata.csv")) as f:
                 metadata = pd.read_csv(f)
             with bundle.open(bundle_member(bundle, "_ph.csv")) as f:

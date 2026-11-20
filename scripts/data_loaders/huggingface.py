@@ -11,15 +11,13 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 from datasets import DatasetDict, Dataset, Audio, Features, Value
-from huggingface_hub import CommitOperationAdd, DatasetCard, HfApi, hf_hub_download
+from huggingface_hub import CommitOperationAdd, HfApi
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE, audio_array_to_bytes
 
 from data_loaders.DoReCo import (
-    CC_BY_4,
     COMMERCIAL_LANGUAGES,
-    CORPORA,
     TOP_DIR as DORECO_DIR,
     DoReCoDataset,
 )
@@ -45,6 +43,7 @@ def gen_doreco(dataset):
 
 
 def export_doreco(root=DORECO_DIR):
+    """Upload the Parquet splits listed in the existing dataset card."""
     repo_id = "KoelLabs/DoReCo"
     api = HfApi()
     repo = api.dataset_info(repo_id)
@@ -74,10 +73,7 @@ def export_doreco(root=DORECO_DIR):
             ],
         }
     ).arrow_schema
-    card = DatasetCard.load(
-        hf_hub_download(repo_id, "README.md", repo_type="dataset", revision=repo.sha)
-    )
-    files, operations, licenses, citations = [], [], [], []
+    operations = []
     with TemporaryDirectory() as staging:
         for code in COMMERCIAL_LANGUAGES:
             dataset = DoReCoDataset(
@@ -88,13 +84,12 @@ def export_doreco(root=DORECO_DIR):
                 include_text=True,
             )
             missing = dataset.missing_recordings()
-            citation = dataset.citations[code]
             if missing:
                 raise FileNotFoundError(
                     f"Missing DoReCo recordings for {code}: {missing}"
                 )
-            if not citation or not len(dataset):
-                raise ValueError(f"Missing citation or utterances for DoReCo {code}")
+            if not len(dataset):
+                raise ValueError(f"No DoReCo utterances for {code}")
             filename = f"{code}.parquet"
             path = Path(staging) / filename
             print(f"Preparing DoReCo {code}", flush=True)
@@ -102,76 +97,13 @@ def export_doreco(root=DORECO_DIR):
                 rows = gen_doreco(dataset)
                 while batch := list(islice(rows, 64)):
                     writer.write_table(pa.Table.from_pylist(batch, schema=schema))
-            hub_path = f"multilingual/{filename}"
-            operations.append(CommitOperationAdd(hub_path, path))
-            files.append({"split": code, "path": hub_path})
-            corpus = CORPORA[code]
-            licenses.append(
-                f"| `{code}` | {corpus.name} | {len(dataset):,} | "
-                f"[CC BY 4.0]({CC_BY_4}) | [Source](https://doi.org/{corpus.doi}) |"
-            )
-            citations.append(f"- **`{code}`** {citation}")
+            operations.append(CommitOperationAdd(f"multilingual/{filename}", path))
 
-        card.data.configs = [
-            config
-            for config in card.data.configs
-            if config["config_name"] != "multilingual"
-        ] + [{"config_name": "multilingual", "data_files": files}]
-        if isinstance(card.data.get("dataset_info"), dict):
-            card.data.dataset_info = [
-                dict(card.data.dataset_info, config_name="default")
-            ]
-        card.data.license = "cc-by-4.0"
-        card.data.language = None
-        card.data.pretty_name = "DoReCo (Koel Labs)"
-        card.data.multilinguality = "multilingual"
-        card.data.size_categories = ["10K<n<100K"]
-        card.data.tags = ["speech", "IPA"]
-        table = "\n".join(licenses)
-        references = "\n".join(citations)
-        readme = f"""---
-{card.data.to_yaml()}
----
-
-# DoReCo (Koel Labs)
-
-[DoReCo](https://doreco.huma-num.fr/) contains time-aligned speech from
-53 languages. This export contains the corpora with CC BY 4.0 audio and annotations.
-The `multilingual` configuration has one split per Glottolog code. The English
-(Southern England) export is also available as `default/train`.
-
-Request access on Hugging Face and sign in with a token.
-
-```python
-from datasets import load_dataset
-
-sumi = load_dataset("KoelLabs/DoReCo", "multilingual", split="sumi1235")
-```
-
-The [loader](https://github.com/KoelLabs/ML/blob/main/scripts/data_loaders/DoReCo.py)
-segments the core recordings, converts X-SAMPA labels to IPA and converts audio to
-mono at 16 kHz. Phone timings are sample offsets within each clip. The recording
-and utterance fields identify the original source.
-
-## Splits and licenses
-
-| Split | Language | Clips | Audio and annotations | Source |
-| --- | --- | ---: | --- | --- |
-{table}
-
-Use the `sout3282` citation for `default/train`. Credit every corpus you use
-and indicate modifications under [CC BY 4.0]({CC_BY_4}).
-
-## Corpus citations
-
-{references}
-"""
-        operations.append(CommitOperationAdd("README.md", readme.encode()))
         return api.create_commit(
             repo_id,
             operations=operations,
             repo_type="dataset",
-            commit_message="Publish DoReCo multilingual splits with source attribution",
+            commit_message="Upload DoReCo multilingual splits",
             parent_commit=repo.sha,
         )
 
