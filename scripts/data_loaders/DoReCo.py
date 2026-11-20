@@ -1,4 +1,4 @@
-# DoReCo 2.0 contains over 100 hours across 53 languages and varieties, mostly fieldwork
+# DoReCo contains over 100 hours across 53 languages and varieties, mostly fieldwork
 # narratives and conversations. The Hub export has about 34 hours across 29 languages.
 # Its English split has 47 minutes of Southern England speech from two Kent speakers.
 # Corpus descriptions and dialect coverage are at https://doreco.huma-num.fr/languages.
@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
+from unicodedata import combining
 from zipfile import ZipFile
 
 import numpy as np
@@ -40,7 +41,7 @@ import soundfile
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 from core.audio import TARGET_SAMPLE_RATE, audio_resample
-from core.codes import xsampa2ipa
+from core.codes import XSAMPA2IPA, xsampa2ipa
 from data_loaders.common import BaseDataset, interactive_flag_samples
 
 TOP_DIR = Path(__file__).resolve().parents[2] / ".data" / "DoReCo"
@@ -63,7 +64,7 @@ class Corpus(NamedTuple):
     audio_license: str
 
 
-# DoReCo 2.0 catalog. "audio linked" means the source archive sets its own terms.
+# DoReCo language catalog. "audio linked" means the source archive sets its own terms.
 # fmt: off
 CORPORA = {
     "anal1239": Corpus("Anal", "10.34847/nkl.0dbazp8m", "CC BY", "CC BY-NC"),
@@ -212,10 +213,30 @@ def decode_wav(archive, path):
     return audio_resample(mono, rate, TARGET_SAMPLE_RATE)
 
 
+# Strip padding from combining marks while preserving the space used for unsupported symbols.
+DORECO_XSAMPA = {symbol: ipa.lstrip() or ipa for symbol, ipa in XSAMPA2IPA.items()} | {
+    "_+": "̟",
+    "_-": "̠",
+    "_0": "̥",
+    "=": "̩",
+    "_=": "̩",
+    "~": "̃",
+    "_~": "̃",
+    "_o": "̞",
+    "_r": "̝",
+    "_t": "̤",
+    "_v": "̬",
+    # Goemai annotations place the implosive marker after secondary articulation.
+    "b_j_<": "ɓʲ",
+    "d_j_<": "ɗʲ",
+    "d_w_<": "ɗʷ",
+}
+
+
 @lru_cache(maxsize=4096)
 def phone_to_ipa(phone):
     try:
-        ipa = xsampa2ipa(phone)
+        ipa = xsampa2ipa(phone, mapping=DORECO_XSAMPA)
     except KeyError:
         return None
     # The shared converter still has placeholders for unsupported symbols.
@@ -226,7 +247,18 @@ def phone_to_ipa(phone):
         or ipa.endswith("͡")
     ):
         return None
-    return ipa
+    # DoReCo can put length before a combining diacritic, as in a:~.
+    # Move the diacritic onto the phone itself so that a:~ becomes ãː.
+    phones, lengths = [], []
+    for symbol in ipa:
+        if symbol in ("ː", "ˑ"):
+            lengths.append(symbol)
+            continue
+        if not combining(symbol) or symbol == "͡":
+            phones.extend(lengths)
+            lengths.clear()
+        phones.append(symbol)
+    return "".join(phones + lengths)
 
 
 @dataclass(frozen=True)

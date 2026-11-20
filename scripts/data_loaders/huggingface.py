@@ -135,7 +135,7 @@ def export_doreco(root=DORECO_DIR):
 
 # DoReCo (Koel Labs)
 
-[DoReCo 2.0](https://doreco.huma-num.fr/) contains time-aligned speech from
+[DoReCo](https://doreco.huma-num.fr/) contains time-aligned speech from
 53 languages. This export contains the corpora with CC BY 4.0 audio and annotations.
 The `multilingual` configuration has one split per Glottolog code. The English
 (Southern England) export is also available as `default/train`.
