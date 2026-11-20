@@ -1,0 +1,10 @@
+Ground Truth Text:
+at that moment i got the impression that she was willowy
+
+Ground Truth Transcription:
+æ t d æ t m oʊ m ʌ n t aɪ ɡ ɑ t d i ɪ m p ɹ æ ʃ ʌ n d æ t ʃ i w ʌ z w i l ʌ w i
+
+Old Joined Parse:
+æ t d æ t m oʊ m ʌ n t aɪ ɡ ɑ t d i ɪ m p ɹ æ ʃ ʌ n d æ tʃ i w ʌ z w i l ʌ w i
+
+- "that she" has separate T + SH TextGrid phones; joining the label creates a fake tʃ across the word boundary.

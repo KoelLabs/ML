@@ -1,0 +1,10 @@
+Ground Truth Text:
+the emotion which she had suppressed burst forth now in a choking sob
+
+Ground Truth Transcription:
+d i ɪ m oʊ ʃ ʌ n w i t ʃ i h æ d s ʌ p ɹ ɛ s t b ɝ s t f ɔ ɹ t n aʊ ɪ n ʌ ʃ ɔ k ɪ ŋ s ɑ b
+
+Old Joined Parse:
+d i ɪ m oʊ ʃ ʌ n w i tʃ i h æ d s ʌ p ɹ ɛ s t b ɝ s t f ɔ ɹ t n aʊ ɪ n ʌ ʃ ɔ k ɪ ŋ s ɑ b
+
+- "which she" has separate T + SH TextGrid phones; joining the label creates a fake tʃ across the word boundary.
