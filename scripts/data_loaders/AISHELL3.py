@@ -1,201 +1,197 @@
-# AISHELL-3, Mandarin read speech from 218 speakers, made for speech synthesis. 88,035
-# utterances, about 85 hours, with pinyin and tones that people wrote by listening.
-# Site: https://www.openslr.org/93/
-# Paper: Shi, Y., Bu, H., Xu, X., Zhang, S., Li, M. (2021). AISHELL-3: A multi-speaker
-#   Mandarin TTS corpus. Interspeech 2021. https://arxiv.org/abs/2010.11567
-# License: the sources disagree, Apache 2.0 on OpenSLR and the paper, and the archive has
-#   no license line. See the notes, docs/datasets/AISHELL3.md.
+# AISHELL-3 contains about 85 hours of scripted, neutral Mandarin from 218 native
+# speakers, mostly with northern or southern accents. Recordings are quiet indoor,
+# mono 44.1 kHz PCM. Human annotators transcribed pinyin and tones from the readings,
+# including tone changes. The paper gives no annotator count or agreement figures.
+# The loader converts pinyin deterministically to broad IPA. There are no phone times.
+# Shi et al. (Interspeech 2021): https://doi.org/10.21437/INTERSPEECH.2021-755
 #
-# The corpus has pinyin, not IPA. The IPA of this loader is made from the pinyin by the
-# fixed table in aishell3_pinyin_ipa.json. It is phonemic, and it shows no allophones and
-# no accent beyond what the pinyin writes. The archive has no phone times, so there are
-# no timestamps.
+# AISHELL and OpenSLR list Apache 2.0 for this release. AISHELL's separate membership
+# portal describes research-only access.
+# https://www.aishelltech.com/aishell_3
+# https://www.openslr.org/93/
+# https://opendata.aishelltech.com/aishell-3
 #
-# Download instructions:
-#   mkdir -p ./.data/AISHELL3 && cd ./.data/AISHELL3
-#   curl -L -O https://www.openslr.org/resources/93/data_aishell3.tgz
-#   tar -xzf data_aishell3.tgz
-#   ls
-#   ls must show spk-info.txt, train and test. If it shows one folder instead, run
-#   mv FOLDER/* . with that folder's name. The archive is 19.0 GB. Its size and SHA-256
-#   are in the notes. Then train and test each hold content.txt and wav/.
-#
-# Tested on Nov 10, 2026, Pacific time, with the real audio. The labels of every item of every split
-# were checked, every WAV was read with read_wav, and full items with speaker info and
-# text were checked on a sample of 88. No person has listened to the clips yet.
-# TODO: manual verification
+# Extract data_aishell3.tgz from OpenSLR into .data/AISHELL3 so that spk-info.txt,
+# train/ and test/ are directly under that directory.
 
-import io
-import json
-import os
 import re
 import sys
+import wave
+from collections import Counter
+from functools import lru_cache
+from pathlib import Path
 
-import soundfile
+import numpy as np
 
-sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(str(Path(__file__).resolve().parents[1]))
+from core.audio import TARGET_SAMPLE_RATE, audio_resample
+from core.codes import TONE2IPA
 from data_loaders.common import BaseDataset, interactive_flag_samples
-from core.audio import audio_resample, TARGET_SAMPLE_RATE
 
 SITE = "https://www.openslr.org/93/"
-DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", ".data", "AISHELL3")
-TABLE = os.path.join(os.path.dirname(__file__), "aishell3_pinyin_ipa.json")
-# Added to every error about the data, so that the error says what fixes it.
-FIX = f"Download {SITE} to .data/AISHELL3/ and unpack it, as the header of AISHELL3.py says"
-FOLDERS = ("train", "test")
+DATA_DIR = Path(__file__).resolve().parents[2] / ".data" / "AISHELL3"
 SPLITS = ("train", "test", "test_new_speakers", "all")
-TONES = ("none", "letters")
-SYLLABLE = re.compile(r"[a-z]+[1-5]")
+SYLLABLE = re.compile(r"([a-z]+)([1-5])")
+
+# Broad initials and finals follow the University of Washington Mandarin IPA tables.
+# https://courses.washington.edu/chin342/ipa/consonants.html
+# https://courses.washington.edu/chin342/ipa/finals.html
+# Spaces delimit phones for vocab, including tied affricates and syllabic consonants.
+INITIALS = {
+    "b": "p",
+    "p": "pʰ",
+    "m": "m",
+    "f": "f",
+    "d": "t",
+    "t": "tʰ",
+    "n": "n",
+    "l": "l",
+    "g": "k",
+    "k": "kʰ",
+    "h": "x",
+    "j": "t͡ɕ",
+    "q": "t͡ɕʰ",
+    "x": "ɕ",
+    "zh": "ʈ͡ʂ",
+    "ch": "ʈ͡ʂʰ",
+    "sh": "ʂ",
+    "r": "ɹ",
+    "z": "t͡s",
+    "c": "t͡sʰ",
+    "s": "s",
+}
+FINALS = {
+    "a": "a",
+    "o": "o",
+    "e": "ɤ",
+    "ai": "a i",
+    "ei": "e i",
+    "ao": "a u",
+    "ou": "o u",
+    "an": "a n",
+    "en": "ə n",
+    "ang": "a ŋ",
+    "eng": "ə ŋ",
+    "er": "ə ɹ",
+    "i": "i",
+    "ia": "i a",
+    "ie": "i ɛ",
+    "iao": "i a u",
+    "iou": "i o u",
+    "ian": "i ɛ n",
+    "in": "i n",
+    "iang": "i a ŋ",
+    "ing": "i ŋ",
+    "iong": "y u ŋ",
+    "u": "u",
+    "ua": "u a",
+    "uo": "u ɔ",
+    "uai": "u a i",
+    "uei": "u e i",
+    "uan": "u a n",
+    "uen": "u ə n",
+    "uang": "u a ŋ",
+    "ong": "u ŋ",
+    "ueng": "u ə ŋ",
+    "v": "y",
+    "ve": "y ɛ",
+    "van": "y ɛ n",
+    "vn": "y n",
+}
+SHORT_FINALS = {"iu": "iou", "ui": "uei", "un": "uen"}
 
 
-def syllable_units(base, table):
-    """The IPA units of one pinyin syllable without its tone, or a reason string."""
-    if base in table["skip_syllables"]:
-        return f"table_skip:{base}"
-    # A final r is erhua, such as dianr. er itself is a syllable.
+@lru_cache
+def pinyin_phones(base):
+    # Erhua is represented as the base syllable plus a rhotic suffix. Its effect
+    # on the rhyme varies by accent. Standalone "er" already has a rhotic final.
+    # https://doi.org/10.1515/phon-2022-0036
     if base.endswith("r") and base != "er":
-        return "erhua"
-    initial = next((i for i in ("zh", "ch", "sh") if base.startswith(i)), "")
-    if base[:1] in "yw":
-        rest = base[1:]
-        if base[0] == "y":
-            # yu is ü, yi is i, and every other y is i before the final.
-            rest = (
-                "v" + rest[1:]
-                if rest[:1] == "u"
-                else rest if rest[:1] == "i" else "i" + rest
-            )
-        elif rest[:1] != "u":
-            rest = "u" + rest
-        final = rest
-    else:
-        initial = initial or (base[:1] if base[:1] in table["initials"] else "")
+        return (*pinyin_phones(base[:-1]), "ɹ")
+    if base == "yo":
+        return ("j", "o")
+
+    initial = base[:2] if base[:2] in ("zh", "ch", "sh") else base[:1]
+    if initial in INITIALS:
         final = base[len(initial) :]
-        # ü is written u after j, q and x. AISHELL-3 writes ü as v.
-        if initial in ("j", "q", "x") and final[:1] == "u":
-            final = "v" + final[1:]
-    if final == "i" and initial in ("z", "c", "s", "zh", "ch", "sh", "r"):
-        kind = "dental" if initial in ("z", "c", "s") else "retroflex"
-        return [table["initials"][initial]["ipa"]] + table["apical"][kind]["units"]
-    if final not in table["finals"]:
-        return f"unknown_syllable:{base}"
-    onset = [table["initials"][initial]["ipa"]] if initial else []
-    return onset + table["finals"][final]["units"]
+    else:
+        initial, final = "", base
+    if initial in ("j", "q", "x"):
+        final = final.replace("u", "v", 1) if final.startswith("u") else final
+    elif final.startswith("yu"):
+        final = "v" + final[2:]
+    elif final.startswith("y"):
+        final = final[1:] if final.startswith("yi") else "i" + final[1:]
+    elif final.startswith("w"):
+        final = final[1:] if final.startswith("wu") else "u" + final[1:]
+    final = SHORT_FINALS.get(final, final)
+
+    # The unrounded nucleus in zi/ci/si and zhi/chi/shi/ri is syllabic.
+    # https://doi.org/10.1017/S0025100303001208
+    if final == "i" and initial in ("z", "c", "s"):
+        rhyme = "ɹ̩"
+    elif final == "i" and initial in ("zh", "ch", "sh", "r"):
+        rhyme = "ɻ̩"
+    elif final == "o" and initial in ("b", "p", "m", "f"):
+        rhyme = FINALS["uo"]
+    else:
+        rhyme = FINALS[final]
+    onset = (INITIALS[initial],) if initial else ()
+    return (*onset, *rhyme.split())
 
 
-def pinyin_to_ipa(syllables, tones, table):
-    """(IPA string, list of IPA units) of a list of pinyin syllables, or a reason."""
-    units, last_full = [], None
-    for syllable in syllables:
-        if not SYLLABLE.fullmatch(syllable):
-            return f"bad_syllable:{syllable}"
-        base, tone = syllable[:-1], syllable[-1]
-        part = syllable_units(base, table)
-        if isinstance(part, str):
-            return part
-        units += part
-        if tones == "letters":
-            letter = table["tones"].get(tone)
-            if letter is None:
-                # The neutral tone takes its pitch from the last full tone before it.
-                key = f"neutral_after_{last_full}" if last_full else "neutral_start"
-                letter = table["tones"][key]
-            units.append(letter)
-        if tone != "5":
-            last_full = tone
-    return "".join(units), units
+def read_content(path):
+    """Read the utterance IDs and alternating characters and pinyin from content.txt."""
+    utterances = {}
+    with path.open(encoding="utf-8") as file:
+        for number, line in enumerate(file, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            name, _, annotation = line.partition("\t")
+            tokens = annotation.split()
+            if not name.endswith(".wav") or not tokens or len(tokens) % 2:
+                raise ValueError(f"Invalid AISHELL-3 transcript at {path}:{number}")
+            stem = name[:-4]
+            if stem in utterances:
+                raise ValueError(f"Duplicate utterance {stem} at {path}:{number}")
+            utterances[stem] = ("".join(tokens[::2]), tokens[1::2])
+    return utterances
 
 
-def read_content(folder):
-    """(file stem, characters, pinyin syllables) of each line of one content.txt."""
-    path = os.path.join(DATA_DIR, folder, "content.txt")
-    try:
-        with open(path, encoding="utf-8", newline="") as f:
-            text = f.read()
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"{path} not found. {FIX}") from e
-    lines = []
-    # The file has Windows line endings, and 11 lines end with a space.
-    for line in re.split(r"\r?\n", text):
-        if not line.strip():
-            continue
-        name, sep, rest = line.strip().partition("\t")
-        tokens = rest.split()
-        if not (sep and name.endswith(".wav")) or len(tokens) % 2 or len(tokens) == 0:
-            raise ValueError(f"Cannot read the line {line!r} of {path}. {FIX}")
-        lines.append((name[:-4], "".join(tokens[0::2]), tokens[1::2]))
-    return lines
+def read_speakers(path):
+    speakers = {}
+    with path.open(encoding="utf-8") as file:
+        for line in file:
+            line = line.strip()
+            if line and not line.startswith("#"):
+                speaker, age, gender, accent = (
+                    field.strip() for field in line.split("\t")
+                )
+                speakers[speaker] = (age, gender, accent)
+    return speakers
 
 
-def read_speakers():
-    """The (age group, gender, accent) of each speaker, from spk-info.txt."""
-    path = os.path.join(DATA_DIR, "spk-info.txt")
-    try:
-        with open(path, encoding="utf-8") as f:
-            rows = [
-                r.split("\t")
-                for r in f.read().splitlines()
-                if r.strip()[:1] != "#" and r.strip()
-            ]
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"{path} not found. {FIX}") from e
-    if any(len(r) != 4 for r in rows):
-        raise ValueError(f"A line of {path} does not have 4 fields. {FIX}")
-    # One gender is written "female " with a space.
-    return {r[0]: tuple(x.strip() for x in r[1:]) for r in rows}
-
-
-def wav_is_whole(data):
-    """True if the data chunk of a WAV ends within the file."""
-    if data[:4] != b"RIFF" or data[8:12] != b"WAVE":
-        return False
-    pos = 12
-    while pos + 8 <= len(data):
-        size = int.from_bytes(data[pos + 4 : pos + 8], "little")
-        if data[pos : pos + 4] == b"data":
-            # Chunks after the data are allowed. A data chunk that runs past the end is not.
-            return pos + 8 + size <= len(data)
-        pos += 8 + size + (size & 1)
-    return False
-
-
-def read_wav(path):
-    """A WAV file as int16 at 16 kHz."""
-    try:
-        with open(path, "rb") as f:
-            data = f.read()
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"{path} not found. {FIX}") from e
-    # soundfile returns a short clip from a cut file with no error. The size of the data chunk
-    # gives such a file away. The RIFF size field is not used, since some files have a wrong one.
-    if not wav_is_whole(data):
-        raise ValueError(f"The WAV file {path} is cut short or is not a WAV. {FIX}")
-    try:
-        with soundfile.SoundFile(io.BytesIO(data)) as f:
-            if f.channels != 1 or f.subtype != "PCM_16":
-                raise ValueError(f"The WAV file {path} is not mono 16 bit PCM. {FIX}")
-            audio, rate = f.read(dtype="int16"), f.samplerate
-    except soundfile.SoundFileError as e:
-        raise ValueError(f"Cannot decode the WAV file {path}. {e}. {FIX}") from e
-    if len(audio) == 0:
-        raise ValueError(f"The WAV file {path} has no samples. {FIX}")
-    return audio_resample(audio, rate, TARGET_SAMPLE_RATE)
+def read_audio(path):
+    with wave.open(str(path), "rb") as wav:
+        if (wav.getnchannels(), wav.getsampwidth()) != (1, 2):
+            raise ValueError(f"Expected mono 16-bit PCM in {path}")
+        frames, rate = wav.getnframes(), wav.getframerate()
+        data = wav.readframes(frames)
+    # The WAV data chunk declares the frame count. The outer RIFF size in many
+    # AISHELL-3 files overstates the file size.
+    if not frames or len(data) != frames * 2:
+        raise ValueError(f"Empty or truncated audio in {path}")
+    return audio_resample(np.frombuffer(data, dtype="<i2"), rate, TARGET_SAMPLE_RATE)
 
 
 class AISHELL3Dataset(BaseDataset):
-    """
-    Valid splits are "train" and "test", the two folders of the archive, "all", which is
-    train then test, and "test_new_speakers", the test utterances of speakers that never
-    speak in train. The archive's test folder is not speaker disjoint from train, 170 of
-    its 214 speakers are in train too. Items are in file name order within a split, and
-    no split uses randomness.
+    """Read the archive's train/test folders, or both with split="all".
 
-    The IPA comes from the pinyin of content.txt and the table in aishell3_pinyin_ipa.json.
-    tones="none" leaves the tones out, as the evaluation does. tones="letters" writes Chao
-    tone letters after each syllable. An utterance with erhua, such as dianr, or with a
-    syllable the table does not know is skipped and counted in self.skipped.
-    There are no timestamps, because the archive has no phone times. The text is the
-    characters of content.txt, and raw_label of the speaker info is the pinyin with tones.
+    The official test folder shares speakers with train. Use "test_new_speakers"
+    to evaluate on the 44 test speakers absent from train. Set tones="letters"
+    to include Chao letters for the four full tones. Neutral tones are unmarked
+    in IPA and kept as tone 5 in the original pinyin in speaker metadata's raw_label.
     """
 
     def __init__(
@@ -205,81 +201,82 @@ class AISHELL3Dataset(BaseDataset):
         include_speaker_info=False,
         include_text=False,
         tones="none",
+        *,
+        data_dir=DATA_DIR,
     ):
         super().__init__(split, include_timestamps, include_speaker_info, include_text)
         if split not in SPLITS:
-            raise ValueError(f"Unknown split {split}. Valid splits are {SPLITS}")
-        if tones not in TONES:
-            raise ValueError(f"Unknown tones {tones}. Valid values are {TONES}")
+            raise ValueError(
+                f"Unknown AISHELL-3 split {split!r}. Expected one of {SPLITS}"
+            )
+        if tones not in ("none", "letters"):
+            raise ValueError(
+                f"Unknown tones mode {tones!r}. Expected 'none' or 'letters'"
+            )
         if include_timestamps:
-            raise ValueError("Timestamps are not available for AISHELL-3, it has none.")
-        with open(TABLE, encoding="utf-8") as f:
-            table = json.load(f)
-        self.tones, self.speakers = tones, read_speakers()
-        self.items, self.skipped = [], {}
-        parts = {"all": FOLDERS, "test_new_speakers": ("test",)}.get(split, (split,))
-        content = {part: read_content(part) for part in parts}
-        if split == "test_new_speakers":
-            train = {stem[:7] for stem, _, _ in read_content("train")}
-            content["test"] = [x for x in content["test"] if x[0][:7] not in train]
-        seen = set()
-        for part in parts:
-            on_disk = {}
-            for stem, characters, syllables in sorted(content[part]):
-                speaker = stem[:7]
-                if speaker not in on_disk:
-                    folder = os.path.join(DATA_DIR, part, "wav", speaker)
-                    if not os.path.isdir(folder):
-                        raise ValueError(f"{folder} not found. {FIX}")
-                    on_disk[speaker] = set(os.listdir(folder))
-                if f"{stem}.wav" not in on_disk[speaker]:
-                    wav = os.path.join(DATA_DIR, part, "wav", speaker, f"{stem}.wav")
-                    raise ValueError(f"{wav} not found. {FIX}")
-                if (part, stem) in seen:
-                    raise ValueError(
-                        f"{stem} is twice in the content.txt of {part}. {FIX}"
-                    )
-                seen.add((part, stem))
-                if speaker not in self.speakers:
-                    raise ValueError(f"Speaker {speaker} is not in spk-info.txt. {FIX}")
-                result = pinyin_to_ipa(syllables, tones, table)
-                if isinstance(result, str):
-                    self.skipped[result] = self.skipped.get(result, 0) + 1
-                    continue
-                self.items.append(
-                    {
-                        "ipa": result[0],
-                        "units": result[1],
-                        "split": part,
-                        "stem": stem,
-                        "text": characters,
-                        "pinyin": " ".join(syllables),
-                    }
-                )
-        self.vocab = {u for item in self.items for u in item["units"]}
-        for item in self.items:
-            del item["units"]
-        skipped = ", ".join(f"{k} {v}" for k, v in sorted(self.skipped.items()))
-        print(
-            f"AISHELL-3 {split}: {len(self.items)} items, skipped {skipped or 'none'}"
+            raise ValueError("AISHELL-3 does not provide phone timestamps")
+
+        self.data_dir = Path(data_dir)
+        self.speakers = (
+            read_speakers(self.data_dir / "spk-info.txt")
+            if include_speaker_info
+            else None
         )
+        self.items = []
+        self.vocab = set()
+        self.skipped = Counter()
+
+        folders = ("train", "test") if split == "all" else (split,)
+        train_speakers = set()
+        if split == "test_new_speakers":
+            train = read_content(self.data_dir / "train" / "content.txt")
+            train_speakers = {stem[:7] for stem in train}
+            folders = ("test",)
+
+        for folder in folders:
+            content = read_content(self.data_dir / folder / "content.txt")
+            for stem, (text, pinyin) in sorted(content.items()):
+                if stem[:7] in train_speakers:
+                    continue
+                phones = []
+                for syllable in pinyin:
+                    match = SYLLABLE.fullmatch(syllable)
+                    if match is None:
+                        self.skipped[syllable] += 1
+                        break
+                    base, tone = match.groups()
+                    try:
+                        phones.extend(pinyin_phones(base))
+                    except KeyError:
+                        self.skipped[syllable] += 1
+                        break
+                    if tones == "letters" and (letter := TONE2IPA["cmn"][tone]):
+                        phones.append(letter)
+                else:
+                    self.vocab.update(phones)
+                    self.items.append(
+                        (folder, stem, "".join(phones), text, " ".join(pinyin))
+                    )
+
+        if self.skipped:
+            print(
+                f"AISHELL-3 {split}: skipped utterances with unsupported pinyin {dict(self.skipped)}"
+            )
 
     def __len__(self):
         return len(self.items)
 
     def _get_ix(self, ix):
-        item = self.items[ix]
-        speaker = item["stem"][:7]
-        wav = os.path.join(
-            DATA_DIR, item["split"], "wav", speaker, item["stem"] + ".wav"
-        )
-        outputs = [item["ipa"], read_wav(wav)]
+        folder, stem, ipa, text, pinyin = self.items[ix]
+        speaker = stem[:7]
+        path = self.data_dir / folder / "wav" / speaker / f"{stem}.wav"
+        outputs = [ipa, read_audio(path)]
         if self.include_speaker_info:
             age, gender, accent = self.speakers[speaker]
             outputs.append(
                 {
-                    "id": item["stem"],
-                    "split": item["split"],
+                    "id": stem,
+                    "split": folder,
                     "speaker": speaker,
                     "age_group": age,
                     "gender": gender,
@@ -288,11 +285,11 @@ class AISHELL3Dataset(BaseDataset):
                     "language_code": "cmn",
                     "glottocode": "mand1415",
                     "source": SITE,
-                    "raw_label": item["pinyin"],
+                    "raw_label": pinyin,
                 }
             )
         if self.include_text:
-            outputs.append(item["text"])
+            outputs.append(text)
         return tuple(outputs)
 
 
